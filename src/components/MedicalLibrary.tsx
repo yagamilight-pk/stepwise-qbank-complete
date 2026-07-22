@@ -1,16 +1,26 @@
-"use client";
-
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowRight, BookOpenCheck, Bookmark, BookmarkCheck, BrainCircuit, Check, ChevronRight,
-  Clock3, Filter, GraduationCap, Layers3, LibraryBig, Search, Sparkles, Stethoscope, Target
+  ArrowRight, BookOpen, BookOpenCheck, Bookmark, BookmarkCheck, Brain, Check, ChevronRight,
+  Clock3, Filter, GraduationCap, Heart, Layers3, LibraryBig, Search, ShieldCheck, Siren,
+  Stethoscope, Target, UserCheck, Wind
 } from "lucide-react";
 import { medicalArticles, librarySystems } from "@/lib/library";
 import { rankLibraryArticles, systemPerformance } from "@/lib/algorithms";
 import { useStepwise } from "@/lib/store";
 import type { Step } from "@/lib/types";
 import { Badge, Donut, EmptyState, PageHeader, Progress, Toast, uid } from "./ui";
+
+function renderSystemIcon(systemName: string, size = 18) {
+  const normalized = systemName.toLowerCase();
+  if (normalized.includes("cardio")) return <Heart size={size}/>;
+  if (normalized.includes("pulmo")) return <Wind size={size}/>;
+  if (normalized.includes("neuro")) return <Brain size={size}/>;
+  if (normalized.includes("psych")) return <UserCheck size={size}/>;
+  if (normalized.includes("prof") || normalized.includes("ethics")) return <ShieldCheck size={size}/>;
+  if (normalized.includes("emerg")) return <Siren size={size}/>;
+  return <Stethoscope size={size}/>;
+}
 
 export function MedicalLibraryPage() {
   const { state, dispatch } = useStepwise();
@@ -37,7 +47,6 @@ export function MedicalLibraryPage() {
     setToast(message);
     window.setTimeout(() => setToast(""), 1800);
   };
-
 
   const openArticle = (articleId: string) => {
     setSelectedId(articleId);
@@ -111,28 +120,28 @@ export function MedicalLibraryPage() {
           setSystem("All");
           setStep("All");
           showToast("Library filters cleared");
-        }}><Filter/> Clear filters</button>
-        <button className="btn btn-brand" onClick={buildRelatedBlock}><Target/> Practice this topic</button>
+        }}><Filter size={16}/> Clear filters</button>
+        <button className="btn btn-brand" onClick={buildRelatedBlock}><Target size={16}/> Practice this topic</button>
       </>}
     />
 
     <section className="library-overview-grid">
       <article className="panel library-welcome">
-        <span className="library-welcome-icon"><LibraryBig/></span>
+        <span className="library-welcome-icon"><LibraryBig size={24}/></span>
         <div>
-          <div className="card-kicker"><Sparkles/> Personalized reference</div>
+          <div className="card-kicker"><BookOpen size={14}/> High-Yield Clinical Reference</div>
           <h2>Read less. Connect more.</h2>
           <p>Search concise, original learning articles and immediately turn the concept into questions, notes, or flashcards.</p>
         </div>
       </article>
       <article className="panel library-metric"><Donut value={Math.round(completedCount / medicalArticles.length * 100)} size={92} detail="complete"/><div><span>Library progress</span><b>{completedCount} of {medicalArticles.length}</b><small>{state.savedArticles.length} saved articles</small></div></article>
-      <article className="panel library-metric"><span className="metric-icon"><BrainCircuit/></span><div><span>Recommended system</span><b>{performance[0]?.system ?? "Cardiovascular"}</b><small>{performance[0]?.mastery ?? 50}% current mastery</small></div></article>
+      <article className="panel library-metric"><span className="metric-icon"><Target size={20}/></span><div><span>Recommended system</span><b>{performance[0]?.system ?? "Cardiovascular"}</b><small>{performance[0]?.mastery ?? 50}% current mastery</small></div></article>
     </section>
 
     <section className="medical-library-shell">
       <aside className="panel medical-library-index">
         <div className="library-search">
-          <Search/>
+          <Search size={16}/>
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search disease, drug, finding…"/>
         </div>
         <div className="library-filter-row">
@@ -151,16 +160,16 @@ export function MedicalLibraryPage() {
           {ranked.map((article) => {
             const articleActivity = state.libraryActivity.find((item) => item.articleId === article.id);
             return <button key={article.id} className={selected.id === article.id ? "active" : ""} onClick={() => openArticle(article.id)}>
-              <span className="article-list-icon">{articleActivity?.completed ? <Check/> : <Stethoscope/>}</span>
+              <span className="article-list-icon">{articleActivity?.completed ? <Check size={16}/> : renderSystemIcon(article.system, 16)}</span>
               <span>
                 <b>{article.title}</b>
                 <small>{article.system} · {article.readingMinutes} min</small>
                 {articleActivity && <Progress value={articleActivity.progress} size="sm"/>}
               </span>
-              {state.savedArticles.includes(article.id) ? <BookmarkCheck/> : <ChevronRight/>}
+              {state.savedArticles.includes(article.id) ? <BookmarkCheck size={16}/> : <ChevronRight size={16}/>}
             </button>;
           })}
-          {!ranked.length && <EmptyState icon={<Search/>} title="No matching article" description="Try a broader term or clear one of the filters."/>}
+          {!ranked.length && <EmptyState icon={<Search size={24}/>} title="No matching article" description="Try a broader term or clear one of the filters."/>}
         </div>
       </aside>
 
@@ -175,17 +184,17 @@ export function MedicalLibraryPage() {
             <h1>{selected.title}</h1>
             <p>{selected.summary}</p>
             <div className="article-meta">
-              <span><Clock3/> {selected.readingMinutes} min</span>
-              <span><GraduationCap/> {selected.category}</span>
-              <span><BookOpenCheck/> Updated {new Date(`${selected.updatedAt}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+              <span><Clock3 size={14}/> {selected.readingMinutes} min read</span>
+              <span><GraduationCap size={14}/> {selected.category}</span>
+              <span><BookOpenCheck size={14}/> Updated {new Date(`${selected.updatedAt}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
             </div>
           </div>
           <div className="article-actions">
             <button className={`btn btn-secondary ${saved ? "active" : ""}`} onClick={() => {
               dispatch({ type: "TOGGLE_SAVED_ARTICLE", articleId: selected.id });
               showToast(saved ? "Removed from saved articles" : "Article saved");
-            }}>{saved ? <BookmarkCheck/> : <Bookmark/>}{saved ? "Saved" : "Save"}</button>
-            <button className="btn btn-secondary" onClick={createCard}><Layers3/> Make flashcard</button>
+            }}>{saved ? <BookmarkCheck size={16}/> : <Bookmark size={16}/>}{saved ? "Saved" : "Save"}</button>
+            <button className="btn btn-secondary" onClick={createCard}><Layers3 size={16}/> Make flashcard</button>
             <button className="btn btn-brand" onClick={toggleComplete}>{activity?.completed ? "Reopen article" : "Mark complete"}</button>
           </div>
         </header>
@@ -208,23 +217,23 @@ export function MedicalLibraryPage() {
               <span className="article-section-number">{String(sectionIndex + 1).padStart(2, "0")}</span>
               <h2>{section.title}</h2>
               <p>{section.body}</p>
-              {section.callout && <aside className="clinical-callout"><Sparkles/><div><b>High-yield connection</b><p>{section.callout}</p></div></aside>}
-              {section.bullets && <ul>{section.bullets.map((bullet) => <li key={bullet}><Check/>{bullet}</li>)}</ul>}
+              {section.callout && <aside className="clinical-callout">{renderSystemIcon(selected.system, 18)}<div><b>High-yield connection</b><p>{section.callout}</p></div></aside>}
+              {section.bullets && <ul>{section.bullets.map((bullet) => <li key={bullet}><Check size={14}/>{bullet}</li>)}</ul>}
               {section.table && <div className="responsive-table article-table"><table><thead><tr>{section.table.headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{section.table.rows.map((row, rowIndex) => <tr key={`${section.id}-${rowIndex}`}>{row.map((cell, cellIndex) => <td key={`${cell}-${cellIndex}`}>{cell}</td>)}</tr>)}</tbody></table></div>}
             </section>)}
           </div>
 
           <aside className="article-connection-panel">
             <div className="connection-visual" aria-hidden="true">
-              <span><Stethoscope/></span><i/><span><BrainCircuit/></span><i/><span><Target/></span>
+              <span>{renderSystemIcon(selected.system, 18)}</span><i/><span><Target size={18}/></span>
             </div>
             <h3>Close the loop</h3>
             <p>This article is linked to {selected.relatedQuestionIds.length || 1} seeded questions and your {selected.system} mastery signal.</p>
-            <button className="btn btn-brand btn-block" onClick={buildRelatedBlock}>Start related questions <ArrowRight/></button>
+            <button className="btn btn-brand btn-block" onClick={buildRelatedBlock}>Start related questions <ArrowRight size={16}/></button>
             <button className="btn btn-secondary btn-block" onClick={createCard}>Create recall card</button>
           </aside>
         </div>
-      </article> : <article className="panel medical-article medical-article-empty"><EmptyState icon={<Search/>} title="No article selected" description="Clear the filters or search for a broader clinical concept."/><button className="btn btn-secondary" onClick={() => { setQuery(""); setSystem("All"); setStep("All"); }}>Reset library filters</button></article>}
+      </article> : <article className="panel medical-article medical-article-empty"><EmptyState icon={<Search size={24}/>} title="No article selected" description="Clear the filters or search for a broader clinical concept."/><button className="btn btn-secondary" onClick={() => { setQuery(""); setSystem("All"); setStep("All"); }}>Reset library filters</button></article>}
     </section>
     <Toast message={toast} visible={Boolean(toast)}/>
   </>;

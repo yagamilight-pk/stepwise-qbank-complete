@@ -9,7 +9,13 @@ import { DemoPage } from "./Demo";
 
 export default function StepwiseApp() {
   const pathname = usePathname();
-  if (pathname === "/") return <MarketingPage/>;
+  const hostname = typeof window !== "undefined" ? window.location.hostname : "";
+
+  if (pathname === "/") {
+    if (hostname.startsWith("app.")) return <LearnerShell/>;
+    if (hostname.startsWith("admin.")) return <AdminShell/>;
+    return <MarketingPage/>;
+  }
   if (pathname === "/try") return <DemoPage/>;
   if (pathname === "/login") return <AuthPage mode="login"/>;
   if (pathname === "/signup") return <AuthPage mode="signup"/>;

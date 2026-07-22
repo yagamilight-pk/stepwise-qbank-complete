@@ -246,8 +246,59 @@ function StudyPlanPage() {
   };
   return <>
     <PageHeader title="Study plan" description="A dynamic schedule that balances weak areas, mixed retrieval, review, and exam pacing." actions={<><div className="view-toggle"><button className={view==="timeline"?"active":""} onClick={()=>setView("timeline")}><Activity/> Timeline</button><button className={view==="calendar"?"active":""} onClick={()=>setView("calendar")}><Calendar/> Calendar</button></div><button className="btn btn-secondary" onClick={()=>setEditOpen(true)}><SlidersHorizontal/> Edit plan</button></>}/>
-    <section className="plan-summary panel"><div className="plan-goal"><div className="plan-goal-icon"><Target/></div><div><span>Target</span><h2>{settings.targetStep} · {settings.targetScore}</h2><p>{formatDate(settings.examDate,{month:"long",day:"numeric",year:"numeric"})}</p></div></div><div className="plan-metrics"><div><span>Days remaining</span><b>{examDays}</b></div><div><span>Study days / week</span><b>{settings.weeklyDays.length}</b></div><div><span>Plan completion</span><b>{Math.round((completed/Math.max(state.studyTasks.length,1))*100)}%</b></div><div><span>Planned this week</span><b>{(plannedWeekMinutes/60).toFixed(1)} hr</b></div></div><div className="plan-track"><Progress value={Math.round((completed/Math.max(state.studyTasks.length,1))*100)}/><span>Plan automatically rebalances after every completed session.</span></div></section>
-    {view==="timeline"?<section className="plan-layout"><div className="timeline">{dates.map((date)=><div key={date} className={`timeline-day ${date==="2026-07-22"?"today":""}`}><aside><span>{new Date(`${date}T12:00:00`).toLocaleDateString("en-US",{weekday:"short"})}</span><b>{new Date(`${date}T12:00:00`).getDate()}</b><i/></aside><div><header><h3>{date==="2026-07-22"?"Today":formatDate(date,{weekday:"long",month:"long",day:"numeric"})}</h3><span>{grouped[date].reduce((sum,task)=>sum+task.minutes,0)} min</span></header>{grouped[date].map(task=><article key={task.id} className={task.completed?"completed":""}><button onClick={()=>dispatch({type:"TOGGLE_TASK",id:task.id})}>{task.completed?<Check/>:<span/>}</button><i className={`plan-task-icon ${task.type.toLowerCase()}`}>{task.type==="Questions"?<BookOpen/>:task.type==="Flashcards"?<Layers3/>:task.type==="Assessment"?<Trophy/>:<BookCheck/>}</i><div><Badge tone={task.priority==="Weakness"?"warning":task.priority==="Core"?"brand":"neutral"}>{task.priority}</Badge><h4>{task.title}</h4><p>{task.detail}</p></div><span><Clock3/> {task.minutes} min</span><button onClick={()=>dispatch({type:"TOGGLE_TASK",id:task.id})} aria-label={`Toggle ${task.title}`}><MoreHorizontal/></button></article>)}</div></div>)}</div><aside className="plan-sidebar"><article className="panel"><div className="card-kicker"><BrainCircuit/> Plan intelligence</div><h2>Why this week looks different</h2><p>The schedule allocates more retrieval time to low-mastery systems and preserves lighter maintenance for stable systems.</p><ul><li><span className="dot danger"/><div><b>{weakest?.system ?? "Mixed systems"} priority</b><small>{weakest?.attempts?`${weakest.mastery}% mastery signal`:`Not started · coverage priority`}</small></div></li><li><span className="dot success"/><div><b>{strongest?.system ?? "Mixed recall"} maintenance</b><small>{strongest?`${strongest.mastery}% mastery signal`:"Build more history to identify strength"}</small></div></li><li><span className="dot info"/><div><b>{highConfidenceMisses} calibration review{highConfidenceMisses===1?"":"s"}</b><small>High-confidence errors receive extra review weight</small></div></li></ul></article><article className="panel exam-countdown"><small>NEXT MILESTONE</small><h3>{nextAssessment?.title ?? "Readiness assessment"}</h3><p>{nextAssessment?`${formatDate(nextAssessment.date,{weekday:"long",month:"long",day:"numeric"})} · ${nextAssessment.detail}`:"Create an assessment from the QBank"}</p><div><span>{nextAssessment?Math.max(0,Math.ceil((new Date(`${nextAssessment.date}T12:00:00`).getTime()-new Date("2026-07-22T12:00:00").getTime())/86400000)):examDays}</span><small>days away</small></div><button className="btn btn-secondary btn-block" onClick={startAssessment}>Start assessment</button></article></aside></section>:<CalendarView tasks={state.studyTasks}/>} 
+    <section className="plan-summary panel">
+      <div className="plan-goal">
+        <div className="plan-goal-icon"><Target/></div>
+        <div><span>Target Exam</span><h2>{settings.targetStep} · Goal {settings.targetScore}</h2><p>{formatDate(settings.examDate,{month:"long",day:"numeric",year:"numeric"})}</p></div>
+      </div>
+      <div className="plan-metrics">
+        <div><span>Days remaining</span><b>{examDays}</b></div>
+        <div><span>Study days / week</span><b>{settings.weeklyDays.length}</b></div>
+        <div><span>Plan completion</span><b>{Math.round((completed/Math.max(state.studyTasks.length,1))*100)}%</b></div>
+        <div><span>Planned this week</span><b>{(plannedWeekMinutes/60).toFixed(1)} hr</b></div>
+      </div>
+      <div className="plan-track">
+        <Progress value={Math.round((completed/Math.max(state.studyTasks.length,1))*100)}/>
+        <span>Plan automatically rebalances after every completed session.</span>
+      </div>
+    </section>
+    {view==="timeline"?<section className="plan-layout"><div className="timeline">{dates.map((date)=>{
+      const dateObj = new Date(`${date}T12:00:00`);
+      const dayName = dateObj.toLocaleDateString("en-US",{weekday:"short"});
+      const dayNum = dateObj.getDate();
+      return <div key={date} className={`timeline-day ${date==="2026-07-22"?"today":""}`}>
+        <aside className="timeline-day-date"><span>{dayName}</span><b>{dayNum}</b></aside>
+        <div>
+          <header><h3>{date==="2026-07-22"?"Today":formatDate(date,{weekday:"long",month:"long",day:"numeric"})}</h3><span>{grouped[date].reduce((sum,task)=>sum+task.minutes,0)} min</span></header>
+          {grouped[date].map(task=><article key={task.id} className={task.completed?"completed":""}>
+            <button className="task-checkbox" onClick={()=>dispatch({type:"TOGGLE_TASK",id:task.id})} aria-label={`Mark ${task.title} ${task.completed?"incomplete":"complete"}`}>{task.completed?<Check/>:<span/>}</button>
+            <i className={`plan-task-icon ${task.type.toLowerCase()}`}>{task.type==="Questions"?<BookOpen/>:task.type==="Flashcards"?<Layers3/>:task.type==="Assessment"?<Trophy/>:<BookCheck/>}</i>
+            <div className="task-copy"><Badge tone={task.priority==="Weakness"?"warning":task.priority==="Core"?"brand":"neutral"}>{task.priority}</Badge><h4>{task.title}</h4><p>{task.detail}</p></div>
+            <span className="task-time"><Clock3/> {task.minutes} min</span>
+            <button className="task-menu-btn" onClick={()=>dispatch({type:"TOGGLE_TASK",id:task.id})} aria-label={`Toggle ${task.title}`}><MoreHorizontal/></button>
+          </article>)}
+        </div>
+      </div>;
+    })}</div>
+    <aside className="plan-sidebar">
+      <article className="panel">
+        <div className="card-kicker"><BrainCircuit/> Plan intelligence</div>
+        <h2>Why this week looks different</h2>
+        <p>The schedule allocates more retrieval time to low-mastery systems and preserves lighter maintenance for stable systems.</p>
+        <ul className="plan-intelligence-list">
+          <li><span className="dot danger"/><div><b className="intel-title">{weakest?.system ?? "Mixed systems"} priority</b><small className="intel-detail">{weakest?.attempts?`${weakest.mastery}% mastery signal`:`Not started · coverage priority`}</small></div></li>
+          <li><span className="dot success"/><div><b className="intel-title">{strongest?.system ?? "Mixed recall"} maintenance</b><small className="intel-detail">{strongest?`${strongest.mastery}% mastery signal`:"Build more history to identify strength"}</small></div></li>
+          <li><span className="dot info"/><div><b className="intel-title">{highConfidenceMisses} calibration review{highConfidenceMisses===1?"":"s"}</b><small className="intel-detail">High-confidence errors receive extra review weight</small></div></li>
+        </ul>
+      </article>
+      <article className="panel exam-countdown">
+        <small>NEXT MILESTONE</small>
+        <h3>{nextAssessment?.title ?? "Readiness assessment"}</h3>
+        <p>{nextAssessment?`${formatDate(nextAssessment.date,{weekday:"long",month:"long",day:"numeric"})} · ${nextAssessment.detail}`:"Create an assessment from the QBank"}</p>
+        <div><span>{nextAssessment?Math.max(0,Math.ceil((new Date(`${nextAssessment.date}T12:00:00`).getTime()-new Date("2026-07-22T12:00:00").getTime())/86400000)):examDays}</span><small>days away</small></div>
+        <button className="btn btn-secondary btn-block" onClick={startAssessment}>Start assessment</button>
+      </article>
+    </aside></section>:<CalendarView tasks={state.studyTasks}/>} 
     <Modal open={editOpen} onClose={()=>setEditOpen(false)} title="Edit study plan" description="The algorithm will rebuild future tasks around these constraints."><div className="plan-form"><Field label="Target exam"><select value={settings.targetStep} onChange={e=>setSettings({...settings,targetStep:e.target.value as Step})}><option>Step 1</option><option>Step 2 CK</option></select></Field><div className="form-grid-2"><Field label="Exam date"><input type="date" value={settings.examDate} onChange={e=>setSettings({...settings,examDate:e.target.value})}/></Field><Field label="Target score"><input type="number" value={settings.targetScore} onChange={e=>setSettings({...settings,targetScore:Number(e.target.value)})}/></Field></div><Field label="Available study days"><div className="day-picker compact">{["S","M","T","W","T","F","S"].map((day,index)=><button type="button" key={`${day}-${index}`} className={settings.weeklyDays.includes(index)?"active":""} onClick={()=>setSettings({...settings,weeklyDays:settings.weeklyDays.includes(index)?settings.weeklyDays.filter(d=>d!==index):[...settings.weeklyDays,index]})}>{day}</button>)}</div></Field><div className="form-grid-2"><Field label="Weekday minutes"><input type="number" min="20" value={settings.weekdayMinutes} onChange={e=>setSettings({...settings,weekdayMinutes:Number(e.target.value)})}/></Field><Field label="Weekend minutes"><input type="number" min="20" value={settings.weekendMinutes} onChange={e=>setSettings({...settings,weekendMinutes:Number(e.target.value)})}/></Field></div><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setEditOpen(false)}>Cancel</button><button className="btn btn-brand" onClick={save}><RefreshCw/> Rebuild plan</button></div></div></Modal>
     <Toast message={toast} visible={Boolean(toast)}/>
   </>;

@@ -211,34 +211,78 @@ export function FlashcardsPage() {
       easy: `${Math.max(5, Math.round(Math.max(current.interval, 1) * current.ease * 1.3))} days`
     };
     return <main className="flashcard-review">
-      <header>
-        <button onClick={() => setView("library")}><ArrowLeft/> End review</button>
-        <div><span>{reviewIndex + 1} of {reviewQueue.length}</span><Progress value={((reviewIndex + 1) / reviewQueue.length) * 100}/></div>
-        <button onClick={() => showToast("Space reveals; 1–4 rates recall")} aria-label="Review keyboard shortcuts"><Settings/></button>
+      <header className="flashcard-review-header">
+        <button className="btn btn-secondary" onClick={() => setView("library")}><ArrowLeft size={16}/> End review</button>
+        <div className="review-progress-wrap">
+          <span>Card {reviewIndex + 1} of {reviewQueue.length}</span>
+          <Progress value={((reviewIndex + 1) / reviewQueue.length) * 100}/>
+        </div>
+        <Badge tone="brand"><Clock3 size={13}/> {dueLabel}</Badge>
       </header>
-      <section>
-        <div className="review-card-meta"><Badge tone="brand">{current.tags[0] || "Review"}</Badge><span><Clock3/> {dueLabel}</span></div>
+      <section className="flashcard-review-workspace">
+        <div className="review-card-meta">
+          <Badge tone="brand">{current.tags[0] || "Review"}</Badge>
+        </div>
         <div
-          className={`review-flashcard ${revealed ? "revealed" : ""}`}
+          className={`flip-card-container ${revealed ? "flipped" : ""}`}
           role="button"
           tabIndex={0}
-          onClick={() => setRevealed(true)}
+          onClick={() => setRevealed(!revealed)}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
-              setRevealed(true);
+              setRevealed(!revealed);
             }
           }}
-          aria-label={revealed ? "Flashcard answer revealed" : "Reveal flashcard answer"}
+          aria-label={revealed ? "Flashcard answer revealed - click to flip back" : "Flashcard prompt - click to reveal answer"}
         >
-          <div className="card-front"><small>PROMPT</small><h1>{current.front}</h1>{!revealed && <span>Click or press space to reveal</span>}</div>
-          {revealed && <div className="card-back"><small>ANSWER</small><p>{current.back}</p>{current.questionId && <button className="source-question-link" onClick={(event) => { event.stopPropagation(); openSourceQuestion(current); }}>Open source question <ArrowRight/></button>}</div>}
+          <div className="flip-card-inner">
+            <div className="flip-card-front panel">
+              <small className="card-face-tag">PROMPT</small>
+              <h2 className="card-prompt-text">{current.front}</h2>
+              <span className="flip-hint-badge">Click or press <kbd>Space</kbd> to reveal answer</span>
+            </div>
+            <div className="flip-card-back panel">
+              <small className="card-face-tag answer-tag">ANSWER & EXPLANATION</small>
+              <div className="card-answer-text">{current.back}</div>
+              {current.questionId && (
+                <button className="source-question-link btn btn-secondary" onClick={(event) => { event.stopPropagation(); openSourceQuestion(current); }}>
+                  Open source question <ArrowRight size={14}/>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-        {revealed
-          ? <div className="review-ratings"><span>How well did you recall it?</span><div>{ratingLabels.map(({ rating, label }) => <button key={rating} onClick={() => rate(rating)} className={rating === "good" ? "good" : ""}><b>{label}</b><small>{intervalPreview[rating]}</small></button>)}</div></div>
-          : <button className="btn btn-brand btn-lg reveal-button" onClick={() => setRevealed(true)}>Show answer</button>}
+
+        {revealed ? (
+          <div className="review-ratings-panel panel">
+            <h3>How well did you recall this concept?</h3>
+            <div className="rating-buttons-grid">
+              {ratingLabels.map(({ rating, label }) => (
+                <button
+                  key={rating}
+                  onClick={() => rate(rating)}
+                  className={`rating-card rating-${rating}`}
+                >
+                  <span className="rating-name">{label}</span>
+                  <span className="rating-time">{intervalPreview[rating]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <button className="btn btn-brand btn-lg reveal-button" onClick={() => setRevealed(true)}>
+            Show answer <ArrowRight size={16}/>
+          </button>
+        )}
       </section>
-      <footer><span><kbd>space</kbd> reveal</span><span><kbd>1–4</kbd> rate</span></footer>
+      <footer className="flashcard-keyboard-hints">
+        <span><kbd>Space</kbd> Flip card</span>
+        <span><kbd>1</kbd> Again</span>
+        <span><kbd>2</kbd> Hard</span>
+        <span><kbd>3</kbd> Good</span>
+        <span><kbd>4</kbd> Easy</span>
+      </footer>
       <Toast message={toast} visible={Boolean(toast)}/>
     </main>;
   }
@@ -250,10 +294,38 @@ export function FlashcardsPage() {
       actions={<><button className="btn btn-secondary" onClick={openCreate}><Plus/> New card</button><button className="btn btn-brand" onClick={startReview} disabled={!state.flashcards.length}><Layers3/> Review {metrics.due || state.flashcards.length} cards</button></>}
     />
     <section className="flashcard-stats stat-grid four">
-      <article className="panel"><span className="stat-icon purple"><Clock3/></span><div><small>Due now</small><b>{metrics.due}</b><p>About {Math.max(1, Math.ceil(metrics.due * 1.2))} min</p></div></article>
-      <article className="panel"><span className="stat-icon blue"><RefreshCw/></span><div><small>Learning</small><b>{metrics.learning}</b><p>Fewer than 2 successful reviews</p></div></article>
-      <article className="panel"><span className="stat-icon green"><Check/></span><div><small>Mature</small><b>{metrics.mature}</b><p>Intervals of 21 days or more</p></div></article>
-      <article className="panel"><span className="stat-icon orange"><BrainCircuit/></span><div><small>Forecast recall</small><b>{metrics.retention}%</b><p>{metrics.streak ? `${metrics.streak}-day review streak` : "Review today to start a streak"}</p></div></article>
+      <article className="panel stat-card flashcard-stat-card">
+        <div className="stat-card-head">
+          <small>Due now</small>
+          <span className="stat-icon purple"><Clock3 size={18}/></span>
+        </div>
+        <div className="stat-value">{metrics.due}</div>
+        <p className="stat-detail">About {Math.max(1, Math.ceil(metrics.due * 1.2))} min</p>
+      </article>
+      <article className="panel stat-card flashcard-stat-card">
+        <div className="stat-card-head">
+          <small>Learning</small>
+          <span className="stat-icon blue"><RefreshCw size={18}/></span>
+        </div>
+        <div className="stat-value">{metrics.learning}</div>
+        <p className="stat-detail">Fewer than 2 successful reviews</p>
+      </article>
+      <article className="panel stat-card flashcard-stat-card">
+        <div className="stat-card-head">
+          <small>Mature</small>
+          <span className="stat-icon green"><Check size={18}/></span>
+        </div>
+        <div className="stat-value">{metrics.mature}</div>
+        <p className="stat-detail">Intervals of 21 days or more</p>
+      </article>
+      <article className="panel stat-card flashcard-stat-card">
+        <div className="stat-card-head">
+          <small>Forecast recall</small>
+          <span className="stat-icon orange"><BrainCircuit size={18}/></span>
+        </div>
+        <div className="stat-value">{metrics.retention}%</div>
+        <p className="stat-detail">{metrics.streak ? `${metrics.streak}-day review streak` : "Review today to start a streak"}</p>
+      </article>
     </section>
     <section className="flashcard-layout">
       <article className="panel flashcard-library">
