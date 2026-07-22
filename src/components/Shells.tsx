@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3, Bell, BookOpen, CalendarDays, CircleHelp,
-  Command, CreditCard, FileStack, Flag, Gauge, Home, Layers3, LayoutDashboard,
+  Command, CreditCard, FileStack, Flag, Gauge, GraduationCap, Home, Layers3, LayoutDashboard,
   LibraryBig, Menu, Moon, NotebookPen, PanelLeftClose, PanelLeftOpen, Search, Settings, ShieldCheck,
   Sparkles, Sun, Users, X
 } from "lucide-react";
@@ -16,7 +16,7 @@ import { AdminPage } from "./Admin";
 
 const learnerNav = [
   { href: "/app", label: "Overview", icon: Home },
-  { href: "/app/qbank", label: "QBank", icon: BookOpen },
+  { href: "/app/qbank", label: "QBank", icon: GraduationCap },
   { href: "/app/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/app/study-plan", label: "Study plan", icon: CalendarDays },
   { href: "/app/flashcards", label: "Flashcards", icon: Layers3 },
