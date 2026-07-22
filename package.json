@@ -1,0 +1,38 @@
+{
+  "name": "stepwise-qbank",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm run build",
+    "verify:source": "node scripts/verify-source.mjs",
+    "audit": "npm run verify:source && npm run lint && npm run typecheck && npm run build",
+    "security:audit": "npm audit --audit-level=moderate"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "next": "16.2.11",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "16.2.11",
+    "typescript": "^5.7.0"
+  },
+  "overrides": {
+    "postcss": "8.5.10",
+    "sharp": "0.35.3"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "packageManager": "npm@11.4.2"
+}

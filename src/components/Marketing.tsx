@@ -1,0 +1,136 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
+import {
+  ArrowRight, BarChart3, BookOpenCheck, BrainCircuit, Check, ChevronDown, Command,
+  FileText, Layers3, Menu, MessageSquareText, ShieldCheck, Sparkles, Star, Target, X, Zap
+} from "lucide-react";
+import { Donut, Logo, Progress, Sparkline } from "./ui";
+
+const faqs = [
+  ["Is Stepwise affiliated with the USMLE program?", "No. Stepwise is an independent learning interface concept. USMLE is a jointly sponsored program of the Federation of State Medical Boards and the National Board of Medical Examiners."],
+  ["Can I switch between Step 1 and Step 2 CK?", "Yes. Your workspace, analytics, study plan, question filters, notes, and flashcards can all be scoped to either exam."],
+  ["How does adaptive mode work?", "The demo algorithm prioritizes unseen items, weak systems, recent overconfidence errors, stale knowledge, and an appropriate difficulty challenge."],
+  ["Does this repository include a backend?", "This deliverable is the requested frontend. It uses typed local persistence so every workflow is interactive without external services. Production authentication, billing, APIs, and protected medical content require a backend."],
+  ["Can the UI be deployed to Vercel?", "Yes. It is a standard Next.js App Router project and includes build, start, lint, and development scripts."],
+];
+
+const features = [
+  { icon: <BrainCircuit/>, title: "Adaptive intelligence", body: "Blocks evolve with your weaknesses, confidence calibration, recency, and difficulty fit—not a generic shuffle.", className: "feature-large feature-purple" },
+  { icon: <Target/>, title: "Exam-faithful sessions", body: "Tutor, timed, exam, and adaptive modes with navigation, strikeout, flags, notes, lab values, and pacing controls.", className: "feature-tall" },
+  { icon: <BarChart3/>, title: "Actionable analytics", body: "See mastery by system, accuracy trends, pacing, coverage, confidence gaps, and a readiness estimate.", className: "feature-blue" },
+  { icon: <Layers3/>, title: "Spaced repetition", body: "Turn explanations into cards and review them through an SM-2-inspired scheduling workflow.", className: "feature-green" },
+  { icon: <FileText/>, title: "Connected notebook", body: "Keep searchable notes linked to the exact question, system, and topic that produced the insight.", className: "feature-sand" },
+  { icon: <ShieldCheck/>, title: "Private study circles", body: "Share aggregate learning signals only after identity, consent, and activity thresholds are satisfied—never individual answer history.", className: "feature-blue" },
+];
+
+export function MarketingPage() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
+  const [openFaq, setOpenFaq] = useState(0);
+
+  return (
+    <main className="marketing-page">
+      <div className="announcement">3-day interactive trial · Up to 100 questions · No card required <span>Try five questions now <ArrowRight size={14}/></span></div>
+      <header className="marketing-nav shell-width">
+        <Logo />
+        <nav className={mobileOpen ? "marketing-links is-open" : "marketing-links"}>
+          <a href="#product">Product</a><a href="#workflow">How it works</a><Link href="/try">Try it</Link><a href="#pricing">Pricing</a><a href="#faq">FAQ</a>
+        </nav>
+        <div className="marketing-actions"><Link className="btn btn-ghost" href="/login">Sign in</Link><Link className="btn btn-dark" href="/signup">Start free <ArrowRight size={16}/></Link></div>
+        <button className="mobile-menu" onClick={() => setMobileOpen((value) => !value)} aria-label="Toggle navigation">{mobileOpen ? <X/> : <Menu/>}</button>
+      </header>
+
+      <section className="hero shell-width">
+        <div className="hero-copy">
+          <div className="pill"><Sparkles size={14}/> An adaptive operating system for exam prep</div>
+          <h1>See why you miss questions.<br/><em>Know what to do next.</em></h1>
+          <p>Stepwise connects exam-style practice to reasoning diagnostics, focused review blocks, and spaced repetition—so every miss becomes a specific correction.</p>
+          <div className="hero-actions"><Link className="btn btn-brand btn-lg" href="/try">Try five questions <ArrowRight size={18}/></Link><Link className="btn btn-secondary btn-lg" href="/app">Explore full workspace</Link></div>
+          <div className="hero-proof"><div className="avatar-stack"><span>AR</span><span>MC</span><span>DB</span><span>+8k</span></div><div><div className="stars"><Star/><Star/><Star/><Star/><Star/></div><small>Designed around focused, deliberate practice</small></div></div>
+        </div>
+        <div className="hero-product" aria-label="Stepwise product preview">
+          <div className="hero-glow"/>
+          <div className="browser-frame">
+            <div className="browser-top"><i/><i/><i/><div>app.stepwise.study</div><Command size={14}/></div>
+            <div className="preview-app">
+              <aside><Logo compact/><div className="preview-nav-item active"><span/><b>Overview</b></div><div className="preview-nav-item"><span/><b>QBank</b></div><div className="preview-nav-item"><span/><b>Analytics</b></div><div className="preview-nav-item"><span/><b>Plan</b></div><div className="preview-profile">AK</div></aside>
+              <section>
+                <div className="preview-head"><div><small>WEDNESDAY, JUL 22</small><h3>Good morning, Alex.</h3></div><span className="preview-demo-action">Start session <ArrowRight size={13}/></span></div>
+                <div className="preview-grid">
+                  <article className="preview-readiness"><div><small>READINESS</small><h4>On track for your goal</h4><p>Your recall is improving fastest in Cardiovascular.</p></div><Donut value={78} size={104} detail="ready"/></article>
+                  <article className="preview-stat"><small>7-DAY ACCURACY</small><strong>76%</strong><span>↗ 6% this week</span><Sparkline values={[54, 61, 59, 68, 65, 73, 76]}/></article>
+                  <article className="preview-today"><div><small>TODAY&apos;S FOCUS</small><b>Adaptive mixed block</b><p>20 questions · 34 min</p></div><Progress value={40}/><span className="preview-demo-link">Continue <ArrowRight size={13}/></span></article>
+                  <article className="preview-systems"><small>MASTERY BY SYSTEM</small>{[["Cardiovascular",82],["Renal",68],["Neurology",54]].map(([label, value]) => <div key={String(label)}><span>{label}</span><Progress value={Number(value)}/><b>{value}%</b></div>)}</article>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div className="floating-card floating-card-one"><span><Zap size={17}/></span><div><b>Weakness detected</b><small>Neurology moved into today&apos;s block</small></div></div>
+          <div className="floating-card floating-card-two"><span><Check size={17}/></span><div><b>Review complete</b><small>Retention interval: 6 days</small></div></div>
+        </div>
+      </section>
+
+      <section className="trust-strip shell-width"><span>One connected workspace for</span><div><b>STEP 1</b><i/> <b>STEP 2 CK</b><i/> <b>QBank</b><i/> <b>Analytics</b><i/> <b>Spaced repetition</b></div></section>
+
+      <section id="product" className="section shell-width">
+        <div className="section-heading centered"><div className="eyebrow">One system, every study loop</div><h2>Everything between “I missed it”<br/>and “I own it.”</h2><p>Practice, understand, retain, and recalibrate without stitching together five different tools.</p></div>
+        <div className="feature-bento">{features.map((feature) => <article key={feature.title} className={`feature-card ${feature.className}`}><span className="feature-icon">{feature.icon}</span><h3>{feature.title}</h3><p>{feature.body}</p>{feature.title === "Adaptive intelligence" && <div className="mini-adaptive"><div><span>Next block composition</span><b>Updated now</b></div><p><i style={{width:"34%"}}/><i style={{width:"25%"}}/><i style={{width:"23%"}}/><i style={{width:"18%"}}/></p><footer><span>Neurology 34%</span><span>Immunology 25%</span></footer></div>}{feature.title === "Exam-faithful sessions" && <div className="mini-question"><small>Question 12 of 20</small><p>A patient presents with progressive...</p><i/><i/><i className="selected"/><i/></div>}</article>)}</div>
+      </section>
+
+      <section id="workflow" className="workflow-section">
+        <div className="shell-width workflow-grid">
+          <div className="workflow-copy"><div className="eyebrow">A closed learning loop</div><h2>Your next best action,<br/>already decided.</h2><p>Stepwise continuously connects performance signals to a concrete daily plan.</p>
+            <ol>{[
+              ["01", "Answer in context", "Build or launch blocks by system, discipline, difficulty, status, and exam mode."],
+              ["02", "Diagnose the miss", "Separate knowledge gaps from poor pacing and overconfidence."],
+              ["03", "Reinforce at the right time", "Send key ideas into notes and spaced repetition without losing context."],
+              ["04", "Rebalance tomorrow", "The planner shifts time toward weak systems while preserving mixed recall."]
+            ].map(([number,title,body], index) => <li key={number} className={index === 0 ? "active" : ""}><span>{number}</span><div><h3>{title}</h3><p>{body}</p></div></li>)}</ol>
+          </div>
+          <div className="workflow-visual">
+            <div className="workflow-window">
+              <div className="workflow-window-head"><span>Adaptive block builder</span><small>Live recommendation</small></div>
+              <div className="workflow-window-body">
+                <div className="recommendation"><BrainCircuit/><div><b>Recommended next block</b><p>We found a high-confidence error cluster in Neurology and a retention dip in Immunology.</p></div></div>
+                <div className="builder-row"><span>Exam</span><div><b>Step 2 CK</b><small>Clinical decision making</small></div><ChevronDown/></div>
+                <div className="builder-row"><span>Mode</span><div className="segmented"><b>Adaptive</b><i>Timed</i><i>Tutor</i></div></div>
+                <div className="builder-row"><span>Focus</span><div className="topic-chips"><b>Neurology</b><b>Immunology</b><i>Mixed review</i></div></div>
+                <div className="block-composition"><span>Block composition</span>{[["Weakness repair",42],["Mixed retrieval",28],["Stale knowledge",18],["Challenge",12]].map(([label,value]) => <div key={String(label)}><p><span>{label}</span><b>{value}%</b></p><Progress value={Number(value)}/></div>)}</div>
+                <div className="btn btn-brand preview-static-cta" aria-hidden="true">Start 20-question block <ArrowRight size={16}/></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="outcomes section shell-width">
+        <div className="section-heading"><div className="eyebrow">Progress you can act on</div><h2>Measure what changes<br/>your next decision.</h2></div>
+        <div className="outcome-grid">
+          <article><span>01</span><h3>Know where performance comes from</h3><p>Compare accuracy, time, confidence, exposure, and retention rather than relying on one blended score.</p><div className="outcome-chart"><div className="chart-label"><b>Accuracy trend</b><span>Last 8 blocks</span></div><Sparkline values={[54,59,57,64,68,66,73,78]} height={84}/><div className="chart-axis"><span>B1</span><span>B4</span><span>B8</span></div></div></article>
+          <article><span>02</span><h3>Turn weaknesses into a schedule</h3><p>Build a daily plan from your exam date, availability, goals, and current mastery.</p><div className="week-card">{["M","T","W","T","F","S","S"].map((day,index)=><div key={`${day}-${index}`} className={index===2?"today":""}><span>{day}</span><b>{index===2?22:20+index}</b><i style={{height:`${18 + (index%3)*10}px`}}/></div>)}</div></article>
+          <article><span>03</span><h3>Catch confident mistakes early</h3><p>Confidence calibration reveals errors that feel correct—the most dangerous kind on exam day.</p><div className="calibration-card"><div><Donut value={84} size={96} detail="calibrated"/><p><b>Strong calibration</b><span>You are underconfident in Renal but overconfident in Neurology.</span></p></div><span className="calibration-demo-link">View insight <ArrowRight size={14}/></span></div></article>
+        </div>
+      </section>
+
+      <section className="testimonial-section"><div className="shell-width"><div className="quote-mark">“</div><blockquote>Stepwise makes the study process feel finite. I always know what to do next, and every missed question becomes something I can actually close.</blockquote><div className="quote-person"><span>MC</span><div><b>Mei C.</b><small>Medical student · Step 2 CK track</small></div></div></div></section>
+
+      <section id="pricing" className="section shell-width pricing-section">
+        <div className="section-heading centered"><div className="eyebrow">Simple access</div><h2>A plan for every phase.</h2><p>Explore the full interface in demo mode. Pricing cards are ready for future billing integration.</p></div>
+        <div className="billing-toggle"><button className={billing === "monthly" ? "active" : ""} onClick={() => setBilling("monthly")}>Monthly</button><button className={billing === "annual" ? "active" : ""} onClick={() => setBilling("annual")}>Annual <span>Save 25%</span></button></div>
+        <div className="pricing-grid">
+          <article><div><span className="plan-icon"><BookOpenCheck/></span><h3>Core</h3><p>Focused QBank practice and essential analytics.</p></div><div className="price"><b>${billing === "annual" ? 29 : 39}</b><span>/ month</span></div><Link className="btn btn-secondary btn-block" href="/signup">Start free</Link><ul>{["Step 1 or Step 2 CK QBank","Tutor and timed modes","System analytics","Notes and bookmarks"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
+          <article className="featured"><div className="popular">MOST POPULAR</div><div><span className="plan-icon"><Sparkles/></span><h3>Pro</h3><p>The full adaptive learning and planning system.</p></div><div className="price"><b>${billing === "annual" ? 49 : 65}</b><span>/ month</span></div><Link className="btn btn-brand btn-block" href="/signup">Start 3-day trial</Link><ul>{["Everything in Core","Adaptive mode and readiness score","Dynamic study planner","Spaced repetition cards","Advanced confidence analytics","Exam simulation workspace"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
+          <article><div><span className="plan-icon"><ShieldCheck/></span><h3>Institution</h3><p>Administration, cohorts, and content operations.</p></div><div className="price"><b>Custom</b></div><Link className="btn btn-secondary btn-block" href="/admin">View admin demo</Link><ul>{["Learner and cohort management","Question authoring workflow","Content reports and QA","Billing and access controls"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
+        </div>
+      </section>
+
+      <section id="faq" className="section shell-width faq-section"><div className="faq-intro"><div className="eyebrow">Questions, answered</div><h2>Before you start.</h2><p>Everything important about the demo, the learning model, and production integration.</p><div className="faq-help"><MessageSquareText/><div><b>Still exploring?</b><span>Open the learner or admin demo instantly.</span></div></div></div><div className="faq-list">{faqs.map(([question,answer],index)=><article key={question} className={openFaq === index ? "open" : ""}><button onClick={()=>setOpenFaq(openFaq===index?-1:index)}><span>{question}</span><ChevronDown/></button><div><p>{answer}</p></div></article>)}</div></section>
+
+      <section className="final-cta shell-width"><div className="cta-orbit cta-orbit-one"/><div className="cta-orbit cta-orbit-two"/><div className="pill"><Zap size={14}/> Your next block is waiting</div><h2>Make every question<br/>move you forward.</h2><p>Start with a fully interactive workspace and see how the complete study loop fits together.</p><div><Link className="btn btn-white btn-lg" href="/try">Try five questions <ArrowRight size={18}/></Link><Link className="btn btn-glass btn-lg" href="/app">Open full demo</Link></div></section>
+
+      <footer className="marketing-footer"><div className="shell-width"><div className="footer-top"><div><Logo inverse/><p>An adaptive QBank experience for focused medical exam preparation.</p></div><div className="footer-links"><div><b>Product</b><a href="#product">Features</a><a href="#workflow">How it works</a><Link href="/try">Question demo</Link><Link href="/app">Learner demo</Link></div><div><b>Workspace</b><Link href="/app/qbank">QBank</Link><Link href="/app/analytics">Analytics</Link><Link href="/admin">Admin</Link></div><div><b>Legal</b><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/accessibility">Accessibility</Link></div></div></div><div className="footer-bottom"><span>© 2026 Stepwise. Educational interface demo.</span><span>Not affiliated with or endorsed by USMLE, NBME, or FSMB.</span></div></div></footer>
+    </main>
+  );
+}
