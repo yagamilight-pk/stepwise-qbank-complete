@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3, Bell, BookOpen, CalendarDays, CircleHelp,
   Command, CreditCard, FileStack, Flag, Gauge, Home, Layers3, LayoutDashboard,
-  LibraryBig, Menu, Moon, NotebookPen, PanelLeftClose, Search, Settings, ShieldCheck,
+  LibraryBig, Menu, Moon, NotebookPen, PanelLeftClose, PanelLeftOpen, Search, Settings, ShieldCheck,
   Sparkles, Sun, Users, X
 } from "lucide-react";
 import { useStepwise } from "@/lib/store";
@@ -75,16 +75,34 @@ function LearnerSidebar({ collapsed, mobileOpen, onClose }: { collapsed: boolean
   const { state } = useStepwise();
   const due = state.flashcards.filter(card => new Date(card.dueAt) <= new Date()).length;
   return <aside className={`app-sidebar ${collapsed?"collapsed":""} ${mobileOpen?"mobile-open":""}`}>
-    <div className="sidebar-logo"><Logo compact={collapsed}/><button className="sidebar-mobile-close" onClick={onClose}><X/></button></div>
-    <Link href="/app/settings" className="exam-switch"><span className="exam-badge">S2</span>{!collapsed&&<div><small>Preparing for</small><b>Step 2 CK</b></div>}{!collapsed&&<Settings size={15}/>}</Link>
-    <nav>{learnerNav.map(item=>{const Icon=item.icon; return <Link key={item.href} href={item.href} className={isActive(pathname,item.href)?"active":""} onClick={onClose}><Icon/><span>{item.label}</span>{item.label==="Flashcards"&&due>0&&<b>{due}</b>}</Link>})}</nav>
-    <div className="sidebar-bottom"><Link href="/app/settings" className={isActive(pathname,"/app/settings")?"active":""}><Settings/><span>Settings</span></Link><Link href="/help"><CircleHelp/><span>Help center</span></Link><div className="sidebar-upgrade"><Sparkles/>{!collapsed&&<><b>Your study signal</b><p>Weaknesses, pacing, and calibration</p><Link href="/app/analytics">View analytics</Link></>}</div></div>
+    <div className="sidebar-logo"><Logo compact={collapsed}/><button className="sidebar-mobile-close" onClick={onClose} aria-label="Close menu"><X/></button></div>
+    <Link href="/app/settings" className="exam-switch" title="Step 2 CK Settings"><span className="exam-badge">S2</span>{!collapsed&&<div><small>Preparing for</small><b>Step 2 CK</b></div>}{!collapsed&&<Settings size={15}/>}</Link>
+    <nav>{learnerNav.map(item=>{const Icon=item.icon; return <Link key={item.href} href={item.href} title={item.label} className={isActive(pathname,item.href)?"active":""} onClick={onClose}><Icon/><span>{item.label}</span>{item.label==="Flashcards"&&due>0&&<b>{due}</b>}</Link>})}</nav>
+    <div className="sidebar-bottom">
+      <Link href="/app/settings" title="Settings" className={isActive(pathname,"/app/settings")?"active":""}><Settings/><span>Settings</span></Link>
+      <Link href="/help" title="Help center"><CircleHelp/><span>Help center</span></Link>
+      <div className="sidebar-upgrade" title="Your study signal">
+        <Sparkles/>
+        {!collapsed&&<><b>Your study signal</b><p>Weaknesses, pacing, and calibration</p><Link href="/app/analytics">View analytics</Link></>}
+      </div>
+    </div>
   </aside>;
 }
 
-function AdminSidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
+function AdminSidebar({ collapsed, mobileOpen, onClose }: { collapsed: boolean; mobileOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  return <aside className={`admin-sidebar ${mobileOpen?"mobile-open":""}`}><div className="sidebar-logo"><Logo/><button className="sidebar-mobile-close" onClick={onClose}><X/></button></div><div className="admin-workspace"><span><ShieldCheck/></span><div><small>Workspace</small><b>Stepwise Admin</b></div></div><nav><small>OPERATIONS</small>{adminNav.map(item=>{const Icon=item.icon; return <Link key={item.href} href={item.href} className={isActive(pathname,item.href)?"active":""} onClick={onClose}><Icon/><span>{item.label}</span>{item.label==="Reports"&&<b>2</b>}</Link>})}</nav><div className="admin-sidebar-bottom"><Link href="/admin/settings" className="admin-user"><Avatar name="Maya Patel"/><div><b>Dr. Maya Patel</b><small>Content administrator</small></div></Link><Link href="/app"><BookOpen/> Learner workspace</Link></div></aside>;
+  return <aside className={`admin-sidebar ${collapsed?"collapsed":""} ${mobileOpen?"mobile-open":""}`}>
+    <div className="sidebar-logo"><Logo compact={collapsed}/><button className="sidebar-mobile-close" onClick={onClose} aria-label="Close menu"><X/></button></div>
+    <div className="admin-workspace" title="Stepwise Admin Workspace"><span><ShieldCheck/></span>{!collapsed&&<div><small>Workspace</small><b>Stepwise Admin</b></div>}</div>
+    <nav>
+      {!collapsed&&<small>OPERATIONS</small>}
+      {adminNav.map(item=>{const Icon=item.icon; return <Link key={item.href} href={item.href} title={item.label} className={isActive(pathname,item.href)?"active":""} onClick={onClose}><Icon/><span>{item.label}</span>{item.label==="Reports"&&<b>2</b>}</Link>})}
+    </nav>
+    <div className="admin-sidebar-bottom">
+      <Link href="/admin/settings" className="admin-user" title="Dr. Maya Patel - Settings"><Avatar name="Maya Patel"/>{!collapsed&&<div><b>Dr. Maya Patel</b><small>Content administrator</small></div>}</Link>
+      <Link href="/app" title="Learner workspace"><BookOpen/>{!collapsed&&<span>Learner workspace</span>}</Link>
+    </div>
+  </aside>;
 }
 
 export function LearnerShell() {
@@ -102,11 +120,28 @@ export function LearnerShell() {
   const section = pathname.split("/")[2] || "overview";
   const titles: Record<string,string> = { overview:"Overview", qbank:"QBank", session:"Question session", analytics:"Analytics", "study-plan":"Study plan", flashcards:"Flashcards", library:"Medical library", notebook:"Notebook", community:"Study circle", settings:"Settings" };
   const unread = state.notifications.filter(item=>!item.read).length;
+  const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
+
   if (section === "session") return <LearnerPage section="session"/>;
   return <div className={`app-shell ${collapsed?"sidebar-collapsed":""}`}>
     <LearnerSidebar collapsed={collapsed} mobileOpen={mobileOpen} onClose={()=>setMobileOpen(false)}/>
     <div className="app-main">
-      <header className="app-topbar"><div className="topbar-left"><button className="mobile-sidebar-button" onClick={()=>setMobileOpen(true)}><Menu/></button><button className="collapse-button" onClick={()=>setCollapsed(!collapsed)} aria-label="Toggle sidebar"><PanelLeftClose/></button><span>{titles[section] || "Stepwise"}</span></div><div className="topbar-actions"><button className="command-trigger" onClick={()=>setCommandOpen(true)}><Search/><span>Search anything</span><kbd><Command/>K</kbd></button><button className="icon-btn theme-button" onClick={()=>dispatch({type:"SET_SETTINGS",settings:{theme:state.settings.theme==="dark"?"light":"dark"}})} aria-label="Toggle color theme">{state.settings.theme==="dark"?<Sun/>:<Moon/>}</button><div className="popover-wrap"><button className="icon-btn" onClick={()=>setNotificationsOpen(!notificationsOpen)} aria-label="Notifications"><Bell/>{unread>0&&<i>{unread}</i>}</button><NotificationPopover open={notificationsOpen} close={()=>setNotificationsOpen(false)}/></div><Link className="profile-button" href="/app/settings"><Avatar name="Alex Kim"/><span><b>Alex Kim</b><small>Profile & settings</small></span></Link></div></header>
+      <header className="app-topbar">
+        <div className="topbar-left">
+          <button className="mobile-sidebar-button" onClick={()=>setMobileOpen(true)} aria-label="Open menu"><Menu/></button>
+          <button className="collapse-button" onClick={()=>setCollapsed(!collapsed)} title={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-label="Toggle sidebar"><ToggleIcon /></button>
+          <span>{titles[section] || "Stepwise"}</span>
+        </div>
+        <div className="topbar-actions">
+          <button className="command-trigger" onClick={()=>setCommandOpen(true)}><Search/><span>Search anything</span><kbd><Command/>K</kbd></button>
+          <button className="icon-btn theme-button" onClick={()=>dispatch({type:"SET_SETTINGS",settings:{theme:state.settings.theme==="dark"?"light":"dark"}})} aria-label="Toggle color theme">{state.settings.theme==="dark"?<Sun/>:<Moon/>}</button>
+          <div className="popover-wrap">
+            <button className="icon-btn" onClick={()=>setNotificationsOpen(!notificationsOpen)} aria-label="Notifications"><Bell/>{unread>0&&<i>{unread}</i>}</button>
+            <NotificationPopover open={notificationsOpen} close={()=>setNotificationsOpen(false)}/>
+          </div>
+          <Link className="profile-button" href="/app/settings"><Avatar name="Alex Kim"/><span><b>Alex Kim</b><small>Profile & settings</small></span></Link>
+        </div>
+      </header>
       <div className="app-content"><LearnerPage section={section}/></div>
     </div>
     <nav className="mobile-bottom-nav" aria-label="Primary learner navigation">
@@ -122,9 +157,31 @@ export function LearnerShell() {
 
 export function AdminShell() {
   const pathname=usePathname();
+  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen,setMobileOpen]=useState(false);
   const [commandOpen,setCommandOpen]=useState(false);
   const section=pathname.split("/")[2]||"overview";
   const title=useMemo(()=>adminNav.find(item=>item.href===pathname)?.label||"Admin",[pathname]);
-  return <div className="admin-shell"><AdminSidebar mobileOpen={mobileOpen} onClose={()=>setMobileOpen(false)}/><div className="admin-main"><header className="admin-topbar"><div><button className="mobile-sidebar-button" onClick={()=>setMobileOpen(true)}><Menu/></button><span>{title}</span></div><div><button className="command-trigger admin-command" onClick={()=>setCommandOpen(true)}><Search/><span>Search admin</span><kbd><Command/>K</kbd></button><Link className="icon-btn" href="/admin/reports" aria-label="Open reports"><Bell/><i>2</i></Link><Avatar name="Maya Patel"/></div></header><div className="admin-content"><AdminPage section={section}/></div></div>{mobileOpen&&<button className="mobile-overlay" onClick={()=>setMobileOpen(false)} aria-label="Close menu"/>}<CommandPalette open={commandOpen} onClose={()=>setCommandOpen(false)} admin/></div>;
+  const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
+
+  return <div className={`admin-shell ${collapsed?"sidebar-collapsed":""}`}>
+    <AdminSidebar collapsed={collapsed} mobileOpen={mobileOpen} onClose={()=>setMobileOpen(false)}/>
+    <div className="admin-main">
+      <header className="admin-topbar">
+        <div>
+          <button className="mobile-sidebar-button" onClick={()=>setMobileOpen(true)} aria-label="Open menu"><Menu/></button>
+          <button className="collapse-button" onClick={()=>setCollapsed(!collapsed)} title={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-label="Toggle sidebar"><ToggleIcon /></button>
+          <span>{title}</span>
+        </div>
+        <div>
+          <button className="command-trigger admin-command" onClick={()=>setCommandOpen(true)}><Search/><span>Search admin</span><kbd><Command/>K</kbd></button>
+          <Link className="icon-btn" href="/admin/reports" aria-label="Open reports"><Bell/><i>2</i></Link>
+          <Avatar name="Maya Patel"/>
+        </div>
+      </header>
+      <div className="admin-content"><AdminPage section={section}/></div>
+    </div>
+    {mobileOpen&&<button className="mobile-overlay" onClick={()=>setMobileOpen(false)} aria-label="Close menu"/>}
+    <CommandPalette open={commandOpen} onClose={()=>setCommandOpen(false)} admin/>
+  </div>;
 }
