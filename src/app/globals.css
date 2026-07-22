@@ -1264,10 +1264,7 @@ html[data-text-size="large"] .choice-select p { font-size: 17px; }
 .plan-intelligence-list li div { display:flex; flex-direction:column; gap:2px; }
 .intel-title { font-size:13px; font-weight:700; color:var(--text); }
 .intel-detail { font-size:11px; color:var(--muted); }
-  .private-circle-layout { grid-template-columns:1fr; }
-  .private-circle-layout > aside { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .try-workspace { grid-template-columns:190px minmax(0,1fr); }
-}
+
 @media (max-width: 760px) {
   .circle-privacy-hero { grid-template-columns:auto minmax(0,1fr); }
   .circle-privacy-hero > .badge { grid-column:2; justify-self:start; }
