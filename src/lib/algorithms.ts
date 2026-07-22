@@ -220,18 +220,19 @@ export function readinessEstimate(state: AppState, step: Question["step"]) {
   const questions = state.questions.filter((question) => question.step === step);
   const ids = new Set(questions.map((question) => question.id));
   const attempts = state.attempts.filter((attempt) => ids.has(attempt.questionId));
-  const accuracy = attempts.length ? attempts.filter((attempt) => attempt.correct).length / attempts.length : 0.5;
+  if (!attempts.length) {
+    return { score: 0, accuracy: 0, coverage: 0, calibrated: 0 };
+  }
+  const accuracy = attempts.filter((attempt) => attempt.correct).length / attempts.length;
   const uniqueCoverage = new Set(attempts.map((attempt) => attempt.questionId)).size / Math.max(questions.length, 1);
-  const calibrated = attempts.length
-    ? 1 - attempts.reduce((sum, attempt) => sum + Math.abs((attempt.confidence - 1) / 4 - (attempt.correct ? 1 : 0)), 0) / attempts.length
-    : 0.5;
+  const calibrated = 1 - attempts.reduce((sum, attempt) => sum + Math.abs((attempt.confidence - 1) / 4 - (attempt.correct ? 1 : 0)), 0) / attempts.length;
   const mastery = systemPerformance(questions, attempts).reduce((sum, item) => sum + item.mastery, 0) / Math.max(systemPerformance(questions, attempts).length, 1) / 100;
   const score = clamp(Math.round((accuracy * 0.48 + uniqueCoverage * 0.2 + calibrated * 0.12 + mastery * 0.2) * 100), 0, 100);
   return { score, accuracy: Math.round(accuracy * 100), coverage: Math.round(uniqueCoverage * 100), calibrated: Math.round(calibrated * 100) };
 }
 
 
-export function performanceWindow(attempts: Attempt[], days = 7, reference = new Date("2026-07-22T23:59:59.000Z")) {
+export function performanceWindow(attempts: Attempt[], days = 7, reference = new Date()) {
   const periodMs = Math.max(1, days) * 86_400_000;
   const end = reference.getTime();
   const currentStart = end - periodMs;
@@ -261,7 +262,7 @@ export function performanceWindow(attempts: Attempt[], days = 7, reference = new
   };
 }
 
-export function studyStreak(attempts: Attempt[], reference = new Date("2026-07-22T12:00:00.000Z")) {
+export function studyStreak(attempts: Attempt[], reference = new Date()) {
   const activeDates = new Set(attempts.map((attempt) => attempt.createdAt.slice(0, 10)));
   const ordered = [...activeDates].sort();
   let best = 0;
@@ -286,7 +287,7 @@ export function studyStreak(attempts: Attempt[], reference = new Date("2026-07-2
 }
 
 export function dailyActivity(attempts: Attempt[], days = 14) {
-  const now = new Date("2026-07-22T12:00:00.000Z");
+  const now = new Date();
   return Array.from({ length: days }, (_, index) => {
     const date = new Date(now);
     date.setDate(now.getDate() - (days - index - 1));
@@ -399,8 +400,20 @@ function normalCdf(value: number, mean: number, standardDeviation: number) {
 export function peerBenchmark(attempts: Attempt[], questions: Question[]) {
   const questionIds = new Set(questions.map((question) => question.id));
   const relevant = attempts.filter((attempt) => questionIds.has(attempt.questionId));
-  const accuracy = relevant.length ? relevant.filter((attempt) => attempt.correct).length / relevant.length * 100 : 50;
-  const averageTime = relevant.length ? relevant.reduce((sum, attempt) => sum + attempt.timeSec, 0) / relevant.length : 100;
+  if (!relevant.length) {
+    return {
+      percentile: 0,
+      band: "No attempts yet",
+      accuracy: 0,
+      averageTime: 0,
+      cohortMedianAccuracy: 68,
+      cohortMedianTime: 94,
+      accuracyDelta: 0,
+      paceDelta: 0
+    };
+  }
+  const accuracy = relevant.filter((attempt) => attempt.correct).length / relevant.length * 100;
+  const averageTime = relevant.reduce((sum, attempt) => sum + attempt.timeSec, 0) / relevant.length;
   const accuracyPercentile = normalCdf(accuracy, 68, 13) * 100;
   const safePaceScore = clamp(100 - Math.abs(88 - averageTime) * 0.9, 20, 100);
   const pacePercentile = normalCdf(safePaceScore, 70, 15) * 100;
@@ -491,7 +504,7 @@ export function studyCircleEligibility(members: CircleMemberSignal[], minimumPee
 }
 
 export function rollingAccuracy(attempts: Attempt[], blockSize = 3) {
-  if (!attempts.length) return [50, 54, 57, 61, 64, 68, 70, 72];
+  if (!attempts.length) return [0, 0, 0, 0, 0, 0, 0, 0];
   const ordered = [...attempts].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const result: number[] = [];
   for (let index = 0; index < ordered.length; index += blockSize) {
@@ -499,8 +512,8 @@ export function rollingAccuracy(attempts: Attempt[], blockSize = 3) {
     result.push(Math.round(block.filter((attempt) => attempt.correct).length / block.length * 100));
   }
   while (result.length < 8) {
-    const prior = result.at(-1) ?? 58;
-    result.unshift(clamp(prior - 2 - result.length, 45, 85));
+    const prior = result.at(0) ?? 0;
+    result.unshift(prior);
   }
   return result.slice(-8);
 }

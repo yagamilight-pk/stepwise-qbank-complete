@@ -5,8 +5,8 @@ import { generateStudyPlan, reviewFlashcard } from "./algorithms";
 import { initialState } from "./data";
 import type { AdminUser, AppState, Attempt, ContentReport, Flashcard, LibraryActivity, Note, Question, ReviewRating, SessionRecord, StudyPlanSettings, StudyTask, UserSettings } from "./types";
 
-const STORAGE_KEY = "stepwise-qbank-state-v3";
-const LEGACY_STORAGE_KEYS = ["stepwise-qbank-state-v2", "stepwise-qbank-state-v1"];
+const STORAGE_KEY = "stepwise-qbank-state-v4";
+const LEGACY_STORAGE_KEYS = ["stepwise-qbank-state-v3", "stepwise-qbank-state-v2", "stepwise-qbank-state-v1"];
 
 type Action =
   | { type: "HYDRATE"; state: AppState }

@@ -298,26 +298,11 @@ const studyTasks: StudyTask[] = [
 
 export const initialState: AppState = {
   questions: demoQuestions,
-  attempts: [
-    { id: "a1", questionId: "SW-1001", selectedChoiceId: "SW-1001-B", correct: true, confidence: 4, timeSec: 83, createdAt: "2026-07-18T09:00:00.000Z", sessionId: "seed-1", mode: "Tutor" },
-    { id: "a2", questionId: "SW-1002", selectedChoiceId: "SW-1002-A", correct: false, confidence: 3, timeSec: 118, createdAt: "2026-07-18T09:03:00.000Z", sessionId: "seed-1", mode: "Tutor" },
-    { id: "a3", questionId: "SW-1003", selectedChoiceId: "SW-1003-D", correct: true, confidence: 4, timeSec: 72, createdAt: "2026-07-19T14:00:00.000Z", sessionId: "seed-2", mode: "Timed" },
-    { id: "a4", questionId: "SW-1004", selectedChoiceId: "SW-1004-C", correct: false, confidence: 2, timeSec: 101, createdAt: "2026-07-19T14:03:00.000Z", sessionId: "seed-2", mode: "Timed" },
-    { id: "a5", questionId: "SW-2001", selectedChoiceId: "SW-2001-B", correct: true, confidence: 5, timeSec: 77, createdAt: "2026-07-20T08:00:00.000Z", sessionId: "seed-3", mode: "Adaptive" },
-    { id: "a6", questionId: "SW-2003", selectedChoiceId: "SW-2003-A", correct: false, confidence: 4, timeSec: 95, createdAt: "2026-07-20T08:02:00.000Z", sessionId: "seed-3", mode: "Adaptive" },
-    { id: "a7", questionId: "SW-2004", selectedChoiceId: "SW-2004-D", correct: true, confidence: 3, timeSec: 109, createdAt: "2026-07-21T11:00:00.000Z", sessionId: "seed-4", mode: "Tutor" },
-    { id: "a8", questionId: "SW-2006", selectedChoiceId: "SW-2006-B", correct: true, confidence: 4, timeSec: 80, createdAt: "2026-07-21T11:03:00.000Z", sessionId: "seed-4", mode: "Tutor" },
-    { id: "a9", questionId: "SW-2008", selectedChoiceId: "SW-2008-A", correct: false, confidence: 5, timeSec: 116, createdAt: "2026-07-21T11:06:00.000Z", sessionId: "seed-4", mode: "Tutor" },
-    { id: "a10", questionId: "SW-2002", selectedChoiceId: "SW-2002-C", correct: true, confidence: 4, timeSec: 63, createdAt: "2026-07-22T07:35:00.000Z", sessionId: "seed-5", mode: "Adaptive" },
-    { id: "a11", questionId: "SW-2005", selectedChoiceId: "SW-2005-C", correct: true, confidence: 3, timeSec: 88, createdAt: "2026-07-22T07:37:00.000Z", sessionId: "seed-5", mode: "Adaptive" },
-    { id: "a12", questionId: "SW-2007", selectedChoiceId: "SW-2007-A", correct: false, confidence: 4, timeSec: 74, createdAt: "2026-07-22T07:39:00.000Z", sessionId: "seed-5", mode: "Adaptive" },
-    { id: "a13", questionId: "SW-1005", selectedChoiceId: "SW-1005-E", correct: true, confidence: 5, timeSec: 49, createdAt: "2026-07-22T08:10:00.000Z", sessionId: "seed-6", mode: "Tutor" },
-    { id: "a14", questionId: "SW-1006", selectedChoiceId: "SW-1006-C", correct: false, confidence: 3, timeSec: 106, createdAt: "2026-07-22T08:12:00.000Z", sessionId: "seed-6", mode: "Tutor" }
-  ],
-  notes: seedNotes,
-  flashcards: seedFlashcards,
-  bookmarks: ["SW-1002", "SW-2004"],
-  flagged: ["SW-2003"],
+  attempts: [],
+  notes: [],
+  flashcards: [],
+  bookmarks: [],
+  flagged: [],
   sessions: [],
   planSettings: {
     examDate: "2026-10-17",
@@ -327,7 +312,7 @@ export const initialState: AppState = {
     targetStep: "Step 2 CK",
     targetScore: 255
   },
-  studyTasks,
+  studyTasks: [],
   settings: {
     theme: "light",
     reducedMotion: false,
@@ -342,12 +327,9 @@ export const initialState: AppState = {
     highContrast: false,
     largeText: false
   },
-  adminUsers: users,
-  reports,
-  notifications,
-  savedArticles: ["lib-hfpef", "lib-acid-base"],
-  libraryActivity: [
-    { articleId: "lib-hfpef", progress: 100, completed: true, lastOpenedAt: "2026-07-21T15:10:00.000Z" },
-    { articleId: "lib-acid-base", progress: 42, completed: false, lastOpenedAt: "2026-07-22T08:20:00.000Z" }
-  ]
+  adminUsers: users.map((u) => ({ ...u, questionsAnswered: 0, accuracy: 0 })),
+  reports: [],
+  notifications: [],
+  savedArticles: [],
+  libraryActivity: []
 };
