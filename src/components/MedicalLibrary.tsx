@@ -175,7 +175,7 @@ export function MedicalLibraryPage() {
 
       {ranked.length ? <article className="panel medical-article">
         <header className="medical-article-header">
-          <div>
+          <div className="article-header-main">
             <div className="article-badges">
               <Badge tone="brand">{selected.step}</Badge>
               <Badge>{selected.system}</Badge>
@@ -199,19 +199,20 @@ export function MedicalLibraryPage() {
           </div>
         </header>
 
-        <div className="medical-article-layout">
-          <aside className="article-toc">
-            <b>On this page</b>
+        <nav className="article-toc-nav" aria-label="Table of contents">
+          <span className="toc-label">On this page</span>
+          <div className="toc-links">
             {selected.sections.map((section, sectionIndex) => <a key={section.id} href={`#${selected.id}-${section.id}`} onClick={() => {
               const nextProgress = Math.round((sectionIndex + 1) / selected.sections.length * 100);
               dispatch({ type: "SET_LIBRARY_ACTIVITY", activity: { articleId: selected.id, progress: Math.max(activity?.progress ?? 0, nextProgress), completed: nextProgress === 100 || Boolean(activity?.completed), lastOpenedAt: new Date().toISOString() } });
-            }}>{section.title}</a>)}
-            <div>
-              <span>Reading progress</span>
-              <Progress value={activity?.progress ?? 12} showValue/>
-            </div>
-          </aside>
+            }}><span>{String(sectionIndex + 1).padStart(2, "0")}</span> {section.title}</a>)}
+          </div>
+          <div className="toc-progress-indicator">
+            <Progress value={activity?.progress ?? 12}/>
+          </div>
+        </nav>
 
+        <div className="article-body-wrapper">
           <div className="article-content">
             {selected.sections.map((section, sectionIndex) => <section key={section.id} id={`${selected.id}-${section.id}`}>
               <span className="article-section-number">{String(sectionIndex + 1).padStart(2, "0")}</span>
@@ -223,15 +224,19 @@ export function MedicalLibraryPage() {
             </section>)}
           </div>
 
-          <aside className="article-connection-panel">
-            <div className="connection-visual" aria-hidden="true">
-              <span>{renderSystemIcon(selected.system, 18)}</span><i/><span><Target size={18}/></span>
+          <footer className="article-bottom-cta">
+            <div className="cta-info">
+              <span className="cta-icon">{renderSystemIcon(selected.system, 22)}</span>
+              <div>
+                <h3>Close the loop on {selected.title}</h3>
+                <p>This article is linked to {selected.relatedQuestionIds.length || 1} seeded questions and your {selected.system} mastery signal.</p>
+              </div>
             </div>
-            <h3>Close the loop</h3>
-            <p>This article is linked to {selected.relatedQuestionIds.length || 1} seeded questions and your {selected.system} mastery signal.</p>
-            <button className="btn btn-brand btn-block" onClick={buildRelatedBlock}>Start related questions <ArrowRight size={16}/></button>
-            <button className="btn btn-secondary btn-block" onClick={createCard}>Create recall card</button>
-          </aside>
+            <div className="cta-actions">
+              <button className="btn btn-brand" onClick={buildRelatedBlock}>Start related questions <ArrowRight size={16}/></button>
+              <button className="btn btn-secondary" onClick={createCard}><Layers3 size={16}/> Create recall card</button>
+            </div>
+          </footer>
         </div>
       </article> : <article className="panel medical-article medical-article-empty"><EmptyState icon={<Search size={24}/>} title="No article selected" description="Clear the filters or search for a broader clinical concept."/><button className="btn btn-secondary" onClick={() => { setQuery(""); setSystem("All"); setStep("All"); }}>Reset library filters</button></article>}
     </section>
