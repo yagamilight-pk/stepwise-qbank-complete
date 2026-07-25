@@ -18,6 +18,14 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+If a development server reports a Turbopack panic after routes have been added, removed, or renamed, stop the running server and use:
+
+```bash
+npm run dev:clean
+```
+
+This removes only the generated `.next` cache and starts a fresh development graph. Normal day-to-day startup should continue to use `npm run dev`.
+
 Do not run `npm audit fix --force`. npm may propose an unrelated breaking downgrade. This repository instead pins the patched transitive versions through `overrides`:
 
 - `postcss: 8.5.10`
