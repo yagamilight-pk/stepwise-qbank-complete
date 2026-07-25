@@ -1,8 +1,8 @@
 # Stepwise — Complete USMLE QBank Frontend
 
-Stepwise is a responsive Next.js frontend for USMLE Step 1 and Step 2 CK preparation. It includes a public product website, a guided five-question trial, authentication and onboarding, a learner workspace, full-screen question sessions, an original medical library, analytics, study planning, working spaced-repetition flashcards, a private study circle, settings, and an administrative console.
+Stepwise is a frontend-complete, responsive Next.js experience for USMLE Step 1 and Step 2 CK preparation. It includes a public product website, a guided five-question trial, account and onboarding demonstrations, a learner workspace, full-screen question sessions, an original medical library, analytics, study planning, working spaced-repetition flashcards, a private study circle, an administrative console, and a partner portal.
 
-The repository is intentionally usable without a backend: typed demo state is persisted in `localStorage`, while the active question configuration uses `sessionStorage`. Production authentication, payments, protected medical content, and real cohort analytics still require server-side services.
+The repository is intentionally usable without a backend: typed demo state is persisted in `localStorage`, while the active question configuration uses `sessionStorage`. Every workflow that can be completed honestly in frontend code is interactive. Production authentication, payments, payouts, protected medical content, cross-device state, and real cohort analytics still require server-side services.
 
 > Stepwise is an independent educational interface demonstration. It is not affiliated with, sponsored by, or endorsed by USMLE, NBME, FSMB, UWorld, or any other question-bank provider. Questions and medical-library articles in this repository are original demonstration content. Cohort percentages are deterministic simulated data, not official exam or commercial-QBank statistics. This is not medical advice.
 
@@ -44,7 +44,9 @@ npm run security:audit
 - `/app/notebook` — searchable question-linked notes
 - `/app/community` — private thresholded study circle
 - `/app/settings` — preferences, privacy, export, and accessibility
-- `/admin` — administrative workspace
+- `/admin` and `/admin/*` — administrative workspace
+- `/influencer` and `/influencer/*` — partner login and portal
+- `/help`, `/privacy`, `/terms`, `/cookies`, `/accessibility` — support and legal surfaces
 
 ## Product capabilities
 
@@ -54,6 +56,7 @@ npm run security:audit
 - Five-question interactive trial adapted from the previous Stepwise concept
 - Submission-time option shading that shows simulated cohort percentages inside each answer choice
 - Explanation, learning objective, high-yield takeaways, and explainable reasoning-pattern feedback
+- Signature Reasoning Trace that connects the clinical cue, decision, correction, and next review
 - Three-day trial messaging, focused 20-question workflow, and no-card onboarding copy
 
 ### Learner workspace
@@ -104,6 +107,14 @@ The library uses high-density medical-reference workflow conventions, but it doe
 - Billing/transaction views and downloads
 - Roles, governance, workspace, and integration settings
 
+### Influencer partner workspace
+
+- Demo-only partner login with explicit local-auth boundary
+- Referral links, campaign parameters, conversion ledger, and media assets
+- Partner-specific net-profit commission calculations
+- Approved-balance payout eligibility with minimum and account checks
+- Clear distinction between local approval state and real external transfer
+
 ## Algorithms
 
 The connected algorithms live in `src/lib/algorithms.ts`:
@@ -146,4 +157,16 @@ npm run audit
 
 `npm run audit` means the Stepwise source/lint/type/build pipeline. `npm audit` is npm’s dependency advisory command; they are different commands.
 
-See `AUDIT.md` and `VERIFICATION.md` for the remediation and validation record.
+## Verified handoff snapshot
+
+On July 25, 2026:
+
+- Source audit passed 54/54 checks
+- ESLint passed with zero findings
+- TypeScript passed
+- The production build generated 39/39 static outputs
+- Representative production-server routes returned the expected 200 responses and the unknown route returned 404
+
+The in-app browser was unavailable, so screenshot-based responsive review, manual zoom, physical keyboard traversal, screen readers, and real mobile browsers remain explicit handoff checks rather than claimed results.
+
+See `PROJECT_CHECKLIST.md`, `progress/CURRENT_STATUS.md`, and `progress/VERIFICATION_LOG.md` for the current completion record. `ARCHITECTURE.md` and `DESIGN_SYSTEM.md` document the implementation model.

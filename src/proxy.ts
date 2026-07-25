@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const { pathname } = request.nextUrl;
 
@@ -11,6 +11,9 @@ export function middleware(request: NextRequest) {
     }
     if (host.startsWith("admin.")) {
       return NextResponse.rewrite(new URL("/admin", request.url));
+    }
+    if (host.startsWith("influencer.")) {
+      return NextResponse.rewrite(new URL("/influencer", request.url));
     }
   }
 

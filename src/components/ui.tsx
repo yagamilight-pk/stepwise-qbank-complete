@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Check, ChevronRight, X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
 
 export function Logo({ compact = false, inverse = false }: { compact?: boolean; inverse?: boolean }) {
   return (
@@ -34,7 +34,7 @@ export function Progress({ value, label, showValue = false, size = "md" }: { val
   return (
     <div className="progress-wrap">
       {(label || showValue) && <div className="progress-label"><span>{label}</span>{showValue && <strong>{Math.round(value)}%</strong>}</div>}
-      <div className={`progress progress-${size}`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value)}>
+      <div className={`progress progress-${size}`} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value)}>
         <span style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
       </div>
     </div>
@@ -46,7 +46,7 @@ export function Donut({ value, size = 112, label, detail }: { value: number; siz
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (Math.max(0, Math.min(100, value)) / 100) * circumference;
   return (
-    <div className="donut" style={{ width: size, height: size }}>
+    <div className="donut" style={{ width: size, height: size }} role="img" aria-label={`${Math.round(value)}${label || "%"}${detail ? `, ${detail}` : ""}`}>
       <svg viewBox="0 0 100 100" aria-hidden="true">
         <circle className="donut-track" cx="50" cy="50" r={radius} />
         <circle className="donut-value" cx="50" cy="50" r={radius} strokeDasharray={circumference} strokeDashoffset={offset} />
@@ -73,18 +73,61 @@ export function Sparkline({ values, height = 54 }: { values: number[]; height?: 
 }
 
 export function Modal({ open, onClose, title, description, children, wide = false }: { open: boolean; onClose: () => void; title: string; description?: string; children: React.ReactNode; wide?: boolean }) {
+  const titleId = useId();
+  const descriptionId = useId();
+  const dialogRef = useRef<HTMLElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!open) return;
-    const listener = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = dialogRef.current;
+    const getFocusable = () => Array.from(dialog?.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ) ?? []).filter((element) => !element.hasAttribute("hidden") && element.getAttribute("aria-hidden") !== "true");
+    const initialFocus = dialog?.querySelector<HTMLElement>("[data-modal-autofocus]") ?? getFocusable()[0] ?? dialog;
+    window.requestAnimationFrame(() => initialFocus?.focus());
+    const listener = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (!focusable.length) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener("keydown", listener);
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", listener); document.body.style.overflow = ""; };
-  }, [open, onClose]);
+    return () => {
+      document.removeEventListener("keydown", listener);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocusedRef.current?.focus();
+    };
+  }, [open]);
   if (!open) return null;
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className={`modal ${wide ? "modal-wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <header className="modal-head"><div><h2 id="modal-title">{title}</h2>{description && <p>{description}</p>}</div><button className="icon-btn" onClick={onClose} aria-label="Close"><X size={18}/></button></header>
+      <section ref={dialogRef} className={`modal ${wide ? "modal-wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} tabIndex={-1}>
+        <header className="modal-head"><div><h2 id={titleId}>{title}</h2>{description && <p id={descriptionId}>{description}</p>}</div><button className="icon-btn" onClick={onClose} aria-label={`Close ${title}`}><X size={18}/></button></header>
         <div className="modal-body">{children}</div>
       </section>
     </div>
@@ -92,7 +135,7 @@ export function Modal({ open, onClose, title, description, children, wide = fals
 }
 
 export function Toast({ message, visible }: { message: string; visible: boolean }) {
-  return <div className={`toast ${visible ? "toast-show" : ""}`} role="status"><span><Check size={16}/></span>{message}</div>;
+  return <div className={`toast ${visible ? "toast-show" : ""}`} role="status" aria-live="polite" aria-atomic="true"><span aria-hidden="true"><Check size={16}/></span>{visible ? message : ""}</div>;
 }
 
 export function EmptyState({ icon, title, description, action }: { icon?: React.ReactNode; title: string; description: string; action?: React.ReactNode }) {

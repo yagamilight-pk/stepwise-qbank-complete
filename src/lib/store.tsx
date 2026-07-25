@@ -3,10 +3,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from "react";
 import { generateStudyPlan, reviewFlashcard } from "./algorithms";
 import { initialState } from "./data";
-import type { AdminUser, AppState, Attempt, ContentReport, Flashcard, LibraryActivity, Note, Question, ReviewRating, SessionRecord, StudyPlanSettings, StudyTask, UserSettings } from "./types";
+import type { AdminUser, AppState, Attempt, ContentReport, Flashcard, InfluencerProfile, LibraryActivity, Note, Question, ReviewRating, SessionRecord, StudyPlanSettings, StudyTask, UserSettings } from "./types";
 
-const STORAGE_KEY = "stepwise-qbank-state-v4";
-const LEGACY_STORAGE_KEYS = ["stepwise-qbank-state-v3", "stepwise-qbank-state-v2", "stepwise-qbank-state-v1"];
+const STORAGE_KEY = "stepwise-qbank-state-v7";
+const LEGACY_STORAGE_KEYS = ["stepwise-qbank-state-v6", "stepwise-qbank-state-v5", "stepwise-qbank-state-v4", "stepwise-qbank-state-v3", "stepwise-qbank-state-v2", "stepwise-qbank-state-v1"];
 
 type Action =
   | { type: "HYDRATE"; state: AppState }
@@ -32,6 +32,15 @@ type Action =
   | { type: "SET_LIBRARY_ACTIVITY"; activity: LibraryActivity }
   | { type: "UPDATE_ADMIN_USER"; id: string; patch: Partial<AdminUser> }
   | { type: "MARK_NOTIFICATIONS_READ" }
+  | { type: "UPDATE_INFLUENCER_PAYOUT_METHOD"; influencerId: string; method: "PayPal" | "Stripe" | "Bank Wire"; account: string }
+  | { type: "REQUEST_PAYOUT"; influencerId: string; amount: number; method: "PayPal" | "Stripe" | "Bank Wire"; account: string }
+  | { type: "APPROVE_PAYOUT"; payoutId: string }
+  | { type: "SET_ACTIVE_INFLUENCER"; influencerId: string }
+  | { type: "LOGIN_INFLUENCER"; influencerId: string }
+  | { type: "LOGOUT_INFLUENCER" }
+  | { type: "ADD_INFLUENCER"; influencer: InfluencerProfile }
+  | { type: "DELETE_INFLUENCER"; id: string }
+  | { type: "UPSERT_INFLUENCER"; influencer: InfluencerProfile }
   | { type: "RESET" };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -58,6 +67,35 @@ function reducer(state: AppState, action: Action): AppState {
     case "TOGGLE_SAVED_ARTICLE": return { ...state, savedArticles: state.savedArticles.includes(action.articleId) ? state.savedArticles.filter((id) => id !== action.articleId) : [...state.savedArticles, action.articleId] };
     case "SET_LIBRARY_ACTIVITY": return { ...state, libraryActivity: state.libraryActivity.some((item) => item.articleId === action.activity.articleId) ? state.libraryActivity.map((item) => item.articleId === action.activity.articleId ? action.activity : item) : [action.activity, ...state.libraryActivity] };
     case "UPDATE_ADMIN_USER": return { ...state, adminUsers: state.adminUsers.map((user) => user.id === action.id ? { ...user, ...action.patch } : user) };
+    case "UPDATE_INFLUENCER_PAYOUT_METHOD": return { ...state, influencers: state.influencers.map((inf) => inf.id === action.influencerId ? { ...inf, payoutMethod: action.method, payoutAccount: action.account } : inf) };
+    case "REQUEST_PAYOUT": {
+      const inf = state.influencers.find((i) => i.id === action.influencerId);
+      const newRecord = {
+        id: `pay_${Date.now().toString(36)}`,
+        influencerId: action.influencerId,
+        influencerName: inf?.name || "Influencer Partner",
+        amount: action.amount,
+        method: action.method,
+        account: action.account,
+        status: "Processing" as const,
+        requestedAt: new Date().toISOString(),
+        referenceNumber: `PAY-REQ-${Math.floor(100000 + Math.random() * 900000)}`
+      };
+      return { ...state, payoutRecords: [newRecord, ...state.payoutRecords] };
+    }
+    case "APPROVE_PAYOUT": {
+      const targetPayout = state.payoutRecords.find((p) => p.id === action.payoutId);
+      if (!targetPayout) return state;
+      const updatedPayouts = state.payoutRecords.map((p) => p.id === action.payoutId ? { ...p, status: "Completed" as const, processedAt: new Date().toISOString() } : p);
+      const updatedConversions = state.referralConversions.map((c) => c.influencerId === targetPayout.influencerId && c.status === "Approved" ? { ...c, status: "Paid" as const } : c);
+      return { ...state, payoutRecords: updatedPayouts, referralConversions: updatedConversions };
+    }
+    case "SET_ACTIVE_INFLUENCER": return { ...state, activeInfluencerId: action.influencerId };
+    case "LOGIN_INFLUENCER": return { ...state, currentInfluencerId: action.influencerId, activeInfluencerId: action.influencerId, influencers: state.influencers.map(i => i.id === action.influencerId ? { ...i, lastLogin: new Date().toISOString() } : i) };
+    case "LOGOUT_INFLUENCER": return { ...state, currentInfluencerId: null };
+    case "ADD_INFLUENCER": return { ...state, influencers: [action.influencer, ...state.influencers] };
+    case "DELETE_INFLUENCER": return { ...state, influencers: state.influencers.filter(i => i.id !== action.id), currentInfluencerId: state.currentInfluencerId === action.id ? null : state.currentInfluencerId };
+    case "UPSERT_INFLUENCER": return { ...state, influencers: state.influencers.some((inf) => inf.id === action.influencer.id) ? state.influencers.map((inf) => inf.id === action.influencer.id ? action.influencer : inf) : [...state.influencers, action.influencer] };
     case "MARK_NOTIFICATIONS_READ": return { ...state, notifications: state.notifications.map((notification) => ({ ...notification, read: true })) };
     case "RESET": return initialState;
     default: return state;

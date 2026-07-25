@@ -9,16 +9,71 @@ export interface Choice {
   text: string;
 }
 
+export interface QuestionOption {
+  key: string;
+  text: string;
+  percent?: string;
+  isCorrect: boolean;
+}
+
+export interface QuestionTaxonomy {
+  subject: string;
+  organSystem: string;
+  topic: string;
+  subtopic?: string;
+}
+
+export interface QuestionExplanation {
+  main: string;
+  educationalObjective: string;
+  distractorAnalysis?: Record<string, string>;
+}
+
+export interface QuestionAiEnrichment {
+  difficultyLevel: Difficulty | string;
+  difficultyScore?: number;
+  reasoningTraps?: string[];
+  highYieldKeywords?: string[];
+  clinicalPearl?: string;
+}
+
+export interface QuestionMedia {
+  questionImages?: string[];
+  explanationImages?: string[];
+}
+
+export interface JsonlQuestion {
+  id: string;
+  questionId?: string;
+  answerStats?: string;
+  timestamp?: string;
+  bankTitle?: string;
+  blockName?: string;
+  index?: number;
+  stem: string;
+  options: QuestionOption[];
+  taxonomy: QuestionTaxonomy;
+  explanation: QuestionExplanation;
+  aiEnrichment?: QuestionAiEnrichment;
+  media?: QuestionMedia;
+  status: string;
+}
+
 export interface Question {
   id: string;
+  questionId?: string;
   step: Step;
   system: string;
   discipline: string;
   topic: string;
+  subtopic?: string;
+  bankTitle?: string;
+  blockName?: string;
   difficulty: Difficulty;
   status: QuestionStatus;
   stem: string;
   choices: Choice[];
+  options?: QuestionOption[];
   correctChoiceId: string;
   explanation: string;
   objective: string;
@@ -30,6 +85,11 @@ export interface Question {
   averageTimeSec: number;
   globalAccuracy: number;
   sourceLabel?: string;
+  answerStats?: string;
+  taxonomy?: QuestionTaxonomy;
+  richExplanation?: QuestionExplanation;
+  aiEnrichment?: QuestionAiEnrichment;
+  media?: QuestionMedia;
 }
 
 export interface Attempt {
@@ -189,6 +249,68 @@ export interface NotificationItem {
   read: boolean;
 }
 
+export interface InfluencerProfile {
+  id: string;
+  name: string;
+  handle: string;
+  email: string;
+  password?: string;
+  lastLogin?: string;
+  avatarUrl?: string;
+  commissionRate: number; // e.g. 0.30 for 30%
+  tier: "Standard Partner" | "VIP Ambassador" | "Top Creator";
+  defaultPromoCode: string; // e.g. "DRSARAH15"
+  defaultDiscountPercent: number; // e.g. 15 for 15% off for student
+  referralUrl: string;
+  payoutMethod: "PayPal" | "Stripe" | "Bank Wire";
+  payoutAccount: string;
+  joinedDate: string;
+  totalClicks: number;
+  totalSignups: number;
+}
+
+export interface ReferralConversion {
+  id: string;
+  influencerId: string;
+  customerMaskedEmail: string;
+  planName: string;
+  listPrice: number; // e.g. $200.00
+  discountPercent: number; // e.g. 15 for 15%
+  discountAmount: number; // listPrice * (discountPercent/100) e.g. $30.00
+  customerPaid: number; // listPrice - discountAmount e.g. $170.00
+  operationalCost: number; // 10% of listPrice e.g. $20.00
+  netProfit: number; // listPrice - operationalCost - discountAmount e.g. $150.00
+  influencerCommissionRate: number; // e.g. 0.30 (30%)
+  commissionEarned: number; // netProfit * influencerCommissionRate e.g. $45.00
+  promoCodeUsed: string;
+  status: "Pending" | "Approved" | "Paid" | "Refunded";
+  timestamp: string;
+}
+
+export interface PayoutRecord {
+  id: string;
+  influencerId: string;
+  influencerName: string;
+  amount: number;
+  method: "PayPal" | "Stripe" | "Bank Wire";
+  account: string;
+  status: "Processing" | "Completed" | "Rejected";
+  requestedAt: string;
+  processedAt?: string;
+  referenceNumber: string;
+}
+
+export interface MarketingAsset {
+  id: string;
+  title: string;
+  category: "Banner" | "Social Story" | "Reel Overlay" | "Logo Pack" | "Copy Template";
+  dimensions?: string;
+  fileSize?: string;
+  downloadUrl: string;
+  previewText?: string;
+  thumbnailUrl?: string;
+}
+
 export interface AppState {
   questions: Question[];
   attempts: Attempt[];
@@ -205,4 +327,9 @@ export interface AppState {
   notifications: NotificationItem[];
   savedArticles: string[];
   libraryActivity: LibraryActivity[];
+  influencers: InfluencerProfile[];
+  referralConversions: ReferralConversion[];
+  payoutRecords: PayoutRecord[];
+  activeInfluencerId: string;
+  currentInfluencerId: string | null;
 }

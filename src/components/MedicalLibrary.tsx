@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight, BookOpen, BookOpenCheck, Bookmark, BookmarkCheck, Brain, Check,
   Clock3, GraduationCap, Heart, Layers3, Search, ShieldCheck, Siren, Stethoscope,
-  Target, UserCheck, Wind, X, Menu, ChevronLeft, ChevronRight
+  Target, UserCheck, Wind, X, Menu
 } from "lucide-react";
 import { medicalArticles, librarySystems } from "@/lib/library";
 import { rankLibraryArticles, systemPerformance } from "@/lib/algorithms";
@@ -128,7 +128,7 @@ export function MedicalLibraryPage() {
       <header className="new-library-hero-block">
         <div className="hero-eyebrow-badge"><BookOpen size={12}/> Reference Knowledge Base</div>
         <h1>Medical Library</h1>
-        <p>Expert clinical reference topics mapped directly to active questions, performance metrics, and recall cards.</p>
+        <p>Original clinical reference topics mapped directly to active questions, performance signals, and recall cards.</p>
         
         <div className="hero-action-bar">
           {/* Search Field */}
@@ -148,6 +148,8 @@ export function MedicalLibraryPage() {
             className={`sidebar-toggle-btn ${sidebarOpen ? "active" : ""}`}
             onClick={() => setSidebarOpen(!sidebarOpen)}
             title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            aria-expanded={sidebarOpen}
+            aria-controls="medical-library-index"
           >
             <Menu size={16}/>
             <span>{sidebarOpen ? "Hide Index" : "Show Index"}</span>
@@ -159,14 +161,14 @@ export function MedicalLibraryPage() {
           <div className="pills-group">
             <span className="pills-label">Exam:</span>
             {(["All", "Step 1", "Step 2 CK"] as const).map((s) => (
-              <button key={s} className={`pill-choice ${step === s ? "active" : ""}`} onClick={() => setStep(s)}>{s}</button>
+              <button key={s} aria-pressed={step === s} className={`pill-choice ${step === s ? "active" : ""}`} onClick={() => setStep(s)}>{s}</button>
             ))}
           </div>
           <div className="pills-divider"/>
           <div className="pills-group scrollable-pills">
             <span className="pills-label">System:</span>
             {["All", ...librarySystems].map((sys) => (
-              <button key={sys} className={`pill-choice ${system === sys ? "active" : ""}`} onClick={() => setSystem(sys)}>{sys}</button>
+              <button key={sys} aria-pressed={system === sys} className={`pill-choice ${system === sys ? "active" : ""}`} onClick={() => setSystem(sys)}>{sys}</button>
             ))}
           </div>
         </div>
@@ -176,7 +178,7 @@ export function MedicalLibraryPage() {
       <div className={`new-library-workspace ${sidebarOpen ? "sidebar-visible" : "sidebar-collapsed"}`}>
         
         {/* Left Side: Topic Index Panel */}
-        <aside className="new-library-sidebar">
+        <aside className="new-library-sidebar" id="medical-library-index" aria-label="Medical article index">
           <div className="sidebar-index-header">
             <span>{ranked.length} Articles matched</span>
             {query || system !== "All" || step !== "All" ? (
@@ -193,6 +195,7 @@ export function MedicalLibraryPage() {
                   key={art.id}
                   className={`sidebar-article-card ${isSelected ? "selected" : ""}`}
                   onClick={() => openArticle(art.id)}
+                  aria-current={isSelected ? "page" : undefined}
                 >
                   <div className="card-top-info">
                     <span className="card-system">{art.system}</span>
@@ -272,6 +275,13 @@ export function MedicalLibraryPage() {
                 <span><BookOpenCheck size={14}/> Updated {new Date(`${selected.updatedAt}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                 <span><Target size={14}/> {selected.relatedQuestionIds.length} Linked Question{selected.relatedQuestionIds.length === 1 ? "" : "s"}</span>
               </div>
+              <aside className="medical-review-note">
+                <BookOpenCheck size={18}/>
+                <div>
+                  <strong>Demonstration editorial status</strong>
+                  <p>This original study summary is provided for interface evaluation. Production publication requires named medical review, evidence citations, and guideline-version approval.</p>
+                </div>
+              </aside>
 
               {/* Horizontal Document Anchor Quick Links */}
               <nav className="document-toc-bar" aria-label="Sections index">
@@ -323,10 +333,11 @@ export function MedicalLibraryPage() {
                     {section.table && (
                       <div className="document-table-wrapper">
                         <table className="document-table">
+                          <caption className="sr-only">{section.title} comparison</caption>
                           <thead>
                             <tr>
                               {section.table.headers.map((header) => (
-                                <th key={header}>{header}</th>
+                                <th scope="col" key={header}>{header}</th>
                               ))}
                             </tr>
                           </thead>
@@ -353,7 +364,7 @@ export function MedicalLibraryPage() {
                     {renderSystemIcon(selected.system, 20)}
                   </div>
                   <div>
-                    <h3>Practice this topic on StepWise QBank</h3>
+                    <h3>Practice this topic in Stepwise QBank</h3>
                     <p>Test your active recall with the {selected.relatedQuestionIds.length} connected questions and update your system mastery signal.</p>
                   </div>
                 </div>

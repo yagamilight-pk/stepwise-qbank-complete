@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   ArrowRight, BarChart3, BookOpenCheck, BrainCircuit, Check, ChevronDown, Command,
-  FileText, Layers3, Menu, MessageSquareText, ShieldCheck, Sparkles, Star, Target, X, Zap
+  FileText, Layers3, Menu, MessageSquareText, ShieldCheck, Sparkles, Target, X, Zap
 } from "lucide-react";
 import { Donut, Logo, Progress, Sparkline } from "./ui";
+import { ReasoningTrace } from "./ReasoningTrace";
 
 const faqs = [
   ["Is Stepwise affiliated with the USMLE program?", "No. Stepwise is an independent learning interface concept. USMLE is a jointly sponsored program of the Federation of State Medical Boards and the National Board of Medical Examiners."],
@@ -29,17 +30,20 @@ export function MarketingPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const [openFaq, setOpenFaq] = useState(0);
+  const mobileNavId = useId();
+  const billingLabelId = useId();
+  const faqId = useId();
 
   return (
     <main className="marketing-page">
       <div className="announcement">3-day interactive trial · Up to 100 questions · No card required <span>Try five questions now <ArrowRight size={14}/></span></div>
       <header className="marketing-nav shell-width">
         <Logo />
-        <nav className={mobileOpen ? "marketing-links is-open" : "marketing-links"}>
-          <a href="#product">Product</a><a href="#workflow">How it works</a><Link href="/try">Try it</Link><a href="#pricing">Pricing</a><a href="#faq">FAQ</a>
+        <nav id={mobileNavId} aria-label="Primary navigation" className={mobileOpen ? "marketing-links is-open" : "marketing-links"}>
+          <a href="#product" onClick={()=>setMobileOpen(false)}>Product</a><a href="#workflow" onClick={()=>setMobileOpen(false)}>How it works</a><Link href="/try" onClick={()=>setMobileOpen(false)}>Try it</Link><a href="#pricing" onClick={()=>setMobileOpen(false)}>Pricing</a><a href="#faq" onClick={()=>setMobileOpen(false)}>FAQ</a>
         </nav>
         <div className="marketing-actions"><Link className="btn btn-ghost" href="/login">Sign in</Link><Link className="btn btn-dark" href="/signup">Start free <ArrowRight size={16}/></Link></div>
-        <button className="mobile-menu" onClick={() => setMobileOpen((value) => !value)} aria-label="Toggle navigation">{mobileOpen ? <X/> : <Menu/>}</button>
+        <button className="mobile-menu" onClick={() => setMobileOpen((value) => !value)} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls={mobileNavId}>{mobileOpen ? <X/> : <Menu/>}</button>
       </header>
 
       <section className="hero shell-width">
@@ -48,7 +52,7 @@ export function MarketingPage() {
           <h1>See why you miss questions.<br/><em>Know what to do next.</em></h1>
           <p>Stepwise connects exam-style practice to reasoning diagnostics, focused review blocks, and spaced repetition—so every miss becomes a specific correction.</p>
           <div className="hero-actions"><Link className="btn btn-brand btn-lg" href="/try">Try five questions <ArrowRight size={18}/></Link><Link className="btn btn-secondary btn-lg" href="/app">Explore full workspace</Link></div>
-          <div className="hero-proof"><div className="avatar-stack"><span>AR</span><span>MC</span><span>DB</span><span>+8k</span></div><div><div className="stars"><Star/><Star/><Star/><Star/><Star/></div><small>Designed around focused, deliberate practice</small></div></div>
+          <div className="hero-proof"><div className="avatar-stack" aria-hidden="true"><span>WHY</span><span>MISS</span><span>NEXT</span></div><div><b>Reasoning Trace</b><small>Cue → hypothesis → decision → correction → review</small></div></div>
         </div>
         <div className="hero-product" aria-label="Stepwise product preview">
           <div className="hero-glow"/>
@@ -73,6 +77,25 @@ export function MarketingPage() {
       </section>
 
       <section className="trust-strip shell-width"><span>One connected workspace for</span><div><b>STEP 1</b><i/> <b>STEP 2 CK</b><i/> <b>QBank</b><i/> <b>Analytics</b><i/> <b>Spaced repetition</b></div></section>
+
+      <section className="section shell-width marketing-trace" aria-labelledby="reasoning-trace-preview">
+        <div className="section-heading">
+          <div className="eyebrow">The Stepwise difference</div>
+          <h2 id="reasoning-trace-preview">Make the reasoning visible.</h2>
+          <p>A signature learning path connects the clinical clue, the decision, the correction, and the next review—without presenting example data as a real learner outcome.</p>
+        </div>
+        <ReasoningTrace
+          sample
+          title="From missed clue to next review"
+          description="An illustrative example of the diagnostic feedback shown after a question."
+          steps={[
+            { phase: "Clinical cue", title: "Hypotension after trauma", detail: "Prioritize the immediate physiologic threat.", state: "complete" },
+            { phase: "Decision", title: "Selected a diagnostic test first", detail: "The choice delayed stabilization.", state: "complete" },
+            { phase: "Correction", title: "Sequence error identified", detail: "Stabilize before confirmatory testing.", state: "current" },
+            { phase: "Next review", title: "Rehearse the emergency sequence", detail: "A focused recall card is due tomorrow.", state: "next" }
+          ]}
+        />
+      </section>
 
       <section id="product" className="section shell-width">
         <div className="section-heading centered"><div className="eyebrow">One system, every study loop</div><h2>Everything between “I missed it”<br/>and “I own it.”</h2><p>Practice, understand, retain, and recalibrate without stitching together five different tools.</p></div>
@@ -114,23 +137,23 @@ export function MarketingPage() {
         </div>
       </section>
 
-      <section className="testimonial-section"><div className="shell-width"><div className="quote-mark">“</div><blockquote>Stepwise makes the study process feel finite. I always know what to do next, and every missed question becomes something I can actually close.</blockquote><div className="quote-person"><span>MC</span><div><b>Mei C.</b><small>Medical student · Step 2 CK track</small></div></div></div></section>
+      <section className="testimonial-section" aria-labelledby="learner-outcome-title"><div className="shell-width"><div className="quote-mark" aria-hidden="true">“</div><p className="eyebrow">Product principle</p><blockquote id="learner-outcome-title">A missed question should become an understandable correction and a concrete next study action.</blockquote><div className="quote-person"><span aria-hidden="true">RT</span><div><b>The Stepwise Reasoning Trace</b><small>Product direction, not a learner testimonial</small></div></div></div></section>
 
       <section id="pricing" className="section shell-width pricing-section">
-        <div className="section-heading centered"><div className="eyebrow">Simple access</div><h2>A plan for every phase.</h2><p>Explore the full interface in demo mode. Pricing cards are ready for future billing integration.</p></div>
-        <div className="billing-toggle"><button className={billing === "monthly" ? "active" : ""} onClick={() => setBilling("monthly")}>Monthly</button><button className={billing === "annual" ? "active" : ""} onClick={() => setBilling("annual")}>Annual <span>Save 25%</span></button></div>
+        <div className="section-heading centered"><div className="eyebrow">Pricing preview</div><h2>A plan for every phase.</h2><p id={billingLabelId}>These illustrative prices do not initiate checkout. Production billing and final commercial terms are not connected yet.</p></div>
+        <div className="billing-toggle" role="group" aria-labelledby={billingLabelId}><button type="button" className={billing === "monthly" ? "active" : ""} aria-pressed={billing === "monthly"} onClick={() => setBilling("monthly")}>Monthly</button><button type="button" className={billing === "annual" ? "active" : ""} aria-pressed={billing === "annual"} onClick={() => setBilling("annual")}>Annual <span>Save about 25%</span></button></div>
         <div className="pricing-grid">
-          <article><div><span className="plan-icon"><BookOpenCheck/></span><h3>Core</h3><p>Focused QBank practice and essential analytics.</p></div><div className="price"><b>${billing === "annual" ? 29 : 39}</b><span>/ month</span></div><Link className="btn btn-secondary btn-block" href="/signup">Start free</Link><ul>{["Step 1 or Step 2 CK QBank","Tutor and timed modes","System analytics","Notes and bookmarks"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
-          <article className="featured"><div className="popular">MOST POPULAR</div><div><span className="plan-icon"><Sparkles/></span><h3>Pro</h3><p>The full adaptive learning and planning system.</p></div><div className="price"><b>${billing === "annual" ? 49 : 65}</b><span>/ month</span></div><Link className="btn btn-brand btn-block" href="/signup">Start 3-day trial</Link><ul>{["Everything in Core","Adaptive mode and readiness score","Dynamic study planner","Spaced repetition cards","Advanced confidence analytics","Exam simulation workspace"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
-          <article><div><span className="plan-icon"><ShieldCheck/></span><h3>Institution</h3><p>Administration, cohorts, and content operations.</p></div><div className="price"><b>Custom</b></div><Link className="btn btn-secondary btn-block" href="/admin">View admin demo</Link><ul>{["Learner and cohort management","Question authoring workflow","Content reports and QA","Billing and access controls"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
+          <article><div><span className="plan-icon"><BookOpenCheck/></span><h3>Core</h3><p>Focused QBank practice and essential analytics.</p></div><div className="price"><b>${billing === "annual" ? 29 : 39}</b><span>/ month</span></div>{billing === "annual" && <small>$348 billed annually in this pricing preview</small>}<Link className="btn btn-secondary btn-block" href="/signup">Explore Core</Link><ul>{["Step 1 or Step 2 CK QBank","Tutor and timed modes","System analytics","Notes and bookmarks"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
+          <article className="featured"><div className="popular">FULL TOOLKIT</div><div><span className="plan-icon"><Sparkles/></span><h3>Pro</h3><p>The full adaptive learning and planning system.</p></div><div className="price"><b>${billing === "annual" ? 49 : 65}</b><span>/ month</span></div>{billing === "annual" && <small>$588 billed annually in this pricing preview</small>}<Link className="btn btn-brand btn-block" href="/signup">Explore Pro</Link><ul>{["Everything in Core","Adaptive mode and readiness score","Dynamic study planner","Spaced repetition cards","Advanced confidence analytics","Exam simulation workspace"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
+          <article><div><span className="plan-icon"><ShieldCheck/></span><h3>Institution</h3><p>Administration, cohorts, and content operations.</p></div><div className="price"><b>Custom</b></div><a className="btn btn-secondary btn-block" href="mailto:hello@stepwise.page">Contact enterprise</a><ul>{["Learner and cohort management","Question authoring workflow","Content reports and QA","Billing and access controls"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
         </div>
       </section>
 
-      <section id="faq" className="section shell-width faq-section"><div className="faq-intro"><div className="eyebrow">Questions, answered</div><h2>Before you start.</h2><p>Everything important about the demo, the learning model, and production integration.</p><div className="faq-help"><MessageSquareText/><div><b>Still exploring?</b><span>Open the learner or admin demo instantly.</span></div></div></div><div className="faq-list">{faqs.map(([question,answer],index)=><article key={question} className={openFaq === index ? "open" : ""}><button onClick={()=>setOpenFaq(openFaq===index?-1:index)}><span>{question}</span><ChevronDown/></button><div><p>{answer}</p></div></article>)}</div></section>
+      <section id="faq" className="section shell-width faq-section"><div className="faq-intro"><div className="eyebrow">Questions, answered</div><h2>Before you start.</h2><p>Everything important about the demo, the learning model, and production integration.</p><div className="faq-help"><MessageSquareText/><div><b>Still exploring?</b><span>Questions or licensing? Email hello@stepwise.page</span></div></div></div><div className="faq-list">{faqs.map(([question,answer],index)=>{const questionId = `${faqId}-question-${index}`; const panelId = `${faqId}-panel-${index}`; const isOpen = openFaq === index; return <article key={question} className={isOpen ? "open" : ""}><h3 style={{margin:0,font:"inherit"}}><button type="button" id={questionId} aria-expanded={isOpen} aria-controls={panelId} onClick={()=>setOpenFaq(isOpen?-1:index)}><span>{question}</span><ChevronDown aria-hidden="true"/></button></h3><div id={panelId} role="region" aria-labelledby={questionId} hidden={!isOpen}><p>{answer}</p></div></article>})}</div></section>
 
-      <section className="final-cta shell-width"><div className="cta-orbit cta-orbit-one"/><div className="cta-orbit cta-orbit-two"/><div className="pill"><Zap size={14}/> Your next block is waiting</div><h2>Make every question<br/>move you forward.</h2><p>Start with a fully interactive workspace and see how the complete study loop fits together.</p><div><Link className="btn btn-white btn-lg" href="/try">Try five questions <ArrowRight size={18}/></Link><Link className="btn btn-glass btn-lg" href="/app">Open full demo</Link></div></section>
+      <section className="final-cta shell-width"><div className="cta-orbit cta-orbit-one"/><div className="cta-orbit cta-orbit-two"/><div className="pill"><Zap size={14}/> Your next block is waiting</div><h2>Make every question<br/>move you forward.</h2><p>Start with a fully interactive workspace and see how the complete study loop fits together.</p><div><Link className="btn btn-white btn-lg" href="/try">Try five questions <ArrowRight size={18}/></Link><Link className="btn btn-glass btn-lg" href="/app">Open full workspace</Link></div></section>
 
-      <footer className="marketing-footer"><div className="shell-width"><div className="footer-top"><div><Logo inverse/><p>An adaptive QBank experience for focused medical exam preparation.</p></div><div className="footer-links"><div><b>Product</b><a href="#product">Features</a><a href="#workflow">How it works</a><Link href="/try">Question demo</Link><Link href="/app">Learner demo</Link></div><div><b>Workspace</b><Link href="/app/qbank">QBank</Link><Link href="/app/analytics">Analytics</Link><Link href="/admin">Admin</Link></div><div><b>Legal</b><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/accessibility">Accessibility</Link></div></div></div><div className="footer-bottom"><span>© 2026 Stepwise. Educational interface demo.</span><span>Not affiliated with or endorsed by USMLE, NBME, or FSMB.</span></div></div></footer>
+      <footer className="marketing-footer"><div className="shell-width"><div className="footer-top"><div><Logo inverse/><p>An adaptive QBank experience for focused medical exam preparation.</p></div><div className="footer-links"><div><b>Product</b><a href="#product">Features</a><a href="#workflow">How it works</a><Link href="/try">Question demo</Link><Link href="/app">Learner workspace</Link></div><div><b>Workspace</b><Link href="/app/qbank">QBank</Link><Link href="/app/analytics">Analytics</Link><Link href="/app/study-plan">Study plan</Link><Link href="/app/flashcards">Flashcards</Link></div><div><b>Legal</b><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/cookies">Cookies</Link><Link href="/accessibility">Accessibility</Link></div><div><b>Contact</b><a href="mailto:support@stepwise.page">support@stepwise.page</a><a href="mailto:hello@stepwise.page">hello@stepwise.page</a><a href="mailto:billing@stepwise.page">billing@stepwise.page</a></div></div></div><div className="footer-bottom"><span>© 2026 Stepwise. All rights reserved.</span><span>Not affiliated with or endorsed by USMLE, NBME, or FSMB. Security: admin@stepwise.page</span></div></div></footer>
     </main>
   );
 }

@@ -1,4 +1,4 @@
-import type { AdminUser, AppState, ContentReport, Flashcard, Note, NotificationItem, Question, StudyTask } from "./types";
+import type { AdminUser, AppState, Flashcard, InfluencerProfile, MarketingAsset, Note, PayoutRecord, Question, ReferralConversion } from "./types";
 
 const q = (
   id: string,
@@ -263,37 +263,86 @@ export const seedFlashcards: Flashcard[] = [
   }
 ];
 
-const users: AdminUser[] = [
-  ["u1", "Aisha Rahman", "aisha@example.com", "Pro", "Active", "2026-04-02", "2026-07-22", 1642, 76],
-  ["u2", "Daniel Brooks", "daniel@example.com", "Core", "Active", "2026-05-11", "2026-07-21", 894, 69],
-  ["u3", "Mei Chen", "mei@example.com", "Institution", "Active", "2026-02-16", "2026-07-22", 2380, 82],
-  ["u4", "Omar Siddiqui", "omar@example.com", "Trial", "At risk", "2026-07-10", "2026-07-15", 72, 58],
-  ["u5", "Sofia Martinez", "sofia@example.com", "Pro", "Paused", "2026-01-22", "2026-06-30", 1875, 74],
-  ["u6", "Noah Williams", "noah@example.com", "Core", "Active", "2026-06-03", "2026-07-20", 512, 71]
-].map(([id, name, email, plan, status, joinedAt, lastActiveAt, questionsAnswered, accuracy]) => ({
-  id: String(id), name: String(name), email: String(email), plan: plan as AdminUser["plan"], status: status as AdminUser["status"],
-  joinedAt: String(joinedAt), lastActiveAt: String(lastActiveAt), questionsAnswered: Number(questionsAnswered), accuracy: Number(accuracy)
-}));
+export const users: AdminUser[] = [];
 
-const reports: ContentReport[] = [
-  { id: "r1", questionId: "SW-2003", reason: "Ambiguous wording", detail: "Could clarify that the patient is normotensive when choosing among uterotonics.", reporter: "learner-2048", createdAt: "2026-07-21T10:15:00.000Z", status: "Open" },
-  { id: "r2", questionId: "SW-1002", reason: "Medical accuracy", detail: "Please distinguish entacapone from tolcapone adverse effects more explicitly.", reporter: "learner-1931", createdAt: "2026-07-20T16:40:00.000Z", status: "Open" },
-  { id: "r3", questionId: "SW-2006", reason: "Typo", detail: "A punctuation issue in the prior revision was corrected.", reporter: "editor-7", createdAt: "2026-07-18T08:10:00.000Z", status: "Resolved" }
-];
+export const demoInfluencers: InfluencerProfile[] = [];
 
-const notifications: NotificationItem[] = [
-  { id: "n1", title: "Study plan adjusted", body: "Your next block now emphasizes Neurology and Immunology.", time: "12 min ago", read: false },
-  { id: "n2", title: "Three cards are due", body: "A focused review should take about 4 minutes.", time: "1 hr ago", read: false },
-  { id: "n3", title: "Weekly insight", body: "Your accuracy rose 6% while average response time fell 9 seconds.", time: "Yesterday", read: true }
-];
+export function calcConversion(
+  id: string,
+  influencerId: string,
+  customerMaskedEmail: string,
+  planName: string,
+  listPrice: number,
+  discountPercent: number,
+  promoCodeUsed: string,
+  status: ReferralConversion["status"],
+  timestamp: string,
+  influencerCommissionRate: number = 0.30
+): ReferralConversion {
+  const discountAmount = Math.round(listPrice * (discountPercent / 100) * 100) / 100;
+  const customerPaid = Math.round((listPrice - discountAmount) * 100) / 100;
+  const operationalCost = Math.round(listPrice * 0.10 * 100) / 100;
+  const netProfit = Math.round((listPrice - operationalCost - discountAmount) * 100) / 100;
+  const commissionEarned = Math.round(netProfit * influencerCommissionRate * 100) / 100;
+  return {
+    id,
+    influencerId,
+    customerMaskedEmail,
+    planName,
+    listPrice,
+    discountPercent,
+    discountAmount,
+    customerPaid,
+    operationalCost,
+    netProfit,
+    influencerCommissionRate,
+    commissionEarned,
+    promoCodeUsed,
+    status,
+    timestamp
+  };
+}
 
-const studyTasks: StudyTask[] = [
-  { id: "t1", date: "2026-07-22", type: "Questions", title: "Adaptive mixed block", detail: "20 questions · Neurology + Immunology", minutes: 34, completed: false, priority: "Weakness" },
-  { id: "t2", date: "2026-07-22", type: "Flashcards", title: "Due card review", detail: "3 due · 2 learning", minutes: 8, completed: false, priority: "Maintenance" },
-  { id: "t3", date: "2026-07-22", type: "Review", title: "Incorrects from last block", detail: "6 explanations", minutes: 18, completed: true, priority: "Core" },
-  { id: "t4", date: "2026-07-23", type: "Questions", title: "Timed systems block", detail: "30 questions · Cardiovascular", minutes: 52, completed: false, priority: "Core" },
-  { id: "t5", date: "2026-07-24", type: "Assessment", title: "Readiness mini-assessment", detail: "40 mixed questions", minutes: 70, completed: false, priority: "Core" },
-  { id: "t6", date: "2026-07-25", type: "Review", title: "Weak-topic consolidation", detail: "Renal acid-base + movement disorders", minutes: 45, completed: false, priority: "Weakness" }
+export const demoConversions: ReferralConversion[] = [];
+
+export const demoPayoutRecords: PayoutRecord[] = [];
+
+export const demoMarketingAssets: MarketingAsset[] = [
+  {
+    id: "ast_1",
+    title: "Instagram Story & Reel Overlays (USMLE Prep)",
+    category: "Social Story",
+    dimensions: "1080x1920 PX",
+    fileSize: "4.2 MB",
+    downloadUrl: "#",
+    thumbnailUrl: "",
+    previewText: "High-yield USMLE questions with Stepwise signature purple gradient overlays."
+  },
+  {
+    id: "ast_2",
+    title: "YouTube Video Description Copy & Promo Links",
+    category: "Copy Template",
+    downloadUrl: "#",
+    previewText: "📌 Get 15% OFF Stepwise QBank with your exclusive partner code! Features 4,000+ USMLE questions with 120fps animated explanations."
+  },
+  {
+    id: "ast_3",
+    title: "Stepwise Dark Mode & Light Mode Vector Logo Pack",
+    category: "Logo Pack",
+    dimensions: "SVG / PNG / EPS",
+    fileSize: "8.5 MB",
+    downloadUrl: "#",
+    previewText: "Transparent SVG and high-res PNG logos for video graphics and blog banners."
+  },
+  {
+    id: "ast_4",
+    title: "Website Sidebar & Blog Banner (728x90 & 300x250)",
+    category: "Banner",
+    dimensions: "728x90 & 300x250 PX",
+    fileSize: "2.1 MB",
+    downloadUrl: "#",
+    previewText: "Eye-catching banner set emphasizing Stepwise 120fps GPU animations and adaptive QBank."
+  }
 ];
 
 export const initialState: AppState = {
@@ -327,9 +376,14 @@ export const initialState: AppState = {
     highContrast: false,
     largeText: false
   },
-  adminUsers: users.map((u) => ({ ...u, questionsAnswered: 0, accuracy: 0 })),
+  adminUsers: [],
   reports: [],
   notifications: [],
   savedArticles: [],
-  libraryActivity: []
+  libraryActivity: [],
+  influencers: [],
+  referralConversions: [],
+  payoutRecords: [],
+  activeInfluencerId: "",
+  currentInfluencerId: null
 };
