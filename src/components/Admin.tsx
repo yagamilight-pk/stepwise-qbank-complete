@@ -10,6 +10,7 @@ import {
   UserMinus, Users, X
 } from "lucide-react";
 import { systemPerformance } from "@/lib/algorithms";
+import { validateQuestionGovernance } from "@/lib/content-governance";
 import { useStepwise } from "@/lib/store";
 import type { AdminUser, Difficulty, InfluencerProfile, JsonlQuestion, Question, QuestionAiEnrichment, QuestionOption, QuestionStatus, QuestionTaxonomy, Step } from "@/lib/types";
 import { Avatar, Badge, Donut, Field, formatDate, Modal, PageHeader, Progress, Sparkline, StatCard, Toast, Toggle } from "./ui";
@@ -38,7 +39,21 @@ export function parseJsonlText(text: string): { valid: Question[]; invalid: numb
   for (const line of lines) {
     try {
       const obj = JSON.parse(line.trim()) as JsonlQuestion;
-      if (!obj.stem && !obj.id) {
+      const options = Array.isArray(obj.options) ? obj.options : [];
+      const correctOptions = options.filter((option) => option?.isCorrect);
+      const hasRequiredStructure = Boolean(
+        obj.id
+        && obj.stem?.trim()
+        && options.length >= 4
+        && options.every((option) => option?.key && option?.text?.trim())
+        && correctOptions.length === 1
+        && obj.explanation?.main?.trim()
+        && obj.explanation?.educationalObjective?.trim()
+        && obj.taxonomy?.organSystem?.trim()
+        && obj.taxonomy?.subject?.trim()
+        && obj.taxonomy?.topic?.trim()
+      );
+      if (!hasRequiredStructure) {
         invalid++;
         continue;
       }
@@ -47,7 +62,6 @@ export function parseJsonlText(text: string): { valid: Question[]; invalid: numb
         mediaCount += (obj.media.questionImages?.length || 0) + (obj.media.explanationImages?.length || 0);
       }
 
-      const options = obj.options || [];
       const choices = options.map((opt, idx) => ({
         id: `${obj.id || "q"}-${opt.key || String.fromCharCode(65 + idx)}`,
         text: opt.text || ""
@@ -74,6 +88,15 @@ export function parseJsonlText(text: string): { valid: Question[]; invalid: numb
         id: obj.id || `Q-${Math.floor(1000 + Math.random() * 9000)}`,
         questionId: obj.questionId || `QID:${Math.floor(1000 + Math.random() * 9000)}`,
         step,
+        format: "Single best answer",
+        contentUse: "Demo",
+        sourceLabel: `Imported demonstration record · ${obj.bankTitle || "Unverified source"}`,
+        references: [],
+        governance: {
+          version: 1,
+          rightsStatus: "Pending verification",
+          editor: "JSONL import"
+        },
         system: organSystem,
         discipline: subject,
         topic: obj.taxonomy?.topic || "General",
@@ -491,6 +514,15 @@ const emptyQuestion = (): Question => ({
   id: `uworld_step1_block1_q${Math.floor(100 + Math.random() * 900)}`,
   questionId: `QID:${Math.floor(6000 + Math.random() * 3000)}`,
   step: "Step 2 CK",
+  format: "Single best answer",
+  contentUse: "Demo",
+  sourceLabel: "Stepwise original draft",
+  references: [],
+  governance: {
+    version: 1,
+    rightsStatus: "Original",
+    editor: "Current editor"
+  },
   system: "Gastrointestinal System",
   discipline: "Pediatrics / Gastroenterology",
   topic: "Polyposis Syndromes",
@@ -593,9 +625,15 @@ function QuestionsAdmin() {
       tags: qToSave.tags.filter(Boolean),
       pearls: qToSave.pearls.filter(Boolean)
     };
+    const governance = validateQuestionGovernance(normalized, normalized.status);
+    if (normalized.status === "Published" && !governance.canPublish) {
+      setToast(`Publish blocked · ${governance.errors[0]?.label ?? "Complete the required review fields."}`);
+      setTimeout(() => setToast(""), 2600);
+      return;
+    }
     dispatch({ type: "UPSERT_QUESTION", question: normalized });
     setEditor(null);
-    setToast("Question saved to database");
+    setToast(normalized.status === "Published" ? "Question published in this local demo workspace" : "Draft saved in this browser");
     setTimeout(() => setToast(""), 1800);
   };
 
@@ -733,6 +771,7 @@ function QuestionEditorModal({ question, onClose, onSave }: { question: Question
   const [eq, setEq] = useState<Question>(structuredClone(question));
   const [device, setDevice] = useState<"mobile" | "tablet">("mobile");
   const [previewSelectedChoice, setPreviewSelectedChoice] = useState<string | null>(null);
+  const governance = useMemo(() => validateQuestionGovernance(eq, "Published"), [eq]);
 
   const options: QuestionOption[] = eq.options && eq.options.length > 0
     ? eq.options
@@ -743,14 +782,24 @@ function QuestionEditorModal({ question, onClose, onSave }: { question: Question
         isCorrect: c.id === eq.correctChoiceId
       }));
 
+  const applyOptions = (nextOptions: QuestionOption[]) => {
+    const nextChoices = nextOptions.map((option, index) => ({
+      id: `${eq.id}-${option.key || String.fromCharCode(65 + index)}`,
+      text: option.text
+    }));
+    const correctIndex = Math.max(0, nextOptions.findIndex((option) => option.isCorrect));
+    setEq({
+      ...eq,
+      options: nextOptions,
+      choices: nextChoices,
+      correctChoiceId: nextChoices[correctIndex]?.id ?? ""
+    });
+  };
+
   const updateOptionText = (index: number, text: string) => {
     const nextOptions = [...options];
     nextOptions[index] = { ...nextOptions[index], text };
-    const nextChoices = nextOptions.map((opt, i) => ({
-      id: `${eq.id}-${opt.key || String.fromCharCode(65 + i)}`,
-      text: opt.text
-    }));
-    setEq({ ...eq, options: nextOptions, choices: nextChoices });
+    applyOptions(nextOptions);
   };
 
   const updateOptionCorrect = (index: number) => {
@@ -758,24 +807,19 @@ function QuestionEditorModal({ question, onClose, onSave }: { question: Question
       ...opt,
       isCorrect: i === index
     }));
-    const correctId = `${eq.id}-${nextOptions[index].key || String.fromCharCode(65 + index)}`;
-    setEq({ ...eq, options: nextOptions, correctChoiceId: correctId });
+    applyOptions(nextOptions);
   };
 
   const addOption = () => {
     const nextKey = String.fromCharCode(65 + options.length);
     const nextOptions = [...options, { key: nextKey, text: "", percent: "0%", isCorrect: false }];
-    const nextChoices = nextOptions.map((opt, i) => ({
-      id: `${eq.id}-${opt.key || String.fromCharCode(65 + i)}`,
-      text: opt.text
-    }));
-    setEq({ ...eq, options: nextOptions, choices: nextChoices });
+    applyOptions(nextOptions);
   };
 
   const removeOption = (index: number) => {
     if (options.length <= 2) return;
     const nextOptions = options.filter((_, i) => i !== index);
-    setEq({ ...eq, options: nextOptions });
+    applyOptions(nextOptions);
   };
 
   return (
@@ -792,7 +836,7 @@ function QuestionEditorModal({ question, onClose, onSave }: { question: Question
               <button className={device === "tablet" ? "active" : ""} onClick={() => setDevice("tablet")}><Tablet size={16}/> Tablet</button>
             </div>
             <button className="btn btn-secondary btn-sm" onClick={() => onSave({ ...eq, status: "Draft" })}>Save Draft</button>
-            <button className="btn btn-brand btn-sm" onClick={() => onSave({ ...eq, status: "Published" })}><Check/> Publish</button>
+            <button className="btn btn-brand btn-sm" disabled={!governance.canPublish} title={governance.canPublish ? "Publish to the local demo workspace" : governance.errors[0]?.label} onClick={() => onSave({ ...eq, status: "Published" })}><Check/> {eq.contentUse === "Production" ? "Publish" : "Publish demo"}</button>
             <button className="icon-btn" onClick={onClose} aria-label="Close editor"><X/></button>
           </div>
         </header>
@@ -800,6 +844,14 @@ function QuestionEditorModal({ question, onClose, onSave }: { question: Question
         <div className="editor-split-body">
           {/* Left Side: WYSIWYG & Form Editor */}
           <div className="editor-left-form">
+            <section className={`governance-readiness ${governance.canPublish ? "ready" : "blocked"}`} aria-live="polite">
+              <div>
+                {governance.canPublish ? <ShieldCheck/> : <AlertTriangle/>}
+                <span><b>{governance.canPublish ? (governance.productionReady ? "Production publish gate passed" : "Demo publish gate passed") : `${governance.errors.length} publish blocker${governance.errors.length === 1 ? "" : "s"}`}</b><small>{eq.contentUse === "Demo" ? "This item remains explicitly isolated from production learner delivery." : `${governance.completeness}% governance completeness · ${governance.warnings.length} advisory checks`}</small></span>
+              </div>
+              {governance.issues.length > 0 && <ul>{governance.issues.slice(0, 4).map((issue) => <li key={issue.code} className={issue.severity}>{issue.label}</li>)}</ul>}
+            </section>
+
             <section className="form-section">
               <h3>Question Metadata & Identifiers</h3>
               <div className="form-grid-2">
@@ -807,6 +859,20 @@ function QuestionEditorModal({ question, onClose, onSave }: { question: Question
                 <Field label="Internal ID"><input value={eq.id} onChange={e => setEq({ ...eq, id: e.target.value })}/></Field>
                 <Field label="QBank Title"><input value={eq.bankTitle || "iMD_QBank"} onChange={e => setEq({ ...eq, bankTitle: e.target.value })}/></Field>
                 <Field label="Block Name"><input value={eq.blockName || "Block_1"} onChange={e => setEq({ ...eq, blockName: e.target.value })}/></Field>
+                <Field label="Exam"><select value={eq.step} onChange={e => setEq({ ...eq, step: e.target.value as Step })}><option>Step 1</option><option>Step 2 CK</option></select></Field>
+                <Field label="Item format"><select value={eq.format} onChange={e => setEq({ ...eq, format: e.target.value as Question["format"] })}><option>Single best answer</option><option>Chart / tabular</option><option>Sequential set</option><option>Scientific abstract</option><option>Audio / video</option></select></Field>
+              </div>
+            </section>
+
+            <section className="form-section">
+              <h3>Evidence, Rights & Review</h3>
+              <div className="form-grid-2">
+                <Field label="Delivery boundary"><select value={eq.contentUse} onChange={e => setEq({ ...eq, contentUse: e.target.value as Question["contentUse"] })}><option value="Demo">Demo only</option><option value="Production">Production candidate</option></select></Field>
+                <Field label="Rights status"><select value={eq.governance?.rightsStatus ?? "Pending verification"} onChange={e => setEq({ ...eq, governance: { version: eq.governance?.version ?? 1, ...eq.governance, rightsStatus: e.target.value as NonNullable<Question["governance"]>["rightsStatus"] } })}><option>Pending verification</option><option>Original</option><option>Licensed</option></select></Field>
+                <Field label="Source / provenance"><input value={eq.sourceLabel ?? ""} onChange={e => setEq({ ...eq, sourceLabel: e.target.value })} placeholder="Original authoring record or licensed source"/></Field>
+                <Field label="Medical reviewer"><input value={eq.governance?.medicalReviewer ?? ""} onChange={e => setEq({ ...eq, governance: { version: eq.governance?.version ?? 1, rightsStatus: eq.governance?.rightsStatus ?? "Pending verification", ...eq.governance, medicalReviewer: e.target.value } })} placeholder="Reviewer name and credentials"/></Field>
+                <Field label="Medical review date"><input type="date" value={eq.governance?.medicalReviewedAt?.slice(0,10) ?? ""} onChange={e => setEq({ ...eq, governance: { version: eq.governance?.version ?? 1, rightsStatus: eq.governance?.rightsStatus ?? "Pending verification", ...eq.governance, medicalReviewedAt: e.target.value } })}/></Field>
+                <Field label="Evidence reference"><input value={eq.references?.[0]?.title ?? ""} onChange={e => setEq({ ...eq, references: e.target.value ? [{ id: eq.references?.[0]?.id ?? `ref-${eq.id}`, title: e.target.value, source: eq.references?.[0]?.source ?? "Editorial evidence record" }] : [] })} placeholder="Guideline, review, or primary source"/></Field>
               </div>
             </section>
 
@@ -843,7 +909,7 @@ function QuestionEditorModal({ question, onClose, onSave }: { question: Question
                     <input className="option-percent-input" aria-label={`Option ${opt.key} sample response percentage`} value={opt.percent || "0%"} onChange={e => {
                       const next = [...options];
                       next[idx] = { ...next[idx], percent: e.target.value };
-                      setEq({ ...eq, options: next });
+                      applyOptions(next);
                     }} placeholder="Stats %"/>
                     <button className="icon-btn-danger" onClick={() => removeOption(idx)} aria-label={`Remove option ${opt.key}`}><Trash2 size={14}/></button>
                   </div>
@@ -960,9 +1026,15 @@ function ContentMapAdmin() {
   const performance = systemPerformance(questions, state.attempts);
   const systems = [...new Set(questions.map(q => q.system))];
   const disciplines = [...new Set(questions.map(q => q.discipline))];
+  const taxonomyComplete = questions.filter((question) => question.system && question.discipline && question.topic).length;
+  const taxonomyCoverage = questions.length ? Math.round(taxonomyComplete / questions.length * 100) : 0;
+  const leastCovered = systems
+    .map((system) => ({ system, count: questions.filter((question) => question.system === system).length }))
+    .sort((a, b) => a.count - b.count)[0];
+  const weakestSignal = [...performance].filter((item) => item.attempts > 0).sort((a, b) => a.mastery - b.mastery)[0];
   return <>
     <PageHeader title="Content map" description="Inspect blueprint distribution, learner performance, and editorial coverage by exam." actions={<select className="header-select" aria-label="Content map exam" value={step} onChange={e => setStep(e.target.value as Step)}><option>Step 1</option><option>Step 2 CK</option></select>}/>
-    <section className="content-map-top"><article className="panel blueprint-coverage"><header><div className="card-kicker"><Gauge/> Blueprint coverage</div><Badge tone="success">Within target</Badge></header><div><Donut value={92} size={164} detail="covered"/><div><h2>{questions.length} published items</h2><p>{systems.length} systems and {disciplines.length} disciplines represented in the demo library.</p><div><span><b>{systems.length}</b> systems</span><span><b>{disciplines.length}</b> disciplines</span><span><b>{questions.filter(q => q.difficulty === "Hard").length}</b> hard items</span></div></div></div></article><article className="panel content-recommendations"><header><div className="card-kicker"><Sparkles/> Editorial recommendations</div></header><div><span className="risk"><AlertTriangle/></span><div><b>Increase Neurology medium-difficulty coverage</b><p>Low learner mastery and limited item depth make this the highest-value expansion area.</p></div><Link href="/admin/questions" aria-label="Open question library"><ArrowRight/></Link></div><div><span><Scale/></span><div><b>Add cross-system ethics scenarios</b><p>Decision-making content is concentrated in one topic cluster.</p></div><Link href="/admin/questions" aria-label="Open question library"><ArrowRight/></Link></div><div><span><RefreshCw/></span><div><b>Refresh two older explanations</b><p>Editorial freshness is approaching the internal review threshold.</p></div><Link href="/admin/questions" aria-label="Open question library"><ArrowRight/></Link></div></article></section>
+    <section className="content-map-top"><article className="panel blueprint-coverage"><header><div className="card-kicker"><Gauge/> Library metadata health</div><Badge tone="info">Demo evidence</Badge></header><div><Donut value={taxonomyCoverage} size={164} detail="taxonomy complete"/><div><h2>{questions.length} published demo items</h2><p>{systems.length} systems and {disciplines.length} disciplines are represented. This is library breadth, not an official USMLE blueprint-coverage claim.</p><div><span><b>{systems.length}</b> systems</span><span><b>{disciplines.length}</b> disciplines</span><span><b>{questions.filter(q => q.difficulty === "Hard").length}</b> hard items</span></div></div></div></article><article className="panel content-recommendations"><header><div className="card-kicker"><Sparkles/> Evidence-based editorial signals</div></header><div><span className="risk"><AlertTriangle/></span><div><b>{weakestSignal ? `Review ${weakestSignal.system} learner signal` : "Collect learner attempts before mastery decisions"}</b><p>{weakestSignal ? `${weakestSignal.attempts} local attempt${weakestSignal.attempts === 1 ? "" : "s"} currently produce ${weakestSignal.mastery}% mastery. Treat small samples cautiously.` : "No performance recommendation is shown until the demo has real local attempts."}</p></div><Link href="/admin/questions" aria-label="Open question library"><ArrowRight/></Link></div><div><span><Scale/></span><div><b>{leastCovered ? `Deepen ${leastCovered.system} item coverage` : "Add mapped content"}</b><p>{leastCovered ? `${leastCovered.count} published demo item${leastCovered.count === 1 ? "" : "s"} currently map to this system, the smallest represented set.` : "No published items are available for distribution analysis."}</p></div><Link href="/admin/questions" aria-label="Open question library"><ArrowRight/></Link></div><div><span><RefreshCw/></span><div><b>Complete medical review metadata</b><p>{questions.filter((question) => !question.governance?.medicalReviewedAt).length} published item records do not yet contain a medical review date.</p></div><Link href="/admin/questions" aria-label="Open question library"><ArrowRight/></Link></div></article></section>
     <section className="panel content-matrix"><header><div><h2>System coverage and performance</h2><p>Coverage is based on the demo question library; mastery reflects local learner attempts.</p></div><button className="btn btn-secondary" onClick={() => downloadFile(`stepwise-${step.toLowerCase().replaceAll(" ", "-")}-content-map.json`, JSON.stringify(performance, null, 2))}><Download/> Export map</button></header><div className="responsive-table"><table><caption className="sr-only">Demonstration question coverage and learner performance by organ system</caption><thead><tr><th scope="col">System</th><th scope="col">Items</th><th scope="col">Difficulty mix</th><th scope="col">Learner mastery</th><th scope="col">Coverage health</th></tr></thead><tbody>{performance.map(item => { const qs = questions.filter(q => q.system === item.system); const hard = qs.filter(q => q.difficulty === "Hard").length; return <tr key={item.system}><td><b>{item.system}</b><small>{[...new Set(qs.map(q => q.discipline))].join(", ")}</small></td><td><b>{qs.length}</b><small>{item.attempts} attempts</small></td><td><div className="difficulty-mix"><i style={{ width: `${Math.max(10, (qs.length - hard) / Math.max(qs.length, 1) * 100)}%` }}/><b style={{ width: `${Math.max(10, hard / Math.max(qs.length, 1) * 100)}%` }}/></div><small>{hard} hard · {qs.length - hard} easy/medium</small></td><td><Progress value={item.mastery}/><small>{item.accuracy}% accuracy</small></td><td><Badge tone={item.mastery < 60 ? "warning" : "success"}>{item.mastery < 60 ? "Expand" : "Healthy"}</Badge></td></tr>; })}</tbody></table></div></section>
   </>;
 }
@@ -977,7 +1049,7 @@ function ReportsAdmin() {
   return <>
     <PageHeader title="Content reports" description="Triage learner feedback, inspect item context, and document editorial resolution." actions={<button className="btn btn-secondary" onClick={() => downloadFile("stepwise-content-reports.json", JSON.stringify(state.reports, null, 2))}><Download/> Export log</button>}/>
     <div className="page-tabs"><button className={tab === "Open" ? "active" : ""} onClick={() => { setTab("Open"); setSelected(null); }}>Open <span>{state.reports.filter(r => r.status === "Open").length}</span></button><button className={tab === "Resolved" ? "active" : ""} onClick={() => { setTab("Resolved"); setSelected(null); }}>Resolved <span>{state.reports.filter(r => r.status === "Resolved").length}</span></button></div>
-    <section className="reports-layout"><aside className="panel report-list">{reports.map(report => <button key={report.id} className={selected?.id === report.id ? "active" : ""} onClick={() => setSelected(report)}><div><Badge tone={report.reason === "Medical accuracy" ? "danger" : report.reason === "Ambiguous wording" ? "warning" : "neutral"}>{report.reason}</Badge><span>{formatDate(report.createdAt, { month: "short", day: "numeric" })}</span></div><b>{report.questionId}</b><p>{report.detail}</p><small>Reported by {report.reporter}</small></button>)}{!reports.length && <div className="admin-empty-inline"><CheckCircle2/><span><b>No reports here</b><small>This queue is currently clear.</small></span></div>}</aside><main className="panel report-detail">{selected ? (() => { const question = state.questions.find(q => q.id === selected.questionId); return <><header><div><Badge tone={selected.status === "Open" ? "warning" : "success"}>{selected.status}</Badge><h2>{selected.reason}</h2><p>{selected.questionId} · Submitted {formatDate(selected.createdAt, { month: "long", day: "numeric", year: "numeric" })}</p></div><button className="icon-btn" onClick={() => { setToast("Report actions are available in this detail panel"); setTimeout(() => setToast(""), 1400); }} aria-label="Report actions"><MoreHorizontal/></button></header><article className="report-message"><Flag/><div><b>Learner report</b><p>{selected.detail}</p><small>{selected.reporter}</small></div></article>{question && <article className="report-question-context"><div><span>{question.id}</span><Badge>{question.step}</Badge><Badge>{question.system}</Badge></div><h3>{question.stem}</h3><p><b>Current explanation:</b> {question.explanation}</p><footer><span>{question.globalAccuracy}% global accuracy</span><span>{question.averageTimeSec}s average time</span><Link href="/admin/questions"><Edit3/> Open editor</Link></footer></article>}<article className="resolution-note"><Field label="Resolution note"><textarea rows={5} defaultValue={selected.status === "Resolved" ? "Reviewed by the editorial team. The item was clarified and republished." : ""} placeholder="Document what you reviewed and any changes made…"/></Field></article><footer>{selected.status === "Open" ? <><button className="btn btn-secondary" onClick={() => { setToast("Follow-up request queued for the connected email service"); setTimeout(() => setToast(""), 1800); }}>Request more detail</button><button className="btn btn-brand" onClick={resolve}><CheckCircle2/> Resolve report</button></> : <button className="btn btn-secondary" onClick={() => { dispatch({ type: "SET_REPORT_STATUS", id: selected.id, status: "Open" }); setToast("Report reopened"); }}><RefreshCw/> Reopen report</button>}</footer></>; })() : <div className="report-placeholder"><Flag/><h2>Select a report</h2><p>Choose an item from the queue to inspect its learner feedback and question context.</p></div>}</main></section><Toast message={toast} visible={Boolean(toast)}/>
+    <section className="reports-layout"><aside className="panel report-list">{reports.map(report => <button key={report.id} className={selected?.id === report.id ? "active" : ""} onClick={() => setSelected(report)}><div><Badge tone={report.reason === "Medical accuracy" ? "danger" : report.reason === "Ambiguous wording" ? "warning" : "neutral"}>{report.reason}</Badge><span>{formatDate(report.createdAt, { month: "short", day: "numeric" })}</span></div><b>{report.questionId}</b><p>{report.detail}</p><small>Reported by {report.reporter}</small></button>)}{!reports.length && <div className="admin-empty-inline"><CheckCircle2/><span><b>No reports here</b><small>This queue is currently clear.</small></span></div>}</aside><div className="panel report-detail">{selected ? (() => { const question = state.questions.find(q => q.id === selected.questionId); return <><header><div><Badge tone={selected.status === "Open" ? "warning" : "success"}>{selected.status}</Badge><h2>{selected.reason}</h2><p>{selected.questionId} · Submitted {formatDate(selected.createdAt, { month: "long", day: "numeric", year: "numeric" })}</p></div><button className="icon-btn" onClick={() => { setToast("Report actions are available in this detail panel"); setTimeout(() => setToast(""), 1400); }} aria-label="Report actions"><MoreHorizontal/></button></header><article className="report-message"><Flag/><div><b>Learner report</b><p>{selected.detail}</p><small>{selected.reporter}</small></div></article>{question && <article className="report-question-context"><div><span>{question.id}</span><Badge>{question.step}</Badge><Badge>{question.system}</Badge></div><h3>{question.stem}</h3><p><b>Current explanation:</b> {question.explanation}</p><footer><span>{question.globalAccuracy}% sample accuracy</span><span>{question.averageTimeSec}s sample average</span><Link href="/admin/questions"><Edit3/> Open editor</Link></footer></article>}<article className="resolution-note"><Field label="Resolution note"><textarea rows={5} defaultValue={selected.status === "Resolved" ? "Reviewed by the editorial team. The item was clarified and republished." : ""} placeholder="Document what you reviewed and any changes made…"/></Field></article><footer>{selected.status === "Open" ? <><button className="btn btn-secondary" onClick={() => { setToast("Connect an email service before sending follow-up requests"); setTimeout(() => setToast(""), 1800); }}>Request more detail</button><button className="btn btn-brand" onClick={resolve}><CheckCircle2/> Resolve report</button></> : <button className="btn btn-secondary" onClick={() => { dispatch({ type: "SET_REPORT_STATUS", id: selected.id, status: "Open" }); setToast("Report reopened"); }}><RefreshCw/> Reopen report</button>}</footer></>; })() : <div className="report-placeholder"><Flag/><h2>Select a report</h2><p>Choose an item from the queue to inspect its learner feedback and question context.</p></div>}</div></section><Toast message={toast} visible={Boolean(toast)}/>
   </>;
 }
 
@@ -1001,13 +1073,13 @@ function AdminSettings() {
   const update = (key: keyof typeof settings, value: boolean) => { setSettings({ ...settings, [key]: value }); setSaved("Settings saved"); setTimeout(() => setSaved(""), 1400); };
   return <>
     <PageHeader title="Admin settings" description="Configure workspace identity, content governance, notifications, and access policies."/>
-    <section className="settings-layout admin-settings-layout"><aside className="settings-nav panel">{(Object.entries({ Workspace: Settings, "Content governance": ShieldCheck, Notifications: Mail, "Access & roles": Users, Integrations: Globe2 }) as [string, React.ComponentType<{ size?: number }>][]).map(([label, Icon]) => <button key={label} className={section === label ? "active" : ""} onClick={() => setSection(label)}>{<Icon/>}{label}<ArrowRight/></button>)}</aside><main className="settings-content panel">
+    <section className="settings-layout admin-settings-layout"><aside className="settings-nav panel">{(Object.entries({ Workspace: Settings, "Content governance": ShieldCheck, Notifications: Mail, "Access & roles": Users, Integrations: Globe2 }) as [string, React.ComponentType<{ size?: number }>][]).map(([label, Icon]) => <button key={label} className={section === label ? "active" : ""} onClick={() => setSection(label)}>{<Icon/>}{label}<ArrowRight/></button>)}</aside><div className="settings-content panel">
       {section === "Workspace" && <><header><h2>Workspace profile</h2><p>Basic product identity used across administrative surfaces.</p></header><div className="admin-brand-editor"><div className="admin-brand-mark">S</div><div><b>Stepwise</b><p>USMLE preparation workspace</p><button onClick={() => { setSaved("Logo picker opened in demo mode"); setTimeout(() => setSaved(""), 1400); }}>Replace logo</button></div></div><div className="form-grid-2"><Field label="Workspace name"><input defaultValue="Stepwise Admin"/></Field><Field label="Support email"><input defaultValue="support@stepwise.page"/></Field></div><Field label="Organization"><input defaultValue="Stepwise Learning Labs"/></Field><Field label="Public status message"><textarea rows={3} defaultValue="All systems operational."/></Field><button className="btn btn-brand" onClick={() => { setSaved("Workspace profile saved"); setTimeout(() => setSaved(""), 1400); }}>Save workspace</button></>}
       {section === "Content governance" && <><header><h2>Content governance</h2><p>Define review gates and lifecycle behavior for question content.</p></header><div className="settings-group"><Toggle checked={settings.reviewRequired} onChange={v => update("reviewRequired", v)} label="Require editorial review before publishing" detail="Drafts must enter the In review state before publication."/><Toggle checked={settings.autoArchive} onChange={v => update("autoArchive", v)} label="Automatically archive stale items" detail="Archive items that miss the annual medical review threshold."/><Toggle checked={settings.sourceRequired} onChange={v => update("sourceRequired", v)} label="Require source documentation" detail="Editors must record a source label before publishing."/></div><div className="governance-threshold"><Field label="Medical review interval"><select defaultValue="12"><option value="6">Every 6 months</option><option value="12">Every 12 months</option><option value="18">Every 18 months</option></select></Field><Field label="Report escalation threshold"><select defaultValue="3"><option value="1">1 report</option><option value="3">3 reports</option><option value="5">5 reports</option></select></Field></div></>}
       {section === "Notifications" && <><header><h2>Admin notifications</h2><p>Choose the operational events that generate alerts.</p></header><div className="settings-group"><Toggle checked={settings.reportAlerts} onChange={v => update("reportAlerts", v)} label="New content reports" detail="Alert editors when a learner submits medical or wording feedback."/><Toggle checked={settings.weeklyDigest} onChange={v => update("weeklyDigest", v)} label="Weekly operations digest" detail="Send platform growth, content health, and unresolved queue metrics."/><Toggle checked={settings.billingFailures} onChange={v => update("billingFailures", v)} label="Billing failures" detail="Notify owners when a payment retry fails."/></div></>}
       {section === "Access & roles" && <><header><h2>Access and roles</h2><p>Frontend role matrix for the administrative workspace.</p></header><div className="role-grid">{[["Owner", "Full workspace, billing, and role administration", 3], ["Content admin", "Question authoring, reports, and blueprint analytics", 5], ["Support", "Learner access and account troubleshooting", 2]].map(([name, desc, count]) => <article key={String(name)}><span><ShieldCheck/></span><div><b>{name}</b><p>{desc}</p><small>{count} members</small></div><button onClick={() => { setSaved(`${name} role editor opened`); setTimeout(() => setSaved(""), 1400); }} aria-label={`Edit ${name} role`}><Edit3/></button></article>)}</div><button className="btn btn-secondary" onClick={() => { setSaved("New role editor opened"); setTimeout(() => setSaved(""), 1400); }}><Plus/> Add role</button></>}
-      {section === "Integrations" && <><header><h2>Integrations</h2><p>Connection-ready cards for production services.</p></header><div className="integration-grid">{(Object.entries({ Authentication: UserCheck, Billing: CreditCard, Email: Send, Analytics: Activity }) as [string, React.ComponentType<{ size?: number }>][]).map(([name, Icon]) => { const desc = (name === "Authentication" ? "Identity provider and SSO" : name === "Billing" ? "Subscription and invoice provider" : name === "Email" ? "Transactional notifications" : "Product event pipeline"); const status = name === "Authentication" ? "Configured" : "Demo mode"; return <article key={name}><span>{<Icon/>}</span><div><b>{name}</b><p>{desc}</p><Badge tone={status === "Configured" ? "success" : "warning"}>{status}</Badge></div><button onClick={() => { setSaved(`${name} configuration opened`); setTimeout(() => setSaved(""), 1400); }}>Configure</button></article>; })}</div><div className="integration-note"><AlertTriangle/><div><b>No secrets are included in this repository.</b><p>Use the provided environment example when connecting production providers.</p></div></div></>}
-    </main></section><Toast message={saved} visible={Boolean(saved)}/>
+      {section === "Integrations" && <><header><h2>Integrations</h2><p>Frontend connection contracts for production services.</p></header><div className="integration-grid">{(Object.entries({ Authentication: UserCheck, Billing: CreditCard, Email: Send, Analytics: Activity }) as [string, React.ComponentType<{ size?: number }>][]).map(([name, Icon]) => { const desc = (name === "Authentication" ? "Identity provider and SSO" : name === "Billing" ? "Subscription and invoice provider" : name === "Email" ? "Transactional notifications" : "Product event pipeline"); const status = "Not connected"; return <article key={name}><span>{<Icon/>}</span><div><b>{name}</b><p>{desc}</p><Badge tone="warning">{status}</Badge></div><button onClick={() => { setSaved(`${name} requires a production provider connection`); setTimeout(() => setSaved(""), 1800); }}>View contract</button></article>; })}</div><div className="integration-note"><AlertTriangle/><div><b>No provider credentials or live connections are included.</b><p>Connect and verify each service in an authorized environment before launch.</p></div></div></>}
+    </div></section><Toast message={saved} visible={Boolean(saved)}/>
   </>;
 }
 

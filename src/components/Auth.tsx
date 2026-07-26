@@ -2,11 +2,32 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LockKeyhole, ShieldCheck } from "lucide-react";
 import { Logo } from "./ui";
 import { useStepwise } from "@/lib/store";
 import type { Step } from "@/lib/types";
+
+const SIGNUP_INTENT_KEY = "stepwise-signup-intent-v1";
+
+interface SignupIntent {
+  name: string;
+  email: string;
+  exam: Step;
+  date: string;
+}
+
+interface OnboardingValues {
+  name: string;
+  email: string;
+  exam: Step;
+  examDate: string;
+  score: string;
+  baseline: "Early preparation" | "Building consistency" | "Dedicated period" | "Final review";
+  time: "45 minutes" | "90 minutes" | "2 hours" | "3+ hours";
+  days: number[];
+  priorities: string[];
+}
 
 export function AuthPage({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
@@ -23,6 +44,15 @@ export function AuthPage({ mode }: { mode: "login" | "signup" }) {
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (mode === "signup" && step === 1) { setStep(2); return; }
+    if (mode === "signup") {
+      const intent: SignupIntent = {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        exam: form.exam as Step,
+        date: form.date
+      };
+      sessionStorage.setItem(SIGNUP_INTENT_KEY, JSON.stringify(intent));
+    }
     setLoading(true);
     window.setTimeout(() => router.push(mode === "signup" ? "/onboarding" : "/app"), 450);
   };
@@ -66,25 +96,51 @@ export function OnboardingPage() {
   const router = useRouter();
   const { state, dispatch, rebuildPlan } = useStepwise();
   const [step, setStep] = useState(0);
-  const [values, setValues] = useState({
-    exam: "Step 2 CK" as Step,
+  const [values, setValues] = useState<OnboardingValues>(() => ({
+    name: state.learnerProfile.name,
+    email: state.learnerProfile.email,
+    exam: state.planSettings.targetStep,
+    examDate: state.planSettings.examDate,
     score: "255",
-    baseline: "Early preparation",
+    baseline: state.learnerProfile.preparationStage,
     time: "90 minutes",
-    days: [1,2,3,4,5,6] as number[],
-    priorities: ["Adaptive QBank", "Study plan"]
-  });
+    days: state.planSettings.weeklyDays,
+    priorities: state.learnerProfile.toolkitPriorities.length
+      ? state.learnerProfile.toolkitPriorities
+      : ["Adaptive QBank", "Study plan"]
+  }));
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const raw = sessionStorage.getItem(SIGNUP_INTENT_KEY);
+        if (!raw) return;
+        const intent = JSON.parse(raw) as SignupIntent;
+        setValues((current) => ({
+          ...current,
+          name: intent.name || current.name,
+          email: intent.email || current.email,
+          exam: intent.exam || current.exam,
+          examDate: intent.date || current.examDate
+        }));
+      } catch {
+        // Continue with the saved learner profile when browser storage is unavailable.
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const studyMinutes: Record<string, number> = { "45 minutes": 45, "90 minutes": 90, "2 hours": 120, "3+ hours": 180 };
   const screens = [
     {
       label: "Goal",
       title: "What outcome are you aiming for?",
-      sub: "This calibrates your dashboard, readiness model, and study recommendations.",
+      sub: "This sets the goal context for your dashboard and study plan. Performance signals begin only after you answer questions.",
       body: <div className="onboarding-stack">
         <div className="field" role="group" aria-label="Preparing for"><span className="field-label">Preparing for</span><div className="choice-cards onboarding-exam-cards">{(["Step 1","Step 2 CK"] as Step[]).map(exam=><button type="button" key={exam} aria-pressed={values.exam===exam} className={values.exam===exam?"active":""} onClick={()=>setValues({...values,exam})}><span><b>USMLE {exam}</b><small>{exam==="Step 1"?"Foundational mechanisms":"Clinical decisions and management"}</small></span>{values.exam===exam&&<Check aria-hidden="true"/>}</button>)}</div></div>
         {values.exam==="Step 2 CK"&&<label className="field"><span className="field-label">Target Step 2 CK score</span><input type="number" min="200" max="300" value={values.score} onChange={event=>setValues({...values,score:event.target.value})}/></label>}
-        <div className="field" role="group" aria-label="Where are you starting?"><span className="field-label">Where are you starting?</span><div className="choice-list">{["Early preparation","Building consistency","Dedicated period","Final review"].map(item=><button type="button" key={item} aria-pressed={values.baseline===item} className={values.baseline===item?"active":""} onClick={()=>setValues({...values,baseline:item})}><span>{item}</span>{values.baseline===item&&<Check aria-hidden="true"/>}</button>)}</div></div>
+        <label className="field"><span className="field-label">Target exam date <small>Used to build the complete study horizon</small></span><input type="date" required value={values.examDate} onChange={event=>setValues({...values,examDate:event.target.value})}/></label>
+        <div className="field" role="group" aria-label="Where are you starting?"><span className="field-label">Where are you starting?</span><div className="choice-list">{(["Early preparation","Building consistency","Dedicated period","Final review"] as OnboardingValues["baseline"][]).map(item=><button type="button" key={item} aria-pressed={values.baseline===item} className={values.baseline===item?"active":""} onClick={()=>setValues({...values,baseline:item})}><span>{item}</span>{values.baseline===item&&<Check aria-hidden="true"/>}</button>)}</div></div>
       </div>
     },
     {
@@ -93,7 +149,7 @@ export function OnboardingPage() {
       sub: "Choose the days and time you can usually protect. The plan will rebalance around your real availability.",
       body: <div className="onboarding-stack">
         <div className="field" role="group" aria-label="Available study days"><span className="field-label">Available study days</span><div className="day-picker">{["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"].map((day,index)=><button type="button" key={day} aria-label={day} aria-pressed={values.days.includes(index)} className={values.days.includes(index)?"active":""} onClick={()=>setValues({...values,days:values.days.includes(index)?values.days.filter(d=>d!==index):[...values.days,index]})}>{day.slice(0,1)}</button>)}</div></div>
-        <div className="field" role="group" aria-label="Typical study time"><span className="field-label">Typical study time</span><div className="choice-list horizontal">{["45 minutes","90 minutes","2 hours","3+ hours"].map(item=><button type="button" key={item} aria-pressed={values.time===item} className={values.time===item?"active":""} onClick={()=>setValues({...values,time:item})}>{item}</button>)}</div></div>
+        <div className="field" role="group" aria-label="Typical study time"><span className="field-label">Typical study time</span><div className="choice-list horizontal">{(["45 minutes","90 minutes","2 hours","3+ hours"] as OnboardingValues["time"][]).map(item=><button type="button" key={item} aria-pressed={values.time===item} className={values.time===item?"active":""} onClick={()=>setValues({...values,time:item})}>{item}</button>)}</div></div>
         <div className="onboarding-preview"><b>Your starting cadence</b><span>{values.days.length} study days · {studyMinutes[values.time]} minutes per selected day</span></div>
       </div>
     },
@@ -116,14 +172,28 @@ export function OnboardingPage() {
     const minutes = studyMinutes[values.time];
     const nextSettings = {
       ...state.planSettings,
+      examDate: values.examDate,
       targetStep: values.exam,
       targetScore: values.exam === "Step 2 CK" ? Number(values.score) || 255 : 0,
+      preparationStage: values.baseline,
       weeklyDays: values.days.length ? values.days : [1,2,3,4,5],
       weekdayMinutes: minutes,
       weekendMinutes: Math.max(minutes, Math.round(minutes * 1.5))
     };
     dispatch({ type: "SET_SETTINGS", settings: { dailyGoal: Math.max(10, Math.round(minutes / 2.25)) } });
+    dispatch({
+      type: "SET_LEARNER_PROFILE",
+      profile: {
+        name: values.name,
+        email: values.email,
+        targetExam: values.exam,
+        preparationStage: values.baseline,
+        toolkitPriorities: values.priorities,
+        onboardingCompleted: true
+      }
+    });
     rebuildPlan(nextSettings);
+    sessionStorage.removeItem(SIGNUP_INTENT_KEY);
     router.push("/app");
   };
 

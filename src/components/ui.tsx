@@ -15,14 +15,14 @@ export function Logo({ compact = false, inverse = false }: { compact?: boolean; 
 
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: React.ReactNode }) {
   return (
-    <header className="page-header">
+    <div className="page-header">
       <div>
         {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h1>{title}</h1>
         {description && <p>{description}</p>}
       </div>
       {actions && <div className="page-actions">{actions}</div>}
-    </header>
+    </div>
   );
 }
 
@@ -31,10 +31,11 @@ export function Badge({ children, tone = "neutral", dot = false }: { children: R
 }
 
 export function Progress({ value, label, showValue = false, size = "md" }: { value: number; label?: string; showValue?: boolean; size?: "sm" | "md" | "lg" }) {
+  const accessibleLabel = label || "Progress";
   return (
     <div className="progress-wrap">
       {(label || showValue) && <div className="progress-label"><span>{label}</span>{showValue && <strong>{Math.round(value)}%</strong>}</div>}
-      <div className={`progress progress-${size}`} role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value)}>
+      <div className={`progress progress-${size}`} role="progressbar" aria-label={accessibleLabel} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value)}>
         <span style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
       </div>
     </div>

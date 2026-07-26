@@ -3,14 +3,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from "react";
 import { generateStudyPlan, reviewFlashcard } from "./algorithms";
 import { initialState } from "./data";
-import type { AdminUser, AppState, Attempt, ContentReport, Flashcard, InfluencerProfile, LibraryActivity, Note, Question, ReviewRating, SessionRecord, StudyPlanSettings, StudyTask, UserSettings } from "./types";
+import type { AdminUser, AppState, Attempt, ContentReport, Flashcard, InfluencerProfile, LearnerProfile, LibraryActivity, Note, Question, ReviewRating, SessionRecord, StudyPlanSettings, StudyTask, UserSettings } from "./types";
 
-const STORAGE_KEY = "stepwise-qbank-state-v7";
-const LEGACY_STORAGE_KEYS = ["stepwise-qbank-state-v6", "stepwise-qbank-state-v5", "stepwise-qbank-state-v4", "stepwise-qbank-state-v3", "stepwise-qbank-state-v2", "stepwise-qbank-state-v1"];
+const STORAGE_KEY = "stepwise-qbank-state-v8";
+const LEGACY_STORAGE_KEYS = ["stepwise-qbank-state-v7", "stepwise-qbank-state-v6", "stepwise-qbank-state-v5", "stepwise-qbank-state-v4", "stepwise-qbank-state-v3", "stepwise-qbank-state-v2", "stepwise-qbank-state-v1"];
 
 type Action =
   | { type: "HYDRATE"; state: AppState }
   | { type: "ADD_ATTEMPT"; attempt: Attempt }
+  | { type: "UPSERT_ATTEMPT"; attempt: Attempt }
   | { type: "TOGGLE_BOOKMARK"; questionId: string }
   | { type: "TOGGLE_FLAG"; questionId: string }
   | { type: "UPSERT_NOTE"; note: Note }
@@ -24,6 +25,7 @@ type Action =
   | { type: "SET_STUDY_TASKS"; tasks: StudyTask[] }
   | { type: "TOGGLE_TASK"; id: string }
   | { type: "SET_SETTINGS"; settings: Partial<UserSettings> }
+  | { type: "SET_LEARNER_PROFILE"; profile: Partial<LearnerProfile> }
   | { type: "UPSERT_QUESTION"; question: Question }
   | { type: "DELETE_QUESTION"; id: string }
   | { type: "SET_REPORT_STATUS"; id: string; status: ContentReport["status"] }
@@ -47,6 +49,12 @@ function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "HYDRATE": return action.state;
     case "ADD_ATTEMPT": return { ...state, attempts: [...state.attempts, action.attempt] };
+    case "UPSERT_ATTEMPT": return {
+      ...state,
+      attempts: state.attempts.some((attempt) => attempt.sessionId === action.attempt.sessionId && attempt.questionId === action.attempt.questionId)
+        ? state.attempts.map((attempt) => attempt.sessionId === action.attempt.sessionId && attempt.questionId === action.attempt.questionId ? action.attempt : attempt)
+        : [...state.attempts, action.attempt]
+    };
     case "TOGGLE_BOOKMARK": return { ...state, bookmarks: state.bookmarks.includes(action.questionId) ? state.bookmarks.filter((id) => id !== action.questionId) : [...state.bookmarks, action.questionId] };
     case "TOGGLE_FLAG": return { ...state, flagged: state.flagged.includes(action.questionId) ? state.flagged.filter((id) => id !== action.questionId) : [...state.flagged, action.questionId] };
     case "UPSERT_NOTE": return { ...state, notes: state.notes.some((note) => note.id === action.note.id) ? state.notes.map((note) => note.id === action.note.id ? action.note : note) : [action.note, ...state.notes] };
@@ -60,6 +68,7 @@ function reducer(state: AppState, action: Action): AppState {
     case "SET_STUDY_TASKS": return { ...state, studyTasks: action.tasks };
     case "TOGGLE_TASK": return { ...state, studyTasks: state.studyTasks.map((task) => task.id === action.id ? { ...task, completed: !task.completed } : task) };
     case "SET_SETTINGS": return { ...state, settings: { ...state.settings, ...action.settings } };
+    case "SET_LEARNER_PROFILE": return { ...state, learnerProfile: { ...state.learnerProfile, ...action.profile } };
     case "UPSERT_QUESTION": return { ...state, questions: state.questions.some((question) => question.id === action.question.id) ? state.questions.map((question) => question.id === action.question.id ? action.question : question) : [action.question, ...state.questions] };
     case "DELETE_QUESTION": return { ...state, questions: state.questions.filter((question) => question.id !== action.id) };
     case "SET_REPORT_STATUS": return { ...state, reports: state.reports.map((report) => report.id === action.id ? { ...report, status: action.status } : report) };
@@ -105,6 +114,7 @@ function reducer(state: AppState, action: Action): AppState {
 interface StoreValue {
   state: AppState;
   hydrated: boolean;
+  persistenceStatus: "loading" | "ready" | "error";
   dispatch: React.Dispatch<Action>;
   resetDemo: () => void;
   rebuildPlan: (settings?: StudyPlanSettings) => void;
@@ -113,15 +123,35 @@ interface StoreValue {
 const StoreContext = createContext<StoreValue | null>(null);
 
 function isAppState(value: unknown): value is Partial<AppState> {
-  return Boolean(value && typeof value === "object" && "questions" in value && "settings" in value);
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<AppState>;
+  return Array.isArray(candidate.questions)
+    && Array.isArray(candidate.attempts ?? [])
+    && Boolean(candidate.settings && typeof candidate.settings === "object")
+    && Boolean(candidate.planSettings && typeof candidate.planSettings === "object");
+}
+
+function normalizeQuestion(question: Question): Question {
+  return {
+    ...question,
+    format: question.format ?? "Single best answer",
+    contentUse: question.contentUse ?? "Demo",
+    competencies: question.competencies ?? [],
+    references: question.references ?? [],
+    governance: question.governance ?? {
+      version: 1,
+      rightsStatus: "Pending verification"
+    }
+  };
 }
 
 function normalizeState(value: Partial<AppState>): AppState {
-  const seededQuestions = new Map(initialState.questions.map((question) => [question.id, question]));
-  for (const question of value.questions ?? []) seededQuestions.set(question.id, question);
+  const seededQuestions = new Map(initialState.questions.map((question) => [question.id, normalizeQuestion(question)]));
+  for (const question of value.questions ?? []) seededQuestions.set(question.id, normalizeQuestion(question));
   return {
     ...initialState,
     ...value,
+    schemaVersion: initialState.schemaVersion,
     questions: [...seededQuestions.values()],
     attempts: value.attempts ?? initialState.attempts,
     notes: value.notes ?? initialState.notes,
@@ -132,6 +162,7 @@ function normalizeState(value: Partial<AppState>): AppState {
     studyTasks: value.studyTasks?.length ? value.studyTasks : initialState.studyTasks,
     planSettings: { ...initialState.planSettings, ...(value.planSettings ?? {}) },
     settings: { ...initialState.settings, ...(value.settings ?? {}) },
+    learnerProfile: { ...initialState.learnerProfile, ...(value.learnerProfile ?? {}) },
     adminUsers: value.adminUsers?.length ? value.adminUsers : initialState.adminUsers,
     reports: value.reports ?? initialState.reports,
     notifications: value.notifications?.length ? value.notifications : initialState.notifications,
@@ -143,24 +174,50 @@ function normalizeState(value: Partial<AppState>): AppState {
 export function StepwiseProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [hydrated, setHydrated] = useState(false);
+  const [persistenceStatus, setPersistenceStatus] = useState<StoreValue["persistenceStatus"]>("loading");
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: unknown = JSON.parse(stored);
-        if (isAppState(parsed)) dispatch({ type: "HYDRATE", state: normalizeState(parsed) });
+    const restoreTimer = window.setTimeout(() => {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY)
+          ?? LEGACY_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(Boolean)
+          ?? null;
+        if (stored) {
+          const parsed: unknown = JSON.parse(stored);
+          if (isAppState(parsed)) dispatch({ type: "HYDRATE", state: normalizeState(parsed) });
+        }
+      } catch (error) {
+        console.warn("Unable to restore Stepwise demo state", error);
+        setPersistenceStatus("error");
+      } finally {
+        setHydrated(true);
+        setPersistenceStatus((current) => current === "error" ? "error" : "ready");
       }
-    } catch (error) {
-      console.warn("Unable to restore Stepwise demo state", error);
-    } finally {
-      setHydrated(true);
-    }
+    }, 0);
+    return () => window.clearTimeout(restoreTimer);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const save = () => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        setPersistenceStatus("ready");
+      } catch (error) {
+        console.warn("Unable to save Stepwise demo state", error);
+        setPersistenceStatus("error");
+      }
+    };
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (idleWindow.requestIdleCallback) {
+      const idleId = idleWindow.requestIdleCallback(save, { timeout: 500 });
+      return () => idleWindow.cancelIdleCallback?.(idleId);
+    }
+    const timer = window.setTimeout(save, 120);
+    return () => window.clearTimeout(timer);
   }, [state, hydrated]);
 
   useEffect(() => {
@@ -184,7 +241,7 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_STUDY_TASKS", tasks: generateStudyPlan(settings, state.questions, state.attempts) });
   }, [state.planSettings, state.questions, state.attempts]);
 
-  const value = useMemo(() => ({ state, hydrated, dispatch, resetDemo, rebuildPlan }), [state, hydrated, resetDemo, rebuildPlan]);
+  const value = useMemo(() => ({ state, hydrated, persistenceStatus, dispatch, resetDemo, rebuildPlan }), [state, hydrated, persistenceStatus, resetDemo, rebuildPlan]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 

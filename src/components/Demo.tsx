@@ -42,7 +42,7 @@ export function DemoPage() {
 
   if (!question || complete) {
     return <main className="try-page">
-      <header className="try-nav"><Link href="/"><Logo/></Link><div><Link href="/login" className="btn btn-ghost">Sign in</Link><Link href="/signup" className="btn btn-brand">Start free</Link></div></header>
+      <header className="try-nav"><Logo/><div><Link href="/login" className="btn btn-ghost">Sign in</Link><Link href="/signup" className="btn btn-brand">Start free</Link></div></header>
       <section className="try-complete panel">
         <span className="summary-check"><Check/></span>
         <Badge tone="success">Interactive sample complete</Badge>
@@ -57,7 +57,7 @@ export function DemoPage() {
   const trap = answered ? diagnoseReasoningTrap(question, selected) : null;
   const selectedChoice = question.choices.find((choice) => choice.id === selected);
   return <main className="try-page">
-    <header className="try-nav"><Link href="/"><Logo/></Link><div><span className="try-progress-label">Question {index + 1} of {questions.length}</span><Link href="/signup" className="btn btn-brand">Save progress</Link></div></header>
+    <header className="try-nav"><Logo/><div><span className="try-progress-label">Question {index + 1} of {questions.length}</span><Link href="/signup" className="btn btn-brand">Save progress</Link></div></header>
     <div className="try-progress"><Progress value={((index + (answered ? 1 : 0)) / questions.length) * 100}/></div>
     <section className="try-workspace">
       <aside className="try-sidebar">

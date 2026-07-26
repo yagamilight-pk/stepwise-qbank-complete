@@ -1,6 +1,6 @@
 # Stepwise Frontend Completion Checklist
 
-Last updated: July 25, 2026
+Last updated: July 26, 2026
 
 This is the frontend handoff source of truth. Checked items are implemented in this repository; unchecked items require a real browser/device pass, production-scale evidence, or external services and governance.
 
@@ -9,8 +9,11 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] Explicit Next.js App Router pages for all 35 product destinations
 - [x] Route-specific metadata and `noindex` rules for private surfaces
 - [x] Loading, error, not-found, Open Graph, and Twitter image experiences
+- [x] Manifest, robots, sitemap, baseline security response headers, and private-route indexing boundaries
 - [x] Learner, admin, and partner implementations loaded as separate dynamic chunks
-- [x] Typed local demonstration state and algorithms
+- [x] Route-group-scoped providers and deferred learner/admin feature chunks
+- [x] Versioned, normalized local demonstration state with visible persistence status
+- [x] Typed USMLE, session-recovery, content-governance, planning, and analytics algorithms
 - [x] Complete local quality pipeline passing
 
 ## 2. Design system
@@ -37,8 +40,13 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] Dashboard organized around the next action, plan, and supporting evidence
 - [x] QBank builder, inventory, exact-question launch, and full-screen session
 - [x] Keyboard shortcuts, timer, navigator, strikeout, confidence, calculator, and lab tools
+- [x] Date-aware 2026 Step 1 and Step 2 CK block profiles, continuous Exam timing, answer review, and delayed feedback
+- [x] Crash-safe active-block recovery for answers, confidence, eliminations, position, and elapsed time
+- [x] Answer reconciliation, early block completion, unanswered-item accounting, and full-block score denominator
+- [x] Responsive session-tool access and working in-session display/accessibility controls
 - [x] Explanation, reasoning diagnosis, Reasoning Trace, notes, flashcards, and review
 - [x] Analytics, study plan, notebook, medical library, private study circle, and settings
+- [x] Local-timezone-safe activity keys and study-plan generation through the exam horizon
 - [x] Accessible tabs, charts, calendars, tables, filters, controls, and dynamic status
 - [x] Sample dates, cohort data, readiness heuristic, and response distributions disclosed
 
@@ -50,6 +58,11 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] Article reading metadata and demonstration editorial-status disclosure
 - [x] Production review requirements named at point of use
 - [x] Simulated cohort, readiness-model, and non-predictive limitations shown in context
+- [x] Current official delivery assumptions and known alignment gaps documented in `USMLE_ALIGNMENT.md`
+- [x] Sequential-set, chart/tabular, scientific-abstract, and audio/video stimulus renderers
+- [x] Typed evidence, rights, reviewer, approval, version, competency, and physician-task records
+- [x] Admin import structural validation and explicit demo-versus-production publish gates
+- [ ] Full exam-day tutorial, block, break-ledger, recovery, and completion orchestration
 - [ ] Named medical reviewers, evidence citations, guideline versions, and approval records
 - [ ] Production editorial governance, licensing, and immutable clinical audit trail
 
@@ -57,6 +70,8 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 
 - [x] Admin overview, import, authoring, preview, user, content, report, billing, and settings
 - [x] Question and report review states
+- [x] Content readiness panel with rights, provenance, evidence, medical-review, and format-specific blockers
+- [x] Honest local-sandbox, unconnected-provider, billing, cohort, and partner-transfer states
 - [x] Partner onboarding, login, referral links, conversion ledger, payout, and media surfaces
 - [x] Accessible captions, scopes, filters, controls, financial status, and action labels
 - [x] Partner-specific commission calculations and approved-balance payout eligibility
@@ -71,7 +86,8 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] Keyboard tabs, menus, accordions, listbox, popover, tables, and choice controls
 - [x] Text alternatives/status for key progress and data visualizations
 - [x] Desktop, tablet, phone, safe-area, print, high-contrast, large-text, and reduced-motion CSS
-- [ ] Manual 200%/400% zoom and viewport screenshot review
+- [x] Production Chrome screenshot review at 1440px, 768px, and 390px across 65 light/dark route/viewport captures
+- [ ] Manual 200%/400% zoom review
 - [ ] Manual NVDA, VoiceOver, keyboard-only, iOS Safari, and Android Chrome verification
 
 ## 8. Performance and engineering
@@ -79,21 +95,27 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] External Google Fonts CSS import removed
 - [x] Explicit static routes and current Next.js `proxy.ts` convention
 - [x] Heavy learner/admin/partner implementations deferred into dynamic chunks
-- [x] Production build and 39 generated static outputs reviewed
+- [x] Provider boundaries scoped to account, learner, admin, and partner route groups
+- [x] Long study-plan/table rows use browser content-visibility containment
+- [x] Production build and 42 generated static outputs reviewed
 - [x] Source audit covers route, accessibility, honesty, algorithm, and product invariants
 - [ ] Production-scale list virtualization and dataset profiling
 - [ ] Field Core Web Vitals, error monitoring, and real-user performance budgets
 
 ## 9. Verification and handoff
 
-- [x] `npm.cmd run verify:source` — 54/54
+- [x] `npm.cmd run verify:source` — 64/64
 - [x] `npm.cmd run lint` — zero findings
 - [x] `npm.cmd run typecheck`
-- [x] `npm.cmd run build` — 39/39 static outputs
+- [x] `npm.cmd run build` — 42/42 static outputs
 - [x] Production-server HTTP smoke on 13 representative routes, including expected 404
-- [x] Architecture, design system, current status, and verification log are current
+- [x] Architecture, design system, USMLE alignment, current status, and verification log are current
 - [x] README describes the delivered scope and production boundaries
-- [ ] Visual browser screenshots and interaction walkthrough
+- [x] Production Chrome matrix: 76 passed, 56 intentionally skipped, zero runtime errors
+- [x] 65 desktop/tablet/mobile light/dark captures plus targeted visual inspection
+- [x] Session recovery, answer-edit, full-denominator scoring, onboarding-continuity, governance, landmark, overflow, and security-header contracts
+- [x] Cached offline dependency audit: zero findings; live advisory refresh remains unverified
+- [ ] Manual pointer, keyboard, zoom, and assistive-technology walkthrough
 
 ## External production work
 

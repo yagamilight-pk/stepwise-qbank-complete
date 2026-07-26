@@ -20,6 +20,8 @@ const q = (
 ): Question => ({
   id,
   step,
+  format: "Single best answer",
+  contentUse: "Demo",
   system,
   discipline,
   topic,
@@ -37,7 +39,15 @@ const q = (
   updatedAt: "2026-07-18",
   globalAccuracy,
   averageTimeSec,
-  sourceLabel: "Stepwise original"
+  sourceLabel: "Stepwise original demonstration item",
+  physicianTask: step === "Step 1" ? "Applying foundational science concepts" : "Diagnosis and management",
+  competencies: step === "Step 1" ? ["Medical knowledge"] : ["Patient care", "Medical knowledge"],
+  references: [],
+  governance: {
+    version: 1,
+    rightsStatus: "Original",
+    editor: "Stepwise demonstration editorial team"
+  }
 });
 
 export const demoQuestions: Question[] = [
@@ -313,39 +323,40 @@ export const demoMarketingAssets: MarketingAsset[] = [
     title: "Instagram Story & Reel Overlays (USMLE Prep)",
     category: "Social Story",
     dimensions: "1080x1920 PX",
-    fileSize: "4.2 MB",
+    fileSize: "Brief",
     downloadUrl: "#",
     thumbnailUrl: "",
-    previewText: "High-yield USMLE questions with Stepwise signature purple gradient overlays."
+    previewText: "A production-ready creative brief for USMLE-focused story and reel layouts using the Stepwise clinical-instrument system."
   },
   {
     id: "ast_2",
     title: "YouTube Video Description Copy & Promo Links",
     category: "Copy Template",
     downloadUrl: "#",
-    previewText: "📌 Get 15% OFF Stepwise QBank with your exclusive partner code! Features 4,000+ USMLE questions with 120fps animated explanations."
+    previewText: "Explore Stepwise, an exam-oriented QBank workspace that connects question practice, reasoning review, study planning, and spaced repetition. Confirm product availability and pricing before publishing."
   },
   {
     id: "ast_3",
     title: "Stepwise Dark Mode & Light Mode Vector Logo Pack",
     category: "Logo Pack",
     dimensions: "SVG / PNG / EPS",
-    fileSize: "8.5 MB",
-    downloadUrl: "#",
-    previewText: "Transparent SVG and high-res PNG logos for video graphics and blog banners."
+    fileSize: "SVG",
+    downloadUrl: "/icon.svg",
+    previewText: "Stepwise vector application mark for approved preview use. Production brand packages require final brand-owner approval."
   },
   {
     id: "ast_4",
     title: "Website Sidebar & Blog Banner (728x90 & 300x250)",
     category: "Banner",
     dimensions: "728x90 & 300x250 PX",
-    fileSize: "2.1 MB",
+    fileSize: "Brief",
     downloadUrl: "#",
-    previewText: "Eye-catching banner set emphasizing Stepwise 120fps GPU animations and adaptive QBank."
+    previewText: "A restrained clinical banner brief focused on adaptive block selection, reasoning feedback, and study-plan continuity."
   }
 ];
 
 export const initialState: AppState = {
+  schemaVersion: 8,
   questions: demoQuestions,
   attempts: [],
   notes: [],
@@ -375,6 +386,15 @@ export const initialState: AppState = {
     communityActivity: false,
     highContrast: false,
     largeText: false
+  },
+  learnerProfile: {
+    name: "Alex Kim",
+    email: "alex@example.com",
+    medicalSchool: "Northbridge School of Medicine",
+    targetExam: "Step 2 CK",
+    preparationStage: "Early preparation",
+    toolkitPriorities: ["Adaptive QBank", "Study plan"],
+    onboardingCompleted: false
   },
   adminUsers: [],
   reports: [],

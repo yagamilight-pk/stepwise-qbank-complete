@@ -2,7 +2,7 @@
 
 Stepwise is a frontend-complete, responsive Next.js experience for USMLE Step 1 and Step 2 CK preparation. It includes a public product website, a guided five-question trial, account and onboarding demonstrations, a learner workspace, full-screen question sessions, an original medical library, analytics, study planning, working spaced-repetition flashcards, a private study circle, an administrative console, and a partner portal.
 
-The repository is intentionally usable without a backend: typed demo state is persisted in `localStorage`, while the active question configuration uses `sessionStorage`. Every workflow that can be completed honestly in frontend code is interactive. Production authentication, payments, payouts, protected medical content, cross-device state, and real cohort analytics still require server-side services.
+The repository is intentionally usable without a backend: versioned typed demo state is persisted in `localStorage`, while crash-safe active question blocks use `sessionStorage`. Every workflow that can be completed honestly in frontend code is interactive. Production authentication, payments, payouts, protected medical content, cross-device state, and real cohort analytics still require server-side services.
 
 > Stepwise is an independent educational interface demonstration. It is not affiliated with, sponsored by, or endorsed by USMLE, NBME, FSMB, UWorld, or any other question-bank provider. Questions and medical-library articles in this repository are original demonstration content. Cohort percentages are deterministic simulated data, not official exam or commercial-QBank statistics. This is not medical advice.
 
@@ -71,9 +71,14 @@ npm run security:audit
 
 - Dashboard with computed readiness, streak, daily activity, period comparisons, question volume, due cards, and weak-system guidance
 - Step 1 and Step 2 CK block builder with Tutor, Timed, Exam, and Adaptive modes
+- Date-aware current/legacy USMLE delivery profiles, including the May 2026 software transitions
 - System, discipline, difficulty, status, count, and exact-question filters
-- Quick 10-, 20-, and 40-question presets
-- Full-screen session toolbar, timer, pause, navigator, strikeout, flag, bookmark, confidence, searchable lab values, calculator, notes, flashcards, reporting, and keyboard shortcuts
+- Practice presets up to 40 questions and current-software Exam presets up to 20 questions
+- Full-screen session toolbar, mode-correct timer, navigator, strikeout, flag, bookmark, confidence, searchable lab values, calculator, notes, flashcards, reporting, and keyboard shortcuts
+- Continuous Exam mode with reviewable answers, delayed correctness, a non-leaking navigator, and a responsive session-tool hub
+- Crash-safe block recovery for answers, confidence, eliminations, position, question timing, and total elapsed time
+- Reconciled answer edits, explicit early completion, unanswered-item accounting, and full-block score denominator
+- Chart/tabular records, scientific abstracts, audio/video evidence, and sequential-set stimulus rendering
 - Answer distribution rendered only after submission as a subtle background fill inside options
 - Session summaries, correction review, pacing, calibration, and block signals
 - Honest empty states: systems with no history display `Not started` rather than fabricated performance
@@ -109,6 +114,8 @@ The library uses high-density medical-reference workflow conventions, but it doe
 
 - Operations dashboard
 - Question CRUD, preview, duplication, status workflow, publishing, deletion, and export
+- Structural import validation and visible demo/production publish gates
+- Evidence, provenance, rights, medical-review, approval, version, competency, and physician-task metadata
 - Learner search and access controls
 - Blueprint coverage and content recommendations
 - Report triage and resolution
@@ -125,7 +132,7 @@ The library uses high-density medical-reference workflow conventions, but it doe
 
 ## Algorithms
 
-The connected algorithms live in `src/lib/algorithms.ts`:
+The connected algorithms live in `src/lib/algorithms.ts`, `src/lib/session.ts`, and `src/lib/content-governance.ts`:
 
 - Adaptive item ranking based on weakness, unseen coverage, recency, confidence mismatch, and challenge fit
 - Exact-question routing
@@ -133,7 +140,9 @@ The connected algorithms live in `src/lib/algorithms.ts`:
 - Explainable reasoning-trap classification
 - System performance, coverage, period comparison, rolling accuracy, and study streaks
 - Readiness and simulated cohort benchmarks
-- Dynamic study-plan generation
+- Local-timezone-safe dynamic study-plan generation through the complete exam horizon
+- Active-session draft validation, recovery, final-result reconciliation, and total-item scoring
+- Content completeness, format, evidence, rights, medical-review, and approval gates
 - Spaced-repetition scheduling, urgency queue, and retention forecast
 - Medical-library relevance and study-priority ranking
 - Private-circle verification, consent, and history eligibility
@@ -154,6 +163,7 @@ npm run verify:source
 npm run lint
 npm run typecheck
 npm run build
+npm run visual:capture
 npm run security:audit
 ```
 
@@ -167,14 +177,18 @@ npm run audit
 
 ## Verified handoff snapshot
 
-On July 25, 2026:
+On July 26, 2026:
 
-- Source audit passed 54/54 checks
+- Source audit passed 64/64 checks
 - ESLint passed with zero findings
 - TypeScript passed
-- The production build generated 39/39 static outputs
+- The production build generated 42/42 static outputs
 - Representative production-server routes returned the expected 200 responses and the unknown route returned 404
+- The production Google Chrome suite passed 76 cases with zero browser runtime errors
+- Visual evidence includes 65 light/dark route/viewport captures
+- Browser contracts passed for current Step 2 CK behavior, Exam feedback timing, answer review, crash recovery, answer reconciliation, unanswered scoring, onboarding continuity, governance boundaries, security headers, landmark structure, responsive overflow, and compact-screen session tools
+- The cached offline dependency audit reported zero findings; a current live advisory refresh is not claimed
 
-The in-app browser was unavailable, so screenshot-based responsive review, manual zoom, physical keyboard traversal, screen readers, and real mobile browsers remain explicit handoff checks rather than claimed results.
+The embedded in-app browser surface was unavailable, but desktop/tablet/mobile production screenshots were captured and visually reviewed through the repository-local Chrome suite. Manual zoom, physical keyboard traversal, screen readers, and real iOS/Android browsers remain explicit handoff checks rather than claimed results.
 
-See `PROJECT_CHECKLIST.md`, `progress/CURRENT_STATUS.md`, and `progress/VERIFICATION_LOG.md` for the current completion record. `ARCHITECTURE.md` and `DESIGN_SYSTEM.md` document the implementation model.
+See `PROJECT_CHECKLIST.md`, `progress/CURRENT_STATUS.md`, and `progress/VERIFICATION_LOG.md` for the current completion record. `ARCHITECTURE.md`, `DESIGN_SYSTEM.md`, and `USMLE_ALIGNMENT.md` document the implementation model, visual language, official-source alignment, and remaining exam-simulation gaps.

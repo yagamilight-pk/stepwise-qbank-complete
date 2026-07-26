@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { buildFlashcardReviewQueue, flashcardRetentionForecast, studyCircleEligibility } from "@/lib/algorithms";
 import { useStepwise } from "@/lib/store";
+import { ACTIVE_SESSION_KEY, SESSION_CONFIG_KEY } from "@/lib/session";
 import type { Flashcard, Note, ReviewRating, SessionConfig } from "@/lib/types";
 import { Avatar, Badge, EmptyState, Field, formatDate, Modal, PageHeader, Progress, Toast, Toggle, uid } from "./ui";
 import { AccessibleTabs } from "./AccessibleTabs";
@@ -186,12 +187,13 @@ export function FlashcardsPage() {
       timePerQuestionSec: 90,
       questionIds: [question.id]
     };
-    sessionStorage.setItem("stepwise-session-config", JSON.stringify(config));
+    sessionStorage.removeItem(ACTIVE_SESSION_KEY);
+    sessionStorage.setItem(SESSION_CONFIG_KEY, JSON.stringify(config));
     router.push("/app/session");
   };
 
   if (view === "complete") {
-    return <main className="flashcard-complete panel">
+    return <div className="flashcard-complete panel">
       <span className="summary-check"><Check/></span>
       <Badge tone="success">Review complete</Badge>
       <h1>{reviewedCount} cards consolidated</h1>
@@ -200,7 +202,7 @@ export function FlashcardsPage() {
         <button className="btn btn-secondary" onClick={() => setView("library")}><ArrowLeft/> Return to library</button>
         <button className="btn btn-brand" onClick={startReview}><RefreshCw/> Review another queue</button>
       </div>
-    </main>;
+    </div>;
   }
 
   if (view === "review" && current) {
@@ -211,7 +213,7 @@ export function FlashcardsPage() {
       good: `${current.repetitions < 2 ? 3 : Math.max(3, Math.round(current.interval * current.ease))} days`,
       easy: `${Math.max(5, Math.round(Math.max(current.interval, 1) * current.ease * 1.3))} days`
     };
-    return <main className="flashcard-review">
+    return <div className="flashcard-review">
       <header className="flashcard-review-header">
         <button className="btn btn-secondary" onClick={() => setView("library")}><ArrowLeft size={16}/> End review</button>
         <div className="review-progress-wrap">
@@ -285,7 +287,7 @@ export function FlashcardsPage() {
         <span><kbd>4</kbd> Easy</span>
       </footer>
       <Toast message={toast} visible={Boolean(toast)}/>
-    </main>;
+    </div>;
   }
 
   return <>
@@ -432,7 +434,7 @@ export function CommunityPage() {
     <AccessibleTabs tabs={["Private circle", "Milestones"]} value={tab} onChange={(value)=>setTab(value as typeof tab)} label="Study circle views"/>
 
     {tab === "Private circle" && <section className="private-circle-layout">
-      <main>
+      <div className="notebook-main">
         <article className="panel circle-privacy-hero">
           <span className="circle-lock"><Shield/></span>
           <div><div className="card-kicker">Private by default</div><h2>Aggregate patterns, never individual scores.</h2><p>Stepwise unlocks shared error analytics only when enough verified peers consent and each person has sufficient question history. Names, question text, answers, and individual performance remain hidden.</p></div>
@@ -454,7 +456,7 @@ export function CommunityPage() {
             ? <div className="shared-signal-list">{combinedSignals.map((signal) => <div key={signal.label}><span>{signal.label}</span><Progress value={signal.value}/><b>{signal.value}%</b></div>)}</div>
             : <div className="locked-signal-preview"><i/><i/><i/><span>Individual data cannot be inferred from this view.</span></div>}
         </article>
-      </main>
+      </div>
 
       <aside>
         <article className="panel circle-members">
@@ -497,14 +499,14 @@ export function SettingsPage() {
   const update=(patch:Partial<typeof state.settings>)=>{dispatch({type:"SET_SETTINGS",settings:patch});setToast("Settings saved automatically");window.setTimeout(()=>setToast(""),1500)};
   return <>
     <PageHeader title="Settings" description="Control your workspace, study preferences, notifications, and local demo data."/>
-    <section className="settings-layout"><aside className="settings-nav panel">{nav.map(([label,Icon])=><button key={label} className={section===label?"active":""} onClick={()=>setSection(label)}><Icon/>{label}<ArrowRight/></button>)}</aside><main className="settings-content panel">
+    <section className="settings-layout"><aside className="settings-nav panel">{nav.map(([label,Icon])=><button key={label} className={section===label?"active":""} onClick={()=>setSection(label)}><Icon/>{label}<ArrowRight/></button>)}</aside><div className="settings-content panel">
       {section==="Profile"&&<><header><h2>Profile</h2><p>Personal information shown across your learner workspace.</p></header><div className="profile-editor"><div className="profile-photo"><Avatar name="Alex Kim" size="lg"/><button onClick={()=>{setToast("Photo picker opened in demo mode");setTimeout(()=>setToast(""),1400)}}>Change photo</button></div><div className="form-grid-2"><Field label="First name"><input defaultValue="Alex"/></Field><Field label="Last name"><input defaultValue="Kim"/></Field></div><Field label="Email"><input type="email" defaultValue="alex@example.com"/></Field><Field label="Medical school"><input defaultValue="Northbridge School of Medicine"/></Field><button className="btn btn-brand" onClick={()=>{setToast("Profile saved locally");setTimeout(()=>setToast(""),1400)}}>Save profile</button></div></>}
       {section==="Preferences"&&<><header><h2>Study preferences</h2><p>Control how question sessions and your daily workspace behave.</p></header><div className="settings-group"><h3>Appearance</h3><div className="theme-picker">{(["light","dark","system"] as const).map(theme=><button key={theme} className={state.settings.theme===theme?"active":""} onClick={()=>update({theme})}><span className={`theme-preview ${theme}`}><i/><b/><em/></span><strong>{theme[0].toUpperCase()+theme.slice(1)}</strong>{state.settings.theme===theme&&<Check/>}</button>)}</div><Toggle checked={state.settings.compactMode} onChange={checked=>update({compactMode:checked})} label="Compact workspace" detail="Reduce padding and fit more content on screen."/></div><div className="settings-group"><h3>Question sessions</h3><Toggle checked={state.settings.showTimer} onChange={checked=>update({showTimer:checked})} label="Show session timer" detail="Keep elapsed or remaining time visible in the toolbar."/><Toggle checked={state.settings.sound} onChange={checked=>update({sound:checked})} label="Answer feedback sounds" detail="Play subtle confirmation sounds in tutor mode."/><Field label="Daily question goal"><input type="number" value={state.settings.dailyGoal} onChange={e=>update({dailyGoal:Number(e.target.value)})}/></Field></div></>}
       {section==="Notifications"&&<><header><h2>Notifications</h2><p>Choose which reminders and summaries can reach you.</p></header><div className="settings-group"><Toggle checked={state.settings.emailDigest} onChange={checked=>update({emailDigest:checked})} label="Weekly learning digest" detail="A summary of progress, weak systems, and next-week focus."/><Toggle checked={state.settings.planReminders} onChange={checked=>update({planReminders:checked})} label="Study plan reminders" detail="Reminders for incomplete planned sessions."/><Toggle checked={state.settings.cardReminders} onChange={checked=>update({cardReminders:checked})} label="Flashcards due" detail="A daily reminder when cards are ready for review."/><Toggle checked={state.settings.communityActivity} onChange={checked=>update({communityActivity:checked})} label="Community activity" detail="Replies and activity in your study circle."/></div></>}
       {section==="Privacy & data"&&<><header><h2>Privacy & data</h2><p>Manage local data for this frontend demo.</p></header><div className="settings-group data-actions"><article><span><Archive/></span><div><b>Export study data</b><p>Download attempts, notes, cards, and settings as JSON.</p></div><button className="btn btn-secondary" onClick={()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="stepwise-demo-data.json";a.click();URL.revokeObjectURL(url)}}>Export</button></article><article className="danger-zone"><span><Trash2/></span><div><b>Reset demo workspace</b><p>Restore original sample data and remove your local changes.</p></div><button className="btn btn-danger" onClick={()=>setResetOpen(true)}>Reset</button></article></div></>}
       {section==="Subscription"&&<><header><h2>Subscription</h2><p>Billing-ready interface for future payment integration.</p></header><div className="subscription-card"><div><Badge tone="brand">PRO DEMO</Badge><h2>Stepwise Pro</h2><p>Adaptive QBank, full analytics, study planning, flashcards, and exam simulation.</p></div><div><b>$49</b><span>/ month, billed annually</span></div><footer><span>Demo access never expires in this repository.</span><button className="btn btn-secondary" onClick={()=>{setToast("Billing portal handoff opened in demo mode");setTimeout(()=>setToast(""),1500)}}>Manage billing</button></footer></div><div className="invoice-list"><h3>Billing history</h3><div><span>Jul 1, 2026</span><b>Stepwise Pro</b><span>$49.00</span><button onClick={()=>{const blob=new Blob(["Stepwise demo receipt — July 2026 — $49.00"],{type:"text/plain"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="stepwise-receipt-2026-07.txt";a.click();URL.revokeObjectURL(url)}}>Receipt</button></div><div><span>Jun 1, 2026</span><b>Stepwise Pro</b><span>$49.00</span><button onClick={()=>{const blob=new Blob(["Stepwise demo receipt — June 2026 — $49.00"],{type:"text/plain"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="stepwise-receipt-2026-06.txt";a.click();URL.revokeObjectURL(url)}}>Receipt</button></div></div></>}
       {section==="Accessibility"&&<><header><h2>Accessibility</h2><p>Adjust motion, density, and study session presentation.</p></header><div className="settings-group"><Toggle checked={state.settings.reducedMotion} onChange={checked=>update({reducedMotion:checked})} label="Reduce motion" detail="Minimize nonessential transitions and animations."/><Toggle checked={state.settings.highContrast} onChange={checked=>update({highContrast:checked})} label="High contrast answer states" detail="Increase separation between correct, incorrect, and selected states."/><Toggle checked={state.settings.largeText} onChange={checked=>update({largeText:checked})} label="Larger question text" detail="Increase reading size inside the session workspace."/></div></>}
-    </main></section>
+    </div></section>
     <Modal open={resetOpen} onClose={()=>setResetOpen(false)} title="Reset demo workspace?" description="This restores the original questions, attempts, notes, cards, reports, and settings stored in this browser."><div className="exit-modal-actions"><button className="btn btn-secondary" onClick={()=>setResetOpen(false)}>Cancel</button><button className="btn btn-danger" onClick={()=>{resetDemo();setResetOpen(false);setToast("Demo workspace reset")}}>Reset everything</button></div></Modal><Toast message={toast} visible={Boolean(toast)}/>
   </>;
 }

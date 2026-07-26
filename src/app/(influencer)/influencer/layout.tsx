@@ -1,4 +1,5 @@
 import { createRouteMetadata } from "@/app/route-metadata";
+import { StepwiseProvider } from "@/lib/store";
 
 export const metadata = createRouteMetadata(
   "Partner hub",
@@ -9,5 +10,5 @@ export const metadata = createRouteMetadata(
 export default function InfluencerLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return children;
+  return <StepwiseProvider>{children}</StepwiseProvider>;
 }

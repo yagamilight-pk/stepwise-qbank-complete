@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
@@ -9,14 +10,20 @@ import {
   Gauge, Layers3, Lightbulb, ListFilter, LockKeyhole, MoreHorizontal, Play, RefreshCw, Search,
   Settings2, SlidersHorizontal, Sparkles, Target, TrendingUp, Trophy, WandSparkles, Zap
 } from "lucide-react";
-import { confidenceMatrix, dailyActivity, peerBenchmark, performanceWindow, readinessEstimate, rollingAccuracy, selectQuestions, studyStreak, systemPerformance } from "@/lib/algorithms";
+import { confidenceMatrix, dailyActivity, localDateKey, peerBenchmark, performanceWindow, readinessEstimate, rollingAccuracy, selectQuestions, studyStreak, systemPerformance } from "@/lib/algorithms";
 import { useStepwise } from "@/lib/store";
 import type { Difficulty, SessionConfig, SessionMode, Step, StudyPlanSettings } from "@/lib/types";
+import { getUsmleExamProfile } from "@/lib/usmle";
+import { ACTIVE_SESSION_KEY, SESSION_CONFIG_KEY } from "@/lib/session";
 import { Badge, Donut, EmptyState, Field, formatDate, Modal, PageHeader, Progress, Sparkline, StatCard, Toast, uid } from "./ui";
 import { AccessibleTabs } from "./AccessibleTabs";
-import { SessionPage } from "./Session";
-import { CommunityPage, FlashcardsPage, NotebookPage, SettingsPage } from "./LearnerMore";
-import { MedicalLibraryPage } from "./MedicalLibrary";
+
+const SessionPage = dynamic(() => import("./Session").then((module) => module.SessionPage));
+const FlashcardsPage = dynamic(() => import("./LearnerMore").then((module) => module.FlashcardsPage));
+const NotebookPage = dynamic(() => import("./LearnerMore").then((module) => module.NotebookPage));
+const CommunityPage = dynamic(() => import("./LearnerMore").then((module) => module.CommunityPage));
+const SettingsPage = dynamic(() => import("./LearnerMore").then((module) => module.SettingsPage));
+const MedicalLibraryPage = dynamic(() => import("./MedicalLibrary").then((module) => module.MedicalLibraryPage));
 
 export function LearnerPage({ section }: { section: string }) {
   if (section === "qbank") return <QBankPage/>;
@@ -32,9 +39,10 @@ export function LearnerPage({ section }: { section: string }) {
 }
 
 function DashboardPage() {
-  const { state, dispatch } = useStepwise();
+  const { state, dispatch, rebuildPlan } = useStepwise();
   const [toast, setToast] = useState("");
   const [activityRange, setActivityRange] = useState<7 | 30>(7);
+  const todayKey = localDateKey(new Date());
   const stepQuestions = state.questions.filter(question=>question.step==="Step 2 CK");
   const stepQuestionIds = new Set(stepQuestions.map(question=>question.id));
   const stepAttempts = state.attempts.filter(attempt=>stepQuestionIds.has(attempt.questionId));
@@ -43,12 +51,14 @@ function DashboardPage() {
   const activity = dailyActivity(stepAttempts, activityRange);
   const sevenDay = performanceWindow(stepAttempts, 7);
   const streak = studyStreak(stepAttempts);
-  const todayTasks = state.studyTasks.filter(task=>task.date === "2026-07-22");
+  const todayTasks = state.studyTasks.filter(task=>task.date === todayKey);
   const completed = todayTasks.filter(task=>task.completed).length;
-  const answeredToday = stepAttempts.filter(attempt=>attempt.createdAt.slice(0,10)==="2026-07-22").length;
-  const dueCards = state.flashcards.filter(card=>new Date(card.dueAt)<=new Date("2026-07-22T23:59:59Z")).length;
+  const answeredToday = stepAttempts.filter(attempt=>localDateKey(new Date(attempt.createdAt))===todayKey).length;
+  const dueCards = state.flashcards.filter(card=>new Date(card.dueAt)<=new Date(`${todayKey}T23:59:59Z`)).length;
   const recentMisses = stepAttempts.filter(attempt=>!attempt.correct).length;
   const highestLeverage = performance[0];
+  const hasPerformanceSignal = stepAttempts.length > 0;
+  const hasStudyPlan = state.studyTasks.length > 0;
   const weeklyQuestions = activity.reduce((sum, day)=>sum+day.attempts,0);
   const streakWeek = dailyActivity(stepAttempts, 7);
   const remainingToday = todayTasks.filter(task=>!task.completed).reduce((sum,task)=>sum+task.minutes,0);
@@ -63,9 +73,20 @@ function DashboardPage() {
   };
 
   return <>
-    <PageHeader eyebrow="Sample learner · Step 2 CK" title="Your next best action is ready." description={`This demonstration plan has ${remainingToday} focused minutes remaining in its sample day.`} actions={<Link className="btn btn-brand" href="/app/qbank"><Play size={16}/> Start a session</Link>}/>
+    <PageHeader
+      eyebrow="Learner workspace · Step 2 CK"
+      title="Your next best action is ready."
+      description={
+        todayTasks.length
+          ? `Today’s plan has ${remainingToday} focused minutes remaining.`
+          : hasStudyPlan
+            ? "Today is intentionally unscheduled. Review due work or start a focused block."
+            : "Start with a focused question block, or build a plan around your exam date."
+      }
+      actions={<Link className="btn btn-brand" href="/app/qbank"><Play size={16}/> Start a session</Link>}
+    />
     <section className="dashboard-hero-grid">
-      <article className="readiness-card panel"><div><div className="card-kicker"><Target/> Readiness signal</div><h2>{readiness.score>=70?"On track for your goal":"Build coverage to strengthen readiness"}</h2><p>{highestLeverage?`${highestLeverage.system} is currently the highest-leverage focus based on mastery and coverage.`:"Complete a block to generate a personalized focus area."}</p><div className="readiness-details"><span><b>{readiness.accuracy}%</b> accuracy</span><span><b>{readiness.coverage}%</b> coverage</span><span><b>{readiness.calibrated}%</b> calibrated</span></div><small className="model-note">Frontend heuristic from sample activity—not a predicted exam score.</small><Link href="/app/analytics">Open readiness analysis <ArrowRight size={15}/></Link></div><Donut value={readiness.score} size={150} detail="readiness"/></article>
+      <article className="readiness-card panel"><div><div className="card-kicker"><Target/> Readiness signal</div><h2>{readiness.score>=70?"On track for your goal":"Build coverage to strengthen readiness"}</h2><p>{hasPerformanceSignal&&highestLeverage?`${highestLeverage.system} is currently the highest-leverage focus based on mastery and coverage.`:"Complete a block to establish your first personalized focus area."}</p><div className="readiness-details"><span><b>{readiness.accuracy}%</b> accuracy</span><span><b>{readiness.coverage}%</b> coverage</span><span><b>{readiness.calibrated}%</b> calibrated</span></div><small className="model-note">Frontend heuristic from sample activity—not a predicted exam score.</small><Link href="/app/analytics">Open readiness analysis <ArrowRight size={15}/></Link></div><Donut value={readiness.score} size={150} detail="readiness"/></article>
       <article className="streak-card panel"><div className="streak-icon"><Flame/></div><div><span>Current streak</span><strong>{streak.current} days</strong><p>Best: {streak.best} days</p></div><div className="streak-week">{streakWeek.map((day,index)=><span key={day.date} className={`${day.attempts?"done":""} ${index===streakWeek.length-1?"today":""}`.trim()}><b>{day.attempts?<Check/>:day.label.slice(0,1)}</b><small>{day.label.slice(0,1)}</small></span>)}</div></article>
     </section>
 
@@ -77,13 +98,16 @@ function DashboardPage() {
     </section>
 
     <section className="dashboard-main-grid">
-      <article className="panel todays-plan"><header><div><div className="card-kicker"><CalendarDays/> Sample day plan</div><h2>{completed} of {todayTasks.length} tasks complete</h2></div><Link href="/app/study-plan">Full plan <ArrowRight/></Link></header><Progress value={todayTasks.length ? (completed/todayTasks.length)*100 : 0}/><div className="task-list">{todayTasks.map(task=><div key={task.id} className={task.completed?"task-row completed":"task-row"}><button aria-label={`${task.completed?"Reopen":"Complete"} ${task.title}`} onClick={()=>{dispatch({type:"TOGGLE_TASK",id:task.id});showToast(task.completed?"Task reopened":"Task completed")}}>{task.completed?<Check/>:<span/>}</button><span className={`task-type task-type-${task.type.toLowerCase()}`}>{task.type === "Questions"?<BookCheck/>:task.type === "Flashcards"?<Layers3/>:<BookOpen/>}</span><div><b>{task.title}</b><p>{task.detail}</p></div><span>{task.minutes} min</span>{!task.completed&&<Link aria-label={`Open ${task.title}`} href={task.type==="Flashcards"?"/app/flashcards":"/app/qbank"}><ArrowRight/></Link>}</div>)}</div></article>
-      <article className="panel mastery-panel"><header><div><div className="card-kicker"><Gauge/> System mastery</div><h2>Focus where it compounds</h2></div><Link href="/app/analytics">Details</Link></header><div className="mastery-list">{performance.slice(0,5).map((item,index)=><div key={item.system}><div><span><i className={`rank rank-${index+1}`}>{index+1}</i>{item.system}</span><b>{item.mastery}%</b></div><Progress value={item.mastery}/><small>{item.attempts?`${item.attempts} attempt${item.attempts===1?"":"s"} · ${item.accuracy}% accuracy`:`Not started · ${item.coverage} item${item.coverage===1?"":"s"}`}</small></div>)}</div><footer><CircleAlert/><span><b>Highest leverage:</b> {highestLeverage?`${highestLeverage.system} is prioritized because its mastery signal is ${highestLeverage.mastery}%.`:"Complete a question block to generate a system priority."}</span></footer></article>
+      <article className="panel todays-plan">
+        <header><div><div className="card-kicker"><CalendarDays/> Today’s plan</div><h2>{todayTasks.length ? `${completed} of ${todayTasks.length} tasks complete` : hasStudyPlan ? "Recovery and flexible review" : "Turn your goal into a daily plan"}</h2></div><Link href="/app/study-plan">Full plan <ArrowRight/></Link></header>
+        {todayTasks.length ? <><Progress value={(completed/todayTasks.length)*100}/><div className="task-list">{todayTasks.map(task=><div key={task.id} className={task.completed?"task-row completed":"task-row"}><button aria-label={`${task.completed?"Reopen":"Complete"} ${task.title}`} onClick={()=>{dispatch({type:"TOGGLE_TASK",id:task.id});showToast(task.completed?"Task reopened":"Task completed")}}>{task.completed?<Check/>:<span/>}</button><span className={`task-type task-type-${task.type.toLowerCase()}`}>{task.type === "Questions"?<BookCheck/>:task.type === "Flashcards"?<Layers3/>:<BookOpen/>}</span><div><b>{task.title}</b><p>{task.detail}</p></div><span>{task.minutes} min</span>{!task.completed&&<Link aria-label={`Open ${task.title}`} href={task.type==="Flashcards"?"/app/flashcards":"/app/qbank"}><ArrowRight/></Link>}</div>)}</div></> : hasStudyPlan ? <EmptyState icon={<CalendarDays/>} title="No required tasks today" description="Use the open day for recovery, due cards, or a short mixed block without disrupting the rest of your plan." action={<Link className="btn btn-secondary" href="/app/flashcards">Review due cards</Link>}/> : <EmptyState icon={<Compass/>} title="Build your first study plan" description="Choose an exam date and weekly rhythm. Stepwise will turn them into focused question, review, and recall tasks." action={<button className="btn btn-brand" onClick={()=>{rebuildPlan();showToast("Study plan built around your schedule")}}>Build my plan</button>}/>}
+      </article>
+      <article className="panel mastery-panel"><header><div><div className="card-kicker"><Gauge/> System mastery</div><h2>Focus where it compounds</h2></div><Link href="/app/analytics">Details</Link></header><div className="mastery-list">{performance.slice(0,5).map((item,index)=><div key={item.system}><div><span><i className={`rank rank-${index+1}`}>{index+1}</i>{item.system}</span><b>{item.mastery}%</b></div><Progress value={item.mastery}/><small>{item.attempts?`${item.attempts} attempt${item.attempts===1?"":"s"} · ${item.accuracy}% accuracy`:`Not started · ${item.coverage} item${item.coverage===1?"":"s"}`}</small></div>)}</div><footer><CircleAlert/><span><b>{hasPerformanceSignal ? "Highest leverage:" : "First signal:"}</b> {hasPerformanceSignal&&highestLeverage?`${highestLeverage.system} is prioritized because its mastery signal is ${highestLeverage.mastery}%.`:"Complete a question block to rank systems from your own responses."}</span></footer></article>
     </section>
 
     <section className="dashboard-bottom-grid">
       <article className="panel activity-panel"><header><div><div className="card-kicker"><Activity/> Practice activity</div><h2>See the work behind the signal</h2></div><select aria-label="Activity date range" value={activityRange} onChange={event=>setActivityRange(Number(event.target.value) as 7|30)}><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select></header><p className="sr-only">The sample learner answered {weeklyQuestions} questions in this period.</p><div className="activity-chart" aria-hidden="true">{activity.map((day,index)=><div key={day.date}><span>{day.attempts ? day.attempts : ""}</span><i style={{height:`${Math.max(6,day.attempts*13)}px`}} className={index===activity.length-1?"today":""}/><small>{day.label}</small></div>)}</div><div className="activity-summary"><span><i/> {weeklyQuestions} questions answered</span><b>{sevenDay.priorCount?`${sevenDay.count-sevenDay.priorCount>=0?"+":""}${sevenDay.count-sevenDay.priorCount} vs prior week`:"Baseline period"}</b></div></article>
-      <article className="panel insight-card"><div className="insight-icon"><Lightbulb/></div><div className="card-kicker">Weekly insight</div><h2>{sevenDay.priorCount?(sevenDay.paceDelta>0?"Your speed improved across the comparison window.":"Your pacing signal needs deliberate review."):"Your baseline performance signal is ready."}</h2><p>{sevenDay.priorCount?`Accuracy changed ${sevenDay.accuracyDelta>=0?"+":""}${sevenDay.accuracyDelta} points while average response time changed ${sevenDay.paceDelta>=0?`${sevenDay.paceDelta} seconds faster`:`${Math.abs(sevenDay.paceDelta)} seconds slower`}.`:`You are at ${sevenDay.accuracy}% accuracy with an average pace of ${sevenDay.averageTime || 0} seconds. A second week will unlock a reliable trend comparison.`}</p><button className="btn btn-secondary" onClick={saveInsight}>Save insight</button></article>
+      <article className="panel insight-card"><div className="insight-icon"><Lightbulb/></div><div className="card-kicker">Weekly insight</div><h2>{sevenDay.priorCount?(sevenDay.paceDelta>0?"Your speed improved across the comparison window.":"Your pacing signal needs deliberate review."):sevenDay.count?"Your baseline performance signal is ready.":"Your first block will create the baseline."}</h2><p>{sevenDay.priorCount?`Accuracy changed ${sevenDay.accuracyDelta>=0?"+":""}${sevenDay.accuracyDelta} points while average response time changed ${sevenDay.paceDelta>=0?`${sevenDay.paceDelta} seconds faster`:`${Math.abs(sevenDay.paceDelta)} seconds slower`}.`:sevenDay.count?`You are at ${sevenDay.accuracy}% accuracy with an average pace of ${sevenDay.averageTime || 0} seconds. A second week will unlock a reliable trend comparison.`:"Stepwise needs a few real responses before it can compare accuracy, pacing, and confidence without inventing a trend."}</p>{sevenDay.count?<button className="btn btn-secondary" onClick={saveInsight}>Save insight</button>:<Link className="btn btn-white" href="/app/qbank">Start the first block <ArrowRight/></Link>}</article>
       <article className="panel quick-actions"><div className="card-kicker"><Zap/> Quick actions</div><h2>Jump back in</h2><div><Link href="/app/qbank"><span><WandSparkles/></span><div><b>Adaptive block</b><small>Weakness weighted</small></div><ArrowRight/></Link><Link href="/app/flashcards"><span><Layers3/></span><div><b>Review due cards</b><small>{dueCards} ready now</small></div><ArrowRight/></Link><Link href="/app/notebook"><span><BookCheck/></span><div><b>Review incorrects</b><small>{recentMisses} recent miss{recentMisses===1?"":"es"}</small></div><ArrowRight/></Link></div></article>
     </section>
     <Toast message={toast} visible={Boolean(toast)}/>
@@ -107,7 +131,15 @@ function QBankPage() {
   const disciplines=[...new Set(available.map(question=>question.discipline))];
   const matches=available.filter(question=>question.stem.toLowerCase().includes(search.toLowerCase())||question.topic.toLowerCase().includes(search.toLowerCase())||question.id.toLowerCase().includes(search.toLowerCase()));
   const selectedCount=selectQuestions(state,{...config,count:999}).length;
-  const start=(override?:SessionConfig)=>{const next=override??config;sessionStorage.setItem("stepwise-session-config",JSON.stringify(next));router.push("/app/session")};
+  const examProfile=getUsmleExamProfile(config.step,state.planSettings.examDate);
+  const maxCount=config.mode==="Exam"?examProfile.maxItemsPerBlock:40;
+  const countPresets=config.mode==="Exam"?[10,examProfile.maxItemsPerBlock]:[10,20,40];
+  const start=(override?:SessionConfig)=>{
+    const next=override??config;
+    sessionStorage.removeItem(ACTIVE_SESSION_KEY);
+    sessionStorage.setItem(SESSION_CONFIG_KEY,JSON.stringify(next));
+    router.push("/app/session");
+  };
   const toggleArray=<T,>(list:T[], value:T)=>list.includes(value)?list.filter(item=>item!==value):[...list,value];
 
   return <>
@@ -116,12 +148,12 @@ function QBankPage() {
     {tab==="build"&&<section className="qbank-builder-grid">
       <article className="panel builder-main">
         <header><div><span className="feature-icon"><Settings2/></span><div><h2>Configure your block</h2><p>{selectedCount} eligible questions with current filters</p></div></div><button onClick={()=>setConfig(defaultConfig)}>Reset filters</button></header>
-        <div className="builder-section"><div className="builder-section-title"><span>1</span><div><h3>Choose your exam</h3><p>Question style and content coverage change by exam.</p></div></div><div className="large-choice-grid">{(["Step 1","Step 2 CK"] as Step[]).map(step=><button key={step} className={config.step===step?"active":""} onClick={()=>setConfig({...config,step,systems:[],disciplines:[]})}><span className="exam-choice-mark">{step==="Step 1"?"S1":"S2"}</span><div><b>USMLE {step}</b><small>{step==="Step 1"?"Foundational science and mechanisms":"Clinical knowledge and decision making"}</small></div>{config.step===step&&<Check/>}</button>)}</div></div>
-        <div className="builder-section"><div className="builder-section-title"><span>2</span><div><h3>Select a session mode</h3><p>Control feedback timing, pacing, and question selection.</p></div></div><div className="mode-grid">{(["Tutor","Timed","Exam","Adaptive"] as SessionMode[]).map(mode=><button key={mode} className={config.mode===mode?"active":""} onClick={()=>setConfig({...config,mode})}><span>{mode==="Tutor"?<BookOpen/>:mode==="Timed"?<Clock3/>:mode==="Exam"?<LockKeyhole/>:<Sparkles/>}</span><b>{mode}</b><small>{mode==="Tutor"?"Immediate explanations":mode==="Timed"?"Paced, review after":mode==="Exam"?"No feedback until end":"Weakness weighted"}</small>{mode==="Adaptive"&&<Badge tone="brand">Recommended</Badge>}</button>)}</div></div>
+        <div className="builder-section"><div className="builder-section-title"><span>1</span><div><h3>Choose your exam</h3><p>Question style and content coverage change by exam.</p></div></div><div className="large-choice-grid">{(["Step 1","Step 2 CK"] as Step[]).map(step=>{const nextProfile=getUsmleExamProfile(step,state.planSettings.examDate);return <button key={step} className={config.step===step?"active":""} onClick={()=>setConfig({...config,step,count:config.mode==="Exam"?nextProfile.maxItemsPerBlock:config.count,systems:[],disciplines:[]})}><span className="exam-choice-mark">{step==="Step 1"?"S1":"S2"}</span><div><b>USMLE {step}</b><small>{step==="Step 1"?"Foundational science and mechanisms":"Clinical knowledge and decision making"}</small></div>{config.step===step&&<Check/>}</button>})}</div></div>
+        <div className="builder-section"><div className="builder-section-title"><span>2</span><div><h3>Select a session mode</h3><p>Control feedback timing, pacing, and question selection.</p></div></div><div className="mode-grid">{(["Tutor","Timed","Exam","Adaptive"] as SessionMode[]).map(mode=><button key={mode} className={config.mode===mode?"active":""} onClick={()=>setConfig({...config,mode,count:mode==="Exam"?examProfile.maxItemsPerBlock:config.count})}><span>{mode==="Tutor"?<BookOpen/>:mode==="Timed"?<Clock3/>:mode==="Exam"?<LockKeyhole/>:<Sparkles/>}</span><b>{mode}</b><small>{mode==="Tutor"?"Immediate explanations":mode==="Timed"?"Paced, review after":mode==="Exam"?"Reviewable answers, feedback at end":"Weakness weighted"}</small>{mode==="Adaptive"&&<Badge tone="brand">Recommended</Badge>}</button>)}</div><div className={config.mode==="Exam"?"exam-standard active":"exam-standard"}><Clock3/><div><b>{examProfile.label}</b><p>{config.step} · {examProfile.blocksPerExam} × {examProfile.blockMinutes}-minute blocks · no more than {examProfile.maxItemsPerBlock} items per block</p></div><Badge tone="info">{formatDate(state.planSettings.examDate,{month:"short",day:"numeric",year:"numeric"})}</Badge></div></div>
         <div className="builder-section"><div className="builder-section-title"><span>3</span><div><h3>Focus the content</h3><p>Leave selections empty to include every category.</p></div></div><div className="filter-columns"><div><div className="filter-head"><b>Systems</b><button onClick={()=>setConfig({...config,systems:config.systems.length?[]:systems})}>{config.systems.length?"Clear":"Select all"}</button></div><div className="check-list">{systems.map(system=><label key={system}><input type="checkbox" checked={config.systems.includes(system)} onChange={()=>setConfig({...config,systems:toggleArray(config.systems,system)})}/><i><Check/></i><span>{system}</span><small>{available.filter(q=>q.system===system).length}</small></label>)}</div></div><div><div className="filter-head"><b>Disciplines</b><button onClick={()=>setConfig({...config,disciplines:config.disciplines.length?[]:disciplines})}>{config.disciplines.length?"Clear":"Select all"}</button></div><div className="check-list">{disciplines.map(discipline=><label key={discipline}><input type="checkbox" checked={config.disciplines.includes(discipline)} onChange={()=>setConfig({...config,disciplines:toggleArray(config.disciplines,discipline)})}/><i><Check/></i><span>{discipline}</span><small>{available.filter(q=>q.discipline===discipline).length}</small></label>)}</div></div></div></div>
-        <div className="builder-section builder-final"><div><div className="builder-section-title"><span>4</span><div><h3>Set block details</h3><p>Choose volume, difficulty, and question status.</p></div></div><div className="inline-fields"><Field label="Question count" hint="Focused 20 or exam-style 40"><div className="question-count-control"><div className="stepper"><button aria-label="Decrease question count" onClick={()=>setConfig({...config,count:Math.max(5,config.count-5)})}>−</button><input aria-label="Question count" type="number" min="1" max="40" value={config.count} onChange={e=>setConfig({...config,count:Math.min(40,Math.max(1,Number(e.target.value)||1))})}/><button aria-label="Increase question count" onClick={()=>setConfig({...config,count:Math.min(40,config.count+5)})}>+</button></div><div className="block-presets">{[10,20,40].map(count=><button type="button" key={count} className={config.count===count?"active":""} onClick={()=>setConfig({...config,count})}>{count}</button>)}</div></div></Field><Field label="Question status"><select value={config.include} onChange={e=>setConfig({...config,include:e.target.value as SessionConfig["include"]})}>{["All","Unused","Incorrect","Flagged","Bookmarked"].map(option=><option key={option}>{option}</option>)}</select></Field></div><div className="difficulty-picker"><span>Difficulty</span>{(["Easy","Medium","Hard"] as Difficulty[]).map(item=><button key={item} className={config.difficulties.includes(item)?"active":""} onClick={()=>setConfig({...config,difficulties:toggleArray(config.difficulties,item)})}>{item}</button>)}</div></div></div>
+        <div className="builder-section builder-final"><div><div className="builder-section-title"><span>4</span><div><h3>Set block details</h3><p>Choose volume, difficulty, and question status.</p></div></div><div className="inline-fields"><Field label="Question count" hint={config.mode==="Exam"?`${examProfile.blockMinutes}-minute exam block · maximum ${examProfile.maxItemsPerBlock} items`:"Focused practice or a custom mixed block"}><div className="question-count-control"><div className="stepper"><button aria-label="Decrease question count" onClick={()=>setConfig({...config,count:Math.max(5,config.count-5)})}>−</button><input aria-label="Question count" type="number" min="1" max={maxCount} value={config.count} onChange={e=>setConfig({...config,count:Math.min(maxCount,Math.max(1,Number(e.target.value)||1))})}/><button aria-label="Increase question count" onClick={()=>setConfig({...config,count:Math.min(maxCount,config.count+5)})}>+</button></div><div className="block-presets">{[...new Set(countPresets)].map(count=><button type="button" key={count} className={config.count===count?"active":""} onClick={()=>setConfig({...config,count})}>{count}</button>)}</div></div></Field><Field label="Question status"><select value={config.include} onChange={e=>setConfig({...config,include:e.target.value as SessionConfig["include"]})}>{["All","Unused","Incorrect","Flagged","Bookmarked"].map(option=><option key={option}>{option}</option>)}</select></Field></div><div className="difficulty-picker"><span>Difficulty</span>{(["Easy","Medium","Hard"] as Difficulty[]).map(item=><button key={item} className={config.difficulties.includes(item)?"active":""} onClick={()=>setConfig({...config,difficulties:toggleArray(config.difficulties,item)})}>{item}</button>)}</div></div></div>
       </article>
-      <aside className="builder-summary panel"><div className="adaptive-summary-icon"><Compass/></div><Badge tone="brand">Adaptive preview</Badge><h2>Your next block</h2><p>Based on current filters and performance signals.</p><div className="summary-number"><strong>{Math.min(config.count,selectedCount)}</strong><span>questions</span></div><dl><div><dt>Exam</dt><dd>{config.step}</dd></div><div><dt>Mode</dt><dd>{config.mode}</dd></div><div><dt>Estimated time</dt><dd>{Math.ceil(Math.min(config.count,selectedCount)*config.timePerQuestionSec/60)} min</dd></div><div><dt>Feedback</dt><dd>{config.mode==="Tutor"?"Immediate":"After block"}</dd></div></dl>{config.mode==="Adaptive"&&<div className="adaptive-breakdown"><b>Selection signals</b>{[["Weakness repair",30],["Unseen coverage",28],["Knowledge staleness",17],["Confidence mismatch",13],["Challenge fit",12]].map(([label,value])=><div key={String(label)}><span>{label}</span><Progress value={Number(value)}/><small>{value}%</small></div>)}</div>}<button className="btn btn-brand btn-block btn-lg" onClick={()=>start()} disabled={!selectedCount}>Start block <ArrowRight/></button><small className="keyboard-hint">Submitted answers and analytics signals save automatically.</small></aside>
+      <aside className="builder-summary panel"><div className="adaptive-summary-icon"><Compass/></div><Badge tone={config.mode==="Exam"?"info":"brand"}>{config.mode==="Exam"?examProfile.label:config.mode==="Adaptive"?"Adaptive preview":`${config.mode} block`}</Badge><h2>Your next block</h2><p>{config.mode==="Exam"?"Calibrated to the current USMLE block structure.":"Based on current filters and performance signals."}</p><div className="summary-number"><strong>{Math.min(config.count,selectedCount)}</strong><span>questions</span></div><dl><div><dt>Exam</dt><dd>{config.step}</dd></div><div><dt>Mode</dt><dd>{config.mode}</dd></div><div><dt>Estimated time</dt><dd>{config.mode==="Exam"?examProfile.blockMinutes:Math.ceil(Math.min(config.count,selectedCount)*config.timePerQuestionSec/60)} min</dd></div><div><dt>Feedback</dt><dd>{config.mode==="Tutor"?"Immediate":"After block"}</dd></div>{config.mode==="Exam"&&<div><dt>Official ceiling</dt><dd>{examProfile.maxItemsPerBlock} / {examProfile.blockMinutes} min</dd></div>}</dl>{config.mode==="Adaptive"&&<div className="adaptive-breakdown"><b>Selection signals</b>{[["Weakness repair",30],["Unseen coverage",28],["Knowledge staleness",17],["Confidence mismatch",13],["Challenge fit",12]].map(([label,value])=><div key={String(label)}><span>{label}</span><Progress value={Number(value)}/><small>{value}%</small></div>)}</div>}<button className="btn btn-brand btn-block btn-lg" onClick={()=>start()} disabled={!selectedCount}>Start block <ArrowRight/></button><small className="keyboard-hint">Submitted answers and analytics signals save automatically.</small></aside>
     </section>}
     {tab==="library"&&<section className="panel library-panel"><header><div className="table-search"><Search/><input aria-label="Search questions" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search question IDs, topics, or stems…"/></div><div><select aria-label="Question library exam" value={config.step} onChange={e=>setConfig({...config,step:e.target.value as Step})}><option>Step 1</option><option>Step 2 CK</option></select><button className="btn btn-secondary" onClick={()=>{setTab("build");setToast("Advanced filters opened in the block builder");setTimeout(()=>setToast(""),1600)}}><ListFilter/> Filters</button></div></header><div className="responsive-table"><table><caption className="sr-only">Available demonstration questions</caption><thead><tr><th scope="col">Question</th><th scope="col">System</th><th scope="col">Topic</th><th scope="col">Difficulty</th><th scope="col">Sample accuracy</th><th scope="col">Action</th></tr></thead><tbody>{matches.map(question=><tr key={question.id}><td><div className="question-cell"><span>{question.id}</span><p>{question.stem.slice(0,90)}…</p></div></td><td>{question.system}</td><td>{question.topic}</td><td><Badge tone={question.difficulty==="Hard"?"danger":question.difficulty==="Easy"?"success":"warning"}>{question.difficulty}</Badge></td><td>{question.globalAccuracy}%</td><td><button className="icon-btn" aria-label={`Start ${question.id}`} onClick={()=>start({...config,step:question.step,mode:"Tutor",count:1,systems:[question.system],disciplines:[],difficulties:[],include:"All",questionIds:[question.id]})}><Play/></button></td></tr>)}{!matches.length&&<tr><td colSpan={6}><EmptyState icon={<Search/>} title="No matching questions" description="Clear the search or choose a different exam to restore the question list." action={<button className="btn btn-secondary" onClick={()=>setSearch("")}>Clear search</button>}/></td></tr>}</tbody></table></div></section>}
     {tab==="history"&&<section className="panel history-panel">{state.sessions.length?<div className="responsive-table"><table><caption className="sr-only">Question session history</caption><thead><tr><th scope="col">Date</th><th scope="col">Exam</th><th scope="col">Mode</th><th scope="col">Questions</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead><tbody>{state.sessions.map(session=><tr key={session.id}><td>{formatDate(session.createdAt)}</td><td>{session.config.step}</td><td>{session.config.mode}</td><td>{session.questionIds.length}</td><td><Badge tone={session.completedAt?"success":"warning"}>{session.completedAt?"Complete":"Interrupted"}</Badge></td><td><button className="btn btn-secondary" onClick={()=>start({...session.config,count:session.questionIds.length,questionIds:session.questionIds})}>Build similar</button></td></tr>)}</tbody></table></div>:<EmptyState icon={<AlarmClock/>} title="No session history yet" description="Complete your first question block and its performance summary will appear here." action={<button className="btn btn-brand" onClick={()=>setTab("build")}>Build a block</button>}/>}</section>}
@@ -136,9 +168,10 @@ function AnalyticsPage() {
   const [step,setStep]=useState<Step>("Step 2 CK");
   const [range,setRange]=useState("30 days");
   const [tab,setTab]=useState("Overview");
+  const [referenceNow]=useState(()=>Date.now());
   const questions=state.questions.filter(question=>question.step===step);
   const ids=new Set(questions.map(question=>question.id));
-  const cutoff=range==="All time"?0:new Date("2026-07-22T23:59:59Z").getTime()-(range==="7 days"?7:30)*86_400_000;
+  const cutoff=range==="All time"?0:referenceNow-(range==="7 days"?7:30)*86_400_000;
   const attempts=state.attempts.filter(attempt=>ids.has(attempt.questionId)&&new Date(attempt.createdAt).getTime()>=cutoff);
   const performance=systemPerformance(questions,attempts);
   const readiness=readinessEstimate({...state,attempts},step);
@@ -163,7 +196,8 @@ function AnalyticsPage() {
       timePerQuestionSec: 90,
       questionIds
     };
-    sessionStorage.setItem("stepwise-session-config", JSON.stringify(config));
+    sessionStorage.removeItem(ACTIVE_SESSION_KEY);
+    sessionStorage.setItem(SESSION_CONFIG_KEY, JSON.stringify(config));
     router.push("/app/session");
   };
   const correctionIds = [...new Set(attempts.filter(attempt=>!attempt.correct&&attempt.confidence>=4).map(attempt=>attempt.questionId))];
@@ -228,11 +262,19 @@ function StudyPlanPage() {
   const [editOpen,setEditOpen]=useState(false);
   const [toast,setToast]=useState("");
   const [view,setView]=useState<"timeline"|"calendar">("timeline");
+  const [timelineLimit,setTimelineLimit]=useState(30);
   const grouped=state.studyTasks.reduce<Record<string,typeof state.studyTasks>>((acc,task)=>{(acc[task.date] ||= []).push(task);return acc},{});
-  const dates=Object.keys(grouped).sort().slice(0,10);
-  const examDays=Math.max(0,Math.ceil((new Date(settings.examDate).getTime()-new Date("2026-07-22").getTime())/86400000));
+  const allDates=Object.keys(grouped).sort();
+  const dates=allDates.slice(0,timelineLimit);
+  const now=new Date();
+  const todayKey=localDateKey(now);
+  const todayNoon=new Date(`${todayKey}T12:00:00`);
+  const nextWeekEnd=new Date(todayNoon);
+  nextWeekEnd.setDate(nextWeekEnd.getDate()+6);
+  const nextWeekEndKey=localDateKey(nextWeekEnd);
+  const examDays=Math.max(0,Math.ceil((new Date(`${settings.examDate}T12:00:00`).getTime()-todayNoon.getTime())/86400000));
   const completed=state.studyTasks.filter(task=>task.completed).length;
-  const plannedWeekMinutes=state.studyTasks.filter(task=>task.date>="2026-07-20"&&task.date<="2026-07-26").reduce((sum,task)=>sum+task.minutes,0);
+  const plannedWeekMinutes=state.studyTasks.filter(task=>task.date>=todayKey&&task.date<=nextWeekEndKey).reduce((sum,task)=>sum+task.minutes,0);
   const planQuestions=state.questions.filter(question=>question.step===settings.targetStep);
   const planPerformance=systemPerformance(planQuestions,state.attempts);
   const weakest=planPerformance[0];
@@ -241,36 +283,38 @@ function StudyPlanPage() {
   const nextAssessment=state.studyTasks.find(task=>task.type==="Assessment"&&!task.completed);
   const save=()=>{rebuildPlan(settings);setEditOpen(false);setToast("Study plan rebuilt around your availability");window.setTimeout(()=>setToast(""),2000)};
   const startAssessment=()=>{
-    const config:SessionConfig={step:settings.targetStep,mode:"Exam",count:40,systems:[],disciplines:[],difficulties:[],include:"All",timePerQuestionSec:90};
-    sessionStorage.setItem("stepwise-session-config",JSON.stringify(config));
+    const examProfile=getUsmleExamProfile(settings.targetStep,settings.examDate);
+    const config:SessionConfig={step:settings.targetStep,mode:"Exam",count:examProfile.maxItemsPerBlock,systems:[],disciplines:[],difficulties:[],include:"All",timePerQuestionSec:90};
+    sessionStorage.removeItem(ACTIVE_SESSION_KEY);
+    sessionStorage.setItem(SESSION_CONFIG_KEY,JSON.stringify(config));
     router.push("/app/session");
   };
   return <>
-    <PageHeader title="Study plan" description="A sample schedule that balances weak areas, mixed retrieval, review, and exam pacing." actions={<><div className="view-toggle" role="group" aria-label="Study plan view"><button aria-pressed={view==="timeline"} className={view==="timeline"?"active":""} onClick={()=>setView("timeline")}><Activity/> Timeline</button><button aria-pressed={view==="calendar"} className={view==="calendar"?"active":""} onClick={()=>setView("calendar")}><Calendar/> Calendar</button></div><button className="btn btn-secondary" onClick={()=>setEditOpen(true)}><SlidersHorizontal/> Edit plan</button></>}/>
+    <PageHeader title="Study plan" description="A dynamic schedule that balances weak areas, mixed retrieval, review, and current exam pacing." actions={<><div className="view-toggle" role="group" aria-label="Study plan view"><button aria-pressed={view==="timeline"} className={view==="timeline"?"active":""} onClick={()=>setView("timeline")}><Activity/> Timeline</button><button aria-pressed={view==="calendar"} className={view==="calendar"?"active":""} onClick={()=>setView("calendar")}><Calendar/> Calendar</button></div><button className="btn btn-secondary" onClick={()=>setEditOpen(true)}><SlidersHorizontal/> Edit plan</button></>}/>
     <section className="plan-summary panel">
       <div className="plan-goal">
         <div className="plan-goal-icon"><Target/></div>
-        <div><span>Target Exam</span><h2>{settings.targetStep} · Goal {settings.targetScore}</h2><p>{formatDate(settings.examDate,{month:"long",day:"numeric",year:"numeric"})}</p></div>
+        <div><span>Target Exam</span><h2>{settings.targetStep} · {settings.targetStep === "Step 1" ? "Pass-focused preparation" : `Goal ${settings.targetScore}`}</h2><p>{formatDate(settings.examDate,{month:"long",day:"numeric",year:"numeric"})}</p></div>
       </div>
       <div className="plan-metrics">
         <div><span>Days remaining</span><b>{examDays}</b></div>
         <div><span>Study days / week</span><b>{settings.weeklyDays.length}</b></div>
         <div><span>Plan completion</span><b>{Math.round((completed/Math.max(state.studyTasks.length,1))*100)}%</b></div>
-        <div><span>Planned this week</span><b>{(plannedWeekMinutes/60).toFixed(1)} hr</b></div>
+        <div><span>Planned next 7 days</span><b>{(plannedWeekMinutes/60).toFixed(1)} hr</b></div>
       </div>
       <div className="plan-track">
         <Progress value={Math.round((completed/Math.max(state.studyTasks.length,1))*100)}/>
-        <span>Plan automatically rebalances after every completed session.</span>
+        <span>Rebuild the plan at any time to apply your latest performance signals.</span>
       </div>
     </section>
     {view==="timeline"?<section className="plan-layout"><div className="timeline">{dates.map((date)=>{
       const dateObj = new Date(`${date}T12:00:00`);
       const dayName = dateObj.toLocaleDateString("en-US",{weekday:"short"});
       const dayNum = dateObj.getDate();
-      return <div key={date} className={`timeline-day ${date==="2026-07-22"?"today":""}`}>
+      return <div key={date} className={`timeline-day ${date===todayKey?"today":""}`}>
         <aside className="timeline-day-date"><span>{dayName}</span><b>{dayNum}</b></aside>
         <div>
-          <header><h3>{date==="2026-07-22"?"Today":formatDate(date,{weekday:"long",month:"long",day:"numeric"})}</h3><span>{grouped[date].reduce((sum,task)=>sum+task.minutes,0)} min</span></header>
+          <header><h3>{date===todayKey?"Today":formatDate(date,{weekday:"long",month:"long",day:"numeric"})}</h3><span>{grouped[date].reduce((sum,task)=>sum+task.minutes,0)} min</span></header>
           {grouped[date].map(task=><article key={task.id} className={task.completed?"completed":""}>
             <button className="task-checkbox" onClick={()=>dispatch({type:"TOGGLE_TASK",id:task.id})} aria-label={`Mark ${task.title} ${task.completed?"incomplete":"complete"}`}>{task.completed?<Check/>:<span/>}</button>
             <i className={`plan-task-icon ${task.type.toLowerCase()}`}>{task.type==="Questions"?<BookOpen/>:task.type==="Flashcards"?<Layers3/>:task.type==="Assessment"?<Trophy/>:<BookCheck/>}</i>
@@ -280,7 +324,7 @@ function StudyPlanPage() {
           </article>)}
         </div>
       </div>;
-    })}</div>
+    })}{timelineLimit<allDates.length&&<button className="timeline-load" onClick={()=>setTimelineLimit((current)=>Math.min(allDates.length,current+30))}>Show next {Math.min(30,allDates.length-timelineLimit)} study days <ArrowRight/></button>}</div>
     <aside className="plan-sidebar">
       <article className="panel">
         <div className="card-kicker"><BrainCircuit/> Plan intelligence</div>
@@ -296,17 +340,18 @@ function StudyPlanPage() {
         <small>NEXT MILESTONE</small>
         <h3>{nextAssessment?.title ?? "Readiness assessment"}</h3>
         <p>{nextAssessment?`${formatDate(nextAssessment.date,{weekday:"long",month:"long",day:"numeric"})} · ${nextAssessment.detail}`:"Create an assessment from the QBank"}</p>
-        <div><span>{nextAssessment?Math.max(0,Math.ceil((new Date(`${nextAssessment.date}T12:00:00`).getTime()-new Date("2026-07-22T12:00:00").getTime())/86400000)):examDays}</span><small>days away</small></div>
+        <div><span>{nextAssessment?Math.max(0,Math.ceil((new Date(`${nextAssessment.date}T12:00:00`).getTime()-todayNoon.getTime())/86400000)):examDays}</span><small>days away</small></div>
         <button className="btn btn-secondary btn-block" onClick={startAssessment}>Start assessment</button>
       </article>
     </aside></section>:<CalendarView tasks={state.studyTasks}/>} 
-    <Modal open={editOpen} onClose={()=>setEditOpen(false)} title="Edit study plan" description="The algorithm will rebuild future tasks around these constraints."><div className="plan-form"><Field label="Target exam"><select value={settings.targetStep} onChange={e=>setSettings({...settings,targetStep:e.target.value as Step})}><option>Step 1</option><option>Step 2 CK</option></select></Field><div className="form-grid-2"><Field label="Exam date"><input type="date" value={settings.examDate} onChange={e=>setSettings({...settings,examDate:e.target.value})}/></Field><Field label="Target score"><input type="number" value={settings.targetScore} onChange={e=>setSettings({...settings,targetScore:Number(e.target.value)})}/></Field></div><Field label="Available study days"><div className="day-picker compact">{["S","M","T","W","T","F","S"].map((day,index)=><button type="button" key={`${day}-${index}`} className={settings.weeklyDays.includes(index)?"active":""} onClick={()=>setSettings({...settings,weeklyDays:settings.weeklyDays.includes(index)?settings.weeklyDays.filter(d=>d!==index):[...settings.weeklyDays,index]})}>{day}</button>)}</div></Field><div className="form-grid-2"><Field label="Weekday minutes"><input type="number" min="20" value={settings.weekdayMinutes} onChange={e=>setSettings({...settings,weekdayMinutes:Number(e.target.value)})}/></Field><Field label="Weekend minutes"><input type="number" min="20" value={settings.weekendMinutes} onChange={e=>setSettings({...settings,weekendMinutes:Number(e.target.value)})}/></Field></div><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setEditOpen(false)}>Cancel</button><button className="btn btn-brand" onClick={save}><RefreshCw/> Rebuild plan</button></div></div></Modal>
+    <Modal open={editOpen} onClose={()=>setEditOpen(false)} title="Edit study plan" description="The algorithm will rebuild future tasks around these constraints."><div className="plan-form"><Field label="Target exam"><select value={settings.targetStep} onChange={e=>setSettings({...settings,targetStep:e.target.value as Step})}><option>Step 1</option><option>Step 2 CK</option></select></Field><div className="form-grid-2"><Field label="Exam date"><input type="date" value={settings.examDate} onChange={e=>setSettings({...settings,examDate:e.target.value})}/></Field>{settings.targetStep==="Step 2 CK"?<Field label="Target score"><input type="number" min="200" max="300" value={settings.targetScore} onChange={e=>setSettings({...settings,targetScore:Number(e.target.value)})}/></Field>:<Field label="Preparation stage"><select value={settings.preparationStage ?? "Building consistency"} onChange={e=>setSettings({...settings,preparationStage:e.target.value as NonNullable<StudyPlanSettings["preparationStage"]>})}><option>Early preparation</option><option>Building consistency</option><option>Dedicated period</option><option>Final review</option></select></Field>}</div><Field label="Available study days"><div className="day-picker compact">{["S","M","T","W","T","F","S"].map((day,index)=><button type="button" key={`${day}-${index}`} className={settings.weeklyDays.includes(index)?"active":""} onClick={()=>setSettings({...settings,weeklyDays:settings.weeklyDays.includes(index)?settings.weeklyDays.filter(d=>d!==index):[...settings.weeklyDays,index]})}>{day}</button>)}</div></Field><div className="form-grid-2"><Field label="Weekday minutes"><input type="number" min="20" value={settings.weekdayMinutes} onChange={e=>setSettings({...settings,weekdayMinutes:Number(e.target.value)})}/></Field><Field label="Weekend minutes"><input type="number" min="20" value={settings.weekendMinutes} onChange={e=>setSettings({...settings,weekendMinutes:Number(e.target.value)})}/></Field></div><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setEditOpen(false)}>Cancel</button><button className="btn btn-brand" onClick={save}><RefreshCw/> Rebuild plan</button></div></div></Modal>
     <Toast message={toast} visible={Boolean(toast)}/>
   </>;
 }
 
 function CalendarView({tasks}:{tasks:ReturnType<typeof useStepwise>["state"]["studyTasks"]}) {
-  const [visibleMonth,setVisibleMonth]=useState(()=>new Date("2026-07-01T12:00:00"));
+  const [visibleMonth,setVisibleMonth]=useState(()=>{const date=new Date();date.setDate(1);date.setHours(12,0,0,0);return date});
+  const todayKey=localDateKey(new Date());
   const year=visibleMonth.getFullYear();
   const month=visibleMonth.getMonth();
   const firstOfMonth=new Date(year,month,1,12);
@@ -325,7 +370,7 @@ function CalendarView({tasks}:{tasks:ReturnType<typeof useStepwise>["state"]["st
     <div className="calendar-grid">{days.map(date=>{
       const key=dateKey(date);
       const dayTasks=tasks.filter(task=>task.date===key);
-      const classes=[key==="2026-07-22"?"today":"",date.getMonth()!==month?"outside":"",dayTasks.length?"has-tasks":""].filter(Boolean).join(" ");
+      const classes=[key===todayKey?"today":"",date.getMonth()!==month?"outside":"",dayTasks.length?"has-tasks":""].filter(Boolean).join(" ");
       return <div key={key} className={classes}><b>{date.getDate()}</b>{dayTasks.slice(0,3).map(task=><span key={task.id} className={task.type.toLowerCase()} title={`${task.title} · ${task.minutes} minutes`}>{task.type} · {task.minutes}m</span>)}{dayTasks.length>3&&<small>+{dayTasks.length-3} more</small>}</div>;
     })}</div>
   </section>;

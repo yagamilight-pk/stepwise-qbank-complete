@@ -1,4 +1,5 @@
 import type { AppState, Attempt, Flashcard, LibraryActivity, MedicalArticle, Question, ReviewRating, SessionConfig, StudyPlanSettings, StudyTask } from "./types";
+import { getUsmleExamProfile } from "./usmle";
 
 export const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -152,11 +153,11 @@ export function flashcardRetentionForecast(cards: Flashcard[], now = new Date())
     const stability = Math.max(1, card.interval || 1) * Math.max(1.05, card.ease / 2);
     return clamp(Math.exp(-elapsedDays / stability) * 100, 18, 99);
   });
-  const reviewDates = new Set(cards.map((card) => card.lastReviewedAt?.slice(0, 10)).filter(Boolean) as string[]);
+  const reviewDates = new Set(cards.map((card) => card.lastReviewedAt ? localDateKey(new Date(card.lastReviewedAt)) : null).filter(Boolean) as string[]);
   let streak = 0;
   const cursor = new Date(now);
-  if (!reviewDates.has(formatIsoDate(cursor))) cursor.setDate(cursor.getDate() - 1);
-  while (reviewDates.has(formatIsoDate(cursor))) {
+  if (!reviewDates.has(localDateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+  while (reviewDates.has(localDateKey(cursor))) {
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -169,7 +170,11 @@ export function flashcardRetentionForecast(cards: Flashcard[], now = new Date())
   };
 }
 
-const formatIsoDate = (date: Date) => date.toISOString().slice(0, 10);
+export const localDateKey = (date: Date) => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, "0"),
+  String(date.getDate()).padStart(2, "0")
+].join("-");
 
 export function generateStudyPlan(settings: StudyPlanSettings, questions: Question[], attempts: Attempt[]): StudyTask[] {
   const today = new Date();
@@ -177,31 +182,42 @@ export function generateStudyPlan(settings: StudyPlanSettings, questions: Questi
   const exam = new Date(`${settings.examDate}T12:00:00`);
   const finalDate = exam > today ? exam : new Date(today.getTime() + 42 * 86_400_000);
   const performance = systemPerformance(questions.filter((question) => question.step === settings.targetStep), attempts);
+  const examProfile = getUsmleExamProfile(settings.targetStep, settings.examDate);
   const weakSystems = performance.slice(0, 4).map((entry) => entry.system);
   const tasks: StudyTask[] = [];
   let taskIndex = 0;
 
-  for (let cursor = new Date(today); cursor <= finalDate && tasks.length < 42; cursor.setDate(cursor.getDate() + 1)) {
+  const maxCalendarDays = 366;
+  let calendarDays = 0;
+  const assessmentCadence = settings.preparationStage === "Final review"
+    ? 4
+    : settings.preparationStage === "Dedicated period"
+      ? 6
+      : 8;
+
+  for (let cursor = new Date(today); cursor <= finalDate && calendarDays < maxCalendarDays; cursor.setDate(cursor.getDate() + 1)) {
+    calendarDays += 1;
     if (!settings.weeklyDays.includes(cursor.getDay())) continue;
     const minutes = cursor.getDay() === 0 || cursor.getDay() === 6 ? settings.weekendMinutes : settings.weekdayMinutes;
     const system = weakSystems[taskIndex % Math.max(weakSystems.length, 1)] || "Mixed systems";
     const daysLeft = Math.max(0, Math.ceil((finalDate.getTime() - cursor.getTime()) / 86_400_000));
     const latePhase = daysLeft < 21;
-    const assessmentDay = taskIndex > 0 && taskIndex % 8 === 0;
-    const date = formatIsoDate(cursor);
+    const assessmentDay = taskIndex > 0 && taskIndex % assessmentCadence === 0;
+    const date = localDateKey(cursor);
 
     if (assessmentDay) {
       tasks.push({
-        id: `generated-${taskIndex}-assessment`, date, type: "Assessment", title: latePhase ? "Full exam simulation" : "Readiness assessment",
-        detail: latePhase ? "Timed mixed blocks with planned breaks" : "Mixed benchmark block + review", minutes,
+        id: `generated-${taskIndex}-assessment`, date, type: "Assessment", title: latePhase ? "Multi-block exam rehearsal" : "Readiness assessment",
+        detail: latePhase ? `${examProfile.blockMinutes}-minute mixed blocks with planned breaks` : "Mixed benchmark block + review", minutes,
         completed: false, priority: "Core"
       });
     } else {
       const questionMinutes = Math.max(25, Math.round(minutes * 0.62));
       const count = Math.max(10, Math.round(questionMinutes / 1.55));
+      const blockCount = Math.max(1, Math.ceil(count / examProfile.maxItemsPerBlock));
       tasks.push({
-        id: `generated-${taskIndex}-q`, date, type: "Questions", title: latePhase ? "Timed mixed block" : `Adaptive ${system} block`,
-        detail: `${count} questions · ${latePhase ? "Exam pacing" : "Weakness weighted"}`, minutes: questionMinutes,
+        id: `generated-${taskIndex}-q`, date, type: "Questions", title: latePhase ? `${blockCount}-block exam rehearsal` : `Adaptive ${system} block`,
+        detail: latePhase ? `${blockCount} × ${examProfile.blockMinutes}-min blocks · up to ${examProfile.maxItemsPerBlock} items each` : `${count} questions · Weakness weighted`, minutes: questionMinutes,
         completed: false, priority: latePhase ? "Core" : "Weakness"
       });
       tasks.push({
@@ -263,7 +279,7 @@ export function performanceWindow(attempts: Attempt[], days = 7, reference = new
 }
 
 export function studyStreak(attempts: Attempt[], reference = new Date()) {
-  const activeDates = new Set(attempts.map((attempt) => attempt.createdAt.slice(0, 10)));
+  const activeDates = new Set(attempts.map((attempt) => localDateKey(new Date(attempt.createdAt))));
   const ordered = [...activeDates].sort();
   let best = 0;
   let run = 0;
@@ -277,11 +293,11 @@ export function studyStreak(attempts: Attempt[], reference = new Date()) {
   }
   let current = 0;
   const cursor = new Date(reference);
-  const todayKey = formatIsoDate(cursor);
-  if (!activeDates.has(todayKey)) cursor.setUTCDate(cursor.getUTCDate() - 1);
-  while (activeDates.has(formatIsoDate(cursor))) {
+  const todayKey = localDateKey(cursor);
+  if (!activeDates.has(todayKey)) cursor.setDate(cursor.getDate() - 1);
+  while (activeDates.has(localDateKey(cursor))) {
     current += 1;
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    cursor.setDate(cursor.getDate() - 1);
   }
   return { current, best };
 }
@@ -291,8 +307,8 @@ export function dailyActivity(attempts: Attempt[], days = 14) {
   return Array.from({ length: days }, (_, index) => {
     const date = new Date(now);
     date.setDate(now.getDate() - (days - index - 1));
-    const key = formatIsoDate(date);
-    const relevant = attempts.filter((attempt) => attempt.createdAt.slice(0, 10) === key);
+    const key = localDateKey(date);
+    const relevant = attempts.filter((attempt) => localDateKey(new Date(attempt.createdAt)) === key);
     return {
       date: key,
       label: date.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 2),

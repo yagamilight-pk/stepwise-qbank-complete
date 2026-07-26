@@ -3,6 +3,9 @@ export type Difficulty = "Easy" | "Medium" | "Hard";
 export type QuestionStatus = "Draft" | "In review" | "Published" | "Archived";
 export type Confidence = 1 | 2 | 3 | 4 | 5;
 export type ReviewRating = "again" | "hard" | "good" | "easy";
+export type QuestionFormat = "Single best answer" | "Chart / tabular" | "Sequential set" | "Scientific abstract" | "Audio / video";
+export type ContentUse = "Demo" | "Production";
+export type RightsStatus = "Original" | "Licensed" | "Pending verification";
 
 export interface Choice {
   id: string;
@@ -40,6 +43,57 @@ export interface QuestionAiEnrichment {
 export interface QuestionMedia {
   questionImages?: string[];
   explanationImages?: string[];
+  audioUrl?: string;
+  videoUrl?: string;
+  transcript?: string;
+  altText?: string[];
+}
+
+export interface EvidenceReference {
+  id: string;
+  title: string;
+  source: string;
+  url?: string;
+  publishedAt?: string;
+  accessedAt?: string;
+}
+
+export interface ContentGovernance {
+  version: number;
+  rightsStatus: RightsStatus;
+  medicalReviewer?: string;
+  medicalReviewedAt?: string;
+  editor?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  guidelineVersion?: string;
+  retirementReason?: string;
+}
+
+export interface PatientChartRow {
+  label: string;
+  value: string;
+  flag?: "high" | "low" | "critical";
+}
+
+export interface PatientChartSection {
+  title: string;
+  rows: PatientChartRow[];
+}
+
+export interface ScientificAbstract {
+  title: string;
+  background: string;
+  methods: string;
+  results: string;
+  conclusion?: string;
+}
+
+export interface SequentialSet {
+  setId: string;
+  order: number;
+  total: number;
+  locksAfterSubmit: boolean;
 }
 
 export interface JsonlQuestion {
@@ -63,6 +117,8 @@ export interface Question {
   id: string;
   questionId?: string;
   step: Step;
+  format: QuestionFormat;
+  contentUse: ContentUse;
   system: string;
   discipline: string;
   topic: string;
@@ -85,6 +141,13 @@ export interface Question {
   averageTimeSec: number;
   globalAccuracy: number;
   sourceLabel?: string;
+  physicianTask?: string;
+  competencies?: string[];
+  references?: EvidenceReference[];
+  governance?: ContentGovernance;
+  patientChart?: PatientChartSection[];
+  scientificAbstract?: ScientificAbstract;
+  sequentialSet?: SequentialSet;
   answerStats?: string;
   taxonomy?: QuestionTaxonomy;
   richExplanation?: QuestionExplanation;
@@ -150,6 +213,9 @@ export interface SessionRecord {
   config: SessionConfig;
   questionIds: string[];
   currentIndex: number;
+  answeredCount?: number;
+  unansweredCount?: number;
+  accuracy?: number;
 }
 
 export interface StudyTask {
@@ -170,6 +236,7 @@ export interface StudyPlanSettings {
   weekendMinutes: number;
   targetStep: Step;
   targetScore: number;
+  preparationStage?: "Early preparation" | "Building consistency" | "Dedicated period" | "Final review";
 }
 
 export interface UserSettings {
@@ -185,6 +252,16 @@ export interface UserSettings {
   communityActivity: boolean;
   highContrast: boolean;
   largeText: boolean;
+}
+
+export interface LearnerProfile {
+  name: string;
+  email: string;
+  medicalSchool: string;
+  targetExam: Step;
+  preparationStage: "Early preparation" | "Building consistency" | "Dedicated period" | "Final review";
+  toolkitPriorities: string[];
+  onboardingCompleted: boolean;
 }
 
 export interface AdminUser {
@@ -312,6 +389,7 @@ export interface MarketingAsset {
 }
 
 export interface AppState {
+  schemaVersion: number;
   questions: Question[];
   attempts: Attempt[];
   notes: Note[];
@@ -322,6 +400,7 @@ export interface AppState {
   planSettings: StudyPlanSettings;
   studyTasks: StudyTask[];
   settings: UserSettings;
+  learnerProfile: LearnerProfile;
   adminUsers: AdminUser[];
   reports: ContentReport[];
   notifications: NotificationItem[];

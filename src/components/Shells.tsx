@@ -3,6 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
+import type { CSSProperties } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   BarChart3, Bell, BookOpen, CalendarDays, CircleHelp,
@@ -11,8 +12,17 @@ import {
   Sparkles, Sun, UploadCloud, Users, X
 } from "lucide-react";
 import { useStepwise } from "@/lib/store";
+import { localDateKey } from "@/lib/algorithms";
 import { Avatar, Logo, Modal } from "./ui";
-const SurfaceLoading = () => <div className="route-loading" role="status"><span className="loading-mark" aria-hidden="true"/><p>Loading workspace…</p></div>;
+const SurfaceLoading = () => (
+  <div className="route-loading" role="status">
+    <span className="loading-mark" aria-hidden="true"><i/><i/><i/></span>
+    <div>
+      <b>Preparing your workspace</b>
+      <p>Connecting today&apos;s plan, performance signals, and review queue.</p>
+    </div>
+  </div>
+);
 const LearnerPage = dynamic(() => import("./Learner").then((module) => module.LearnerPage), { loading: SurfaceLoading });
 const AdminPage = dynamic(() => import("./Admin").then((module) => module.AdminPage), { loading: SurfaceLoading });
 const InfluencerPage = dynamic(() => import("./Influencer").then((module) => module.InfluencerPage), { loading: SurfaceLoading });
@@ -51,6 +61,53 @@ const influencerNav = [
 function isActive(pathname: string, href: string) {
   if (href === "/app" || href === "/admin") return pathname === href;
   return pathname.startsWith(href);
+}
+
+function StudyPulse() {
+  const { state } = useStepwise();
+  const metrics = useMemo(() => {
+    const todayKey = localDateKey(new Date());
+    const targetQuestionIds = new Set(
+      state.questions
+        .filter((question) => question.step === state.planSettings.targetStep)
+        .map((question) => question.id)
+    );
+    const answered = state.attempts.filter(
+      (attempt) => targetQuestionIds.has(attempt.questionId) && localDateKey(new Date(attempt.createdAt)) === todayKey
+    ).length;
+    const dueCards = state.flashcards.filter((card) => new Date(card.dueAt) <= new Date()).length;
+    const goal = Math.max(state.settings.dailyGoal, 1);
+    return {
+      answered,
+      dueCards,
+      goal,
+      progress: Math.min(100, Math.round((answered / goal) * 100))
+    };
+  }, [
+    state.attempts,
+    state.flashcards,
+    state.planSettings.targetStep,
+    state.questions,
+    state.settings.dailyGoal
+  ]);
+  const detail = metrics.answered
+    ? `${metrics.answered} of ${metrics.goal} questions`
+    : metrics.dueCards
+      ? `${metrics.dueCards} recall card${metrics.dueCards === 1 ? "" : "s"} ready`
+      : "Ready for a focused block";
+  const pulseStyle = { "--pulse-angle": `${metrics.progress * 3.6}deg` } as CSSProperties;
+
+  return (
+    <Link
+      className="study-pulse"
+      href={metrics.dueCards && !metrics.answered ? "/app/flashcards" : "/app/qbank"}
+      aria-label={`Daily momentum: ${detail}`}
+    >
+      <span className="study-pulse-ring" style={pulseStyle} aria-hidden="true"><Gauge /></span>
+      <span><small>Daily momentum</small><b>{detail}</b></span>
+      <i aria-hidden="true" />
+    </Link>
+  );
 }
 
 function CommandPalette({ open, onClose, admin = false }: { open: boolean; onClose: () => void; admin?: boolean }) {
@@ -137,7 +194,7 @@ function LearnerSidebar({ collapsed, mobileOpen, onClose }: { collapsed: boolean
   const due = state.flashcards.filter(card => new Date(card.dueAt) <= new Date()).length;
   return <aside id="learner-sidebar" aria-label="Learner workspace" className={`app-sidebar ${collapsed?"collapsed":""} ${mobileOpen?"mobile-open":""}`}>
     <div className="sidebar-logo"><Logo compact={collapsed}/><button className="sidebar-mobile-close" onClick={onClose} aria-label="Close menu"><X/></button></div>
-    <Link href="/app/settings" className="exam-switch" title="Step 2 CK Settings"><span className="exam-badge">S2</span>{!collapsed&&<div><small>Preparing for</small><b>Step 2 CK</b></div>}{!collapsed&&<Settings size={15}/>}</Link>
+    <Link href="/app/settings" className="exam-switch" title={`${state.planSettings.targetStep} settings`}><span className="exam-badge">{state.planSettings.targetStep === "Step 1" ? "S1" : "S2"}</span>{!collapsed&&<div><small>Preparing for</small><b>{state.planSettings.targetStep}</b></div>}{!collapsed&&<Settings size={15}/>}</Link>
     <nav aria-label="Learner sections">{learnerNav.map(item=>{const Icon=item.icon; const active=isActive(pathname,item.href); return <Link key={item.href} href={item.href} title={item.label} className={active?"active":""} aria-current={active?"page":undefined} onClick={onClose}><Icon/><span>{item.label}</span>{item.label==="Flashcards"&&due>0&&<b aria-label={`${due} cards due`}>{due}</b>}</Link>})}</nav>
     <div className="sidebar-bottom">
       <Link href="/app/settings" title="Settings" className={isActive(pathname,"/app/settings")?"active":""}><Settings/><span>Settings</span></Link>
@@ -152,12 +209,14 @@ function LearnerSidebar({ collapsed, mobileOpen, onClose }: { collapsed: boolean
 
 function AdminSidebar({ collapsed, mobileOpen, onClose }: { collapsed: boolean; mobileOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  const { state } = useStepwise();
+  const openReports = state.reports.filter((report) => report.status === "Open").length;
   return <aside id="admin-sidebar" aria-label="Administration workspace" className={`admin-sidebar ${collapsed?"collapsed":""} ${mobileOpen?"mobile-open":""}`}>
     <div className="sidebar-logo"><Logo compact={collapsed}/><button className="sidebar-mobile-close" onClick={onClose} aria-label="Close menu"><X/></button></div>
     <div className="admin-workspace" title="Stepwise Admin Workspace"><span><ShieldCheck/></span>{!collapsed&&<div><small>Workspace</small><b>Stepwise Admin</b></div>}</div>
     <nav aria-label="Administration sections">
       {!collapsed&&<small>OPERATIONS</small>}
-      {adminNav.map(item=>{const Icon=item.icon; const active=isActive(pathname,item.href); return <Link key={item.href} href={item.href} title={item.label} className={active?"active":""} aria-current={active?"page":undefined} onClick={onClose}><Icon/><span>{item.label}</span>{item.label==="Reports"&&<b aria-label="2 open reports">2</b>}</Link>})}
+      {adminNav.map(item=>{const Icon=item.icon; const active=isActive(pathname,item.href); return <Link key={item.href} href={item.href} title={item.label} className={active?"active":""} aria-current={active?"page":undefined} onClick={onClose}><Icon/><span>{item.label}</span>{item.label==="Reports"&&openReports>0&&<b aria-label={`${openReports} open reports`}>{openReports}</b>}</Link>})}
     </nav>
     <div className="admin-sidebar-bottom">
       <Link href="/admin/settings" className="admin-user" title="Dr. Maya Patel - Settings"><Avatar name="Maya Patel"/>{!collapsed&&<div><b>Dr. Maya Patel</b><small>Content administrator</small></div>}</Link>
@@ -168,7 +227,7 @@ function AdminSidebar({ collapsed, mobileOpen, onClose }: { collapsed: boolean; 
 
 export function LearnerShell() {
   const pathname = usePathname();
-  const { state, dispatch } = useStepwise();
+  const { state, dispatch, persistenceStatus } = useStepwise();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -196,16 +255,20 @@ export function LearnerShell() {
           <span>{titles[section] || "Stepwise"}</span>
         </div>
         <div className="topbar-actions">
+          <StudyPulse/>
           <button className="command-trigger" onClick={()=>setCommandOpen(true)} aria-haspopup="dialog"><Search/><span>Search anything</span><kbd><Command/>K</kbd></button>
           <button className="icon-btn theme-button" onClick={()=>dispatch({type:"SET_SETTINGS",settings:{theme:state.settings.theme==="dark"?"light":"dark"}})} aria-label="Toggle color theme">{state.settings.theme==="dark"?<Sun/>:<Moon/>}</button>
           <div className="popover-wrap">
             <button ref={notificationButtonRef} className="icon-btn" onClick={()=>setNotificationsOpen(!notificationsOpen)} aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={notificationsOpen} aria-controls={notificationId}><Bell/>{unread>0&&<i aria-hidden="true">{unread}</i>}</button>
             <NotificationPopover open={notificationsOpen} id={notificationId} close={()=>{setNotificationsOpen(false);window.requestAnimationFrame(()=>notificationButtonRef.current?.focus());}}/>
           </div>
-          <Link className="profile-button" href="/app/settings"><Avatar name="Alex Kim"/><span><b>Alex Kim</b><small>Profile & settings</small></span></Link>
+          <Link className="profile-button" href="/app/settings"><Avatar name={state.learnerProfile.name}/><span><b>{state.learnerProfile.name}</b><small>Profile & settings</small></span></Link>
         </div>
       </header>
-      <div className="app-content"><LearnerPage section={section}/></div>
+      <main className="app-content" id="main-content" tabIndex={-1}>
+        <div className="workspace-trustline"><span><ShieldCheck/> {state.planSettings.targetStep} study workspace</span><span className={persistenceStatus}><i/>{persistenceStatus === "ready" ? "Saved in this browser" : persistenceStatus === "loading" ? "Restoring workspace" : "Local save unavailable"}</span></div>
+        <LearnerPage section={section}/>
+      </main>
     </div>
     <nav className="mobile-bottom-nav" aria-label="Primary learner navigation">
       {learnerNav.filter((item) => ["Overview", "QBank", "Analytics", "Flashcards", "Medical library"].includes(item.label)).map((item) => {
@@ -221,6 +284,7 @@ export function LearnerShell() {
 
 export function AdminShell() {
   const pathname=usePathname();
+  const { state, persistenceStatus } = useStepwise();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen,setMobileOpen]=useState(false);
   const [commandOpen,setCommandOpen]=useState(false);
@@ -239,11 +303,15 @@ export function AdminShell() {
         </div>
         <div>
           <button className="command-trigger admin-command" onClick={()=>setCommandOpen(true)} aria-haspopup="dialog"><Search/><span>Search admin</span><kbd><Command/>K</kbd></button>
-          <Link className="icon-btn" href="/admin/reports" aria-label="Open reports"><Bell/><i>2</i></Link>
+          <span className="environment-badge"><ShieldCheck/> Local demo</span>
+          <Link className="icon-btn" href="/admin/reports" aria-label="Open reports"><Bell/>{state.reports.some((report)=>report.status==="Open")&&<i>{state.reports.filter((report)=>report.status==="Open").length}</i>}</Link>
           <Avatar name="Maya Patel"/>
         </div>
       </header>
-      <div className="admin-content"><AdminPage section={section}/></div>
+      <main className="admin-content" id="main-content" tabIndex={-1}>
+        <div className="workspace-trustline admin"><span><ShieldCheck/> Administrative sandbox · no live providers</span><span className={persistenceStatus}><i/>{persistenceStatus === "ready" ? "Local state saved" : persistenceStatus === "loading" ? "Restoring state" : "Local save unavailable"}</span></div>
+        <AdminPage section={section}/>
+      </main>
     </div>
     {mobileOpen&&<button className="mobile-overlay" onClick={()=>setMobileOpen(false)} aria-label="Close menu"/>}
     <CommandPalette open={commandOpen} onClose={()=>setCommandOpen(false)} admin/>
@@ -254,7 +322,7 @@ function InfluencerSidebar({ collapsed, mobileOpen, onClose, onLogout }: { colla
   const pathname = usePathname();
   return <aside id="partner-sidebar" aria-label="Partner workspace" className={`admin-sidebar influencer-sidebar ${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
     <header className="sidebar-head">
-      <Link href="/influencer" className="brand-wrap"><Logo compact={collapsed}/>{!collapsed && <span className="badge badge-brand">Partner Hub</span>}</Link>
+      <div className="brand-wrap"><Logo compact={collapsed}/>{!collapsed && <span className="badge badge-brand">Partner Hub</span>}</div>
       <button className="icon-btn sidebar-mobile-close" onClick={onClose} aria-label="Close menu"><X/></button>
     </header>
     <nav className="sidebar-nav" aria-label="Partner sections">
@@ -307,7 +375,7 @@ export function InfluencerShell() {
           <Avatar name={currentInfluencer.name}/>
         </div>
       </header>
-      <div className="admin-content"><InfluencerPage slug={slug}/></div>
+      <main className="admin-content" id="main-content" tabIndex={-1}><div className="workspace-trustline admin"><span><ShieldCheck/> Partner portal demonstration</span><span><i/>Sample ledger · no live payouts</span></div><InfluencerPage slug={slug}/></main>
     </div>
     {mobileOpen && <button className="mobile-overlay" onClick={() => setMobileOpen(false)} aria-label="Close menu"/>}
     <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} admin/>

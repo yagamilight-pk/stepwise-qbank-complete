@@ -136,3 +136,148 @@ A new `next dev` process recreated `.next` and compiled these routes without a p
 The fresh logs contained no `FATAL`, `unexpected Turbopack error`, `Failed to write app endpoint`, or `[[...slug]]` reference. The verification server was stopped afterward.
 
 The new `npm run dev:clean` command was then executed end to end. It removed the generated cache, started Turbopack, returned 200 for `/app`, contained no fatal/catch-all signature, and was stopped cleanly.
+
+## July 25, 2026 - Frontend perfection and visual QA pass
+
+### Design and runtime defects corrected
+
+- Restored explicit white heading and logo colors on dark authentication, onboarding, trial, learner/admin sidebar, and footer surfaces
+- Replaced the blank fresh-learner day-plan panel with honest first-use guidance and a working plan-builder action
+- Removed arbitrary “highest leverage” claims before the learner has response evidence
+- Restored the dark weekly-insight instrument with an actionable first-block state
+- Removed nested logo links that caused React hydration error `#418` on `/try`
+- Captured the actual question workspace rather than the transient “Building your block” state
+- Repaired the focused-session utility rail and removed the mobile shortcuts overlay from answer content
+- Replaced Playwright’s hanging Windows web-server lifecycle with an exact child-process runner
+
+### Production Chrome visual suite
+
+Command:
+
+```text
+node scripts/run-visual-capture.mjs
+```
+
+Result:
+
+```text
+63 passed
+42 skipped
+0 browser console errors
+0 uncaught page errors
+```
+
+The suite captured all 35 product routes at 1440px and 14 representative routes at both 768px and 390px. The desktop, tablet, and mobile authentication, onboarding, guided trial, learner overview, and live question-session screenshots were visually inspected after the fixes.
+
+### Verification boundary
+
+The embedded in-app browser surface was unavailable. Repository-local production Google Chrome screenshots are verified; manual zoom, pointer/keyboard traversal, assistive technology, iOS Safari, and Android Chrome remain external checks.
+
+## July 26, 2026 - Premium and current-USMLE alignment pass
+
+### Official-source review
+
+The learner experience was checked against the current official USMLE Step 2 CK exam-content and question-format pages, the 2026 test-delivery software update, exam resources, and the shared content outline. The implementation and unresolved gaps are recorded in `USMLE_ALIGNMENT.md`.
+
+### Exam-session corrections
+
+- Added date-aware current and legacy Step 1/Step 2 CK profiles
+- Replaced the legacy 40-item Step 2 CK Exam default with the current 20-item ceiling
+- Applied the current 16 × 30-minute Step 2 CK structure for exam dates on or after May 7, 2026
+- Made Exam-mode timing continuous and non-pausable
+- Preserved answer editing and navigator review until block completion
+- Removed correctness colors, explanation, response distribution, and feedback sound before block completion
+- Replaced duplicate attempts with stable per-question upserts
+- Corrected question timing across revisits and timeout completion
+- Replaced the decorative settings action with working timer, contrast, large-text, and reduced-motion controls
+- Restored navigator, settings, pause/continuous state, timer, lab values, and calculator access on compact screens
+
+### Premium visual corrections
+
+- Added layered clinical-instrument elevation, refined shell surfaces, active navigation signals, and daily momentum
+- Added premium loading, entry, progress, button, choice, and Reasoning Trace motion with reduced-motion fallbacks
+- Added a floating mobile learner nav with safe-area handling
+- Corrected the dark weekly-insight contrast regression
+- Prevented screenshot capture of transient route-loading states
+- Left-aligned answer text for faster clinical scanning
+
+### Automated verification
+
+```text
+npm.cmd run verify:source  -> 54/54 passed
+npm.cmd run lint           -> zero findings
+npm.cmd run typecheck      -> passed
+npm.cmd run build          -> 39/39 static outputs
+```
+
+The production Chrome matrix includes:
+
+```text
+65 light/dark screenshots
+3 USMLE and responsive interaction contracts
+68 passed
+46 intentionally skipped
+0 browser console errors
+0 uncaught page errors
+```
+
+The interaction contracts verify the current Step 2 CK profile, 30-minute block clock, continuous Exam state, delayed feedback, answer changes through navigator review, working settings, responsive toolbar names, and mobile/tablet session-tool access.
+
+### Remaining boundary
+
+At that checkpoint the item renderer was single-best-answer only. The following pass adds the remaining stimulus renderers; a complete tutorial and break ledger, production medical governance, manual zoom, assistive-technology testing, and real iOS/Android browser verification remain unclaimed.
+
+## July 26, 2026 - Enterprise completion and learner-correctness pass
+
+### Learner-critical corrections
+
+- Active question blocks now persist and restore question order, position, answers, confidence, eliminations, local results, and elapsed time.
+- Exam-mode downtime remains continuous across refresh; non-Exam recovery preserves the paused browser-session duration.
+- Answer edits reconcile to one final per-question attempt instead of silently saving an earlier choice.
+- Early block completion is available from the navigator with an explicit unanswered-item warning.
+- Accuracy uses the complete block as its denominator; answered, incorrect, and unanswered counts are recorded on the session.
+- The session clock uses wall-clock deadlines so background timer throttling does not distort elapsed time.
+- Signup name, email, exam, and date reach onboarding and initialize the learner profile and study plan.
+- Study-plan generation uses local date keys and continues through the complete exam horizon, up to the one-year safety boundary.
+
+### Content and operational trust
+
+- Added typed question formats, evidence references, rights states, medical/editorial review records, guideline/version fields, competencies, physician tasks, and delivery boundaries.
+- Added chart/tabular, scientific-abstract, audio/video, and sequential-set clinical stimulus rendering.
+- Added strict JSONL structure validation and visible publish blockers for incomplete items.
+- Production candidates require provenance, current evidence, verified rights, medical review, and final approval records.
+- Demo items remain visibly isolated from production learner delivery.
+- Removed false configured-provider, queued-email, cohort, blueprint, and asset-volume signals.
+- Added explicit local-sandbox and persistence-health indicators across learner, admin, and partner shells.
+
+### Platform and visual completion
+
+- Moved the state provider from the root marketing tree into account, learner, admin, and partner route groups.
+- Deferred session, library, learner-more, admin, and partner surfaces behind feature chunks.
+- Added versioned state normalization, idle persistence, persistence-error status, security headers, web manifest, robots rules, sitemap, and complete social metadata.
+- Added enterprise trustlines, refined clinical reading surfaces, governance readiness instrumentation, block-save state, recovery messaging, responsive motion, and content-visibility containment for long plan/table rows.
+- Repaired main-landmark nesting and progress-label accessibility.
+
+### Final automated verification
+
+```text
+npm.cmd run verify:source  -> 64/64 passed
+npm.cmd run lint           -> zero findings
+npm.cmd run typecheck      -> passed
+npm.cmd run build          -> 42/42 static outputs
+node scripts/run-visual-capture.mjs
+                           -> 76 passed
+                           -> 56 intentionally skipped
+                           -> 0 browser console errors
+                           -> 0 uncaught page errors
+```
+
+The 76 passing Chrome cases include 65 light/dark desktop, tablet, and mobile route captures plus 11 product contracts covering current exam behavior, session recovery, answer reconciliation, unanswered scoring, responsive session tools, onboarding continuity, governance boundaries, security headers, one-main landmark structure, and horizontal-overflow protection.
+
+Representative desktop learner, focused-session, admin-question, and mobile learner captures were visually inspected after the final run.
+
+The cached offline dependency audit reported zero findings. The live npm advisory request did not return usable data inside the restricted environment, and an external dependency-inventory transmission was not authorized, so a current live advisory result is not claimed.
+
+### Remaining verification boundary
+
+The embedded in-app browser was unavailable after the documented connection and discovery retry. Repository-local production Google Chrome verification is complete. Manual 200%/400% zoom, full keyboard-only traversal, NVDA, VoiceOver, iOS Safari, Android Chrome, live Core Web Vitals, production providers, named clinical review, licensed content, and immutable audit logging remain external gates.

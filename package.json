@@ -10,6 +10,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "visual:capture": "npm run build && node scripts/run-visual-capture.mjs",
+    "visual:report": "playwright show-report artifacts/playwright-report",
     "check": "npm run lint && npm run typecheck && npm run build",
     "verify:source": "node scripts/verify-source.mjs",
     "audit": "npm run verify:source && npm run lint && npm run typecheck && npm run build",
@@ -22,6 +24,7 @@
     "react-dom": "19.2.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

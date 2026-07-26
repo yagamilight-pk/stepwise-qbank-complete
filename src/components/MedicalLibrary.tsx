@@ -10,6 +10,7 @@ import {
 import { medicalArticles, librarySystems } from "@/lib/library";
 import { rankLibraryArticles, systemPerformance } from "@/lib/algorithms";
 import { useStepwise } from "@/lib/store";
+import { ACTIVE_SESSION_KEY, SESSION_CONFIG_KEY } from "@/lib/session";
 import type { Step } from "@/lib/types";
 import { EmptyState, Toast, uid } from "./ui";
 
@@ -88,7 +89,8 @@ export function MedicalLibraryPage() {
     const related = selected.relatedQuestionIds.filter((id) => 
       state.questions.some((question) => question.id === id && question.status === "Published")
     );
-    sessionStorage.setItem("stepwise-session-config", JSON.stringify({
+    sessionStorage.removeItem(ACTIVE_SESSION_KEY);
+    sessionStorage.setItem(SESSION_CONFIG_KEY, JSON.stringify({
       step: selected.step === "Step 1" ? "Step 1" : "Step 2 CK",
       mode: "Tutor",
       count: Math.max(1, related.length),
@@ -230,7 +232,7 @@ export function MedicalLibraryPage() {
 
         {/* Right Side: Full Width Reading Area */}
         {ranked.length ? (
-          <main className="new-library-reader">
+          <div className="new-library-reader">
             {/* Header Meta Toolbar */}
             <div className="reader-toolbar">
               <div className="reader-badge-list">
@@ -379,7 +381,7 @@ export function MedicalLibraryPage() {
               </footer>
 
             </article>
-          </main>
+          </div>
         ) : (
           <div className="new-library-empty-canvas">
             <EmptyState

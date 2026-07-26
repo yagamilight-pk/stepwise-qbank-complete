@@ -62,9 +62,36 @@ Minimum product text target is 12px for secondary metadata and 14px for primary 
 [Result -> explanation -> Reasoning Trace -> next action]
 ```
 
+Exam-mode state is deliberately quieter than Tutor mode. Saved answers remain editable, navigator states do not reveal correctness, timing is continuous, and feedback appears only after block completion. The exam profile derives from the selected exam date so the interface can distinguish current May 2026 delivery from the legacy block model.
+
+Compact session layouts retain the navigator, settings, pause or continuous state, and timer in the toolbar. The session-tools hub keeps laboratory values and calculator access available when there is not enough width for every labeled control.
+
 ## Motion
 
-Motion is concentrated in the Reasoning Trace and immediate interaction feedback. Background decoration does not animate. Reduced-motion preferences remove nonessential transitions.
+Motion is concentrated in the Reasoning Trace, progress signals, route preparation, and immediate interaction feedback. Entry motion is short and orchestrated; instrument panels use restrained lift and depth rather than decorative spectacle. Background decoration does not animate. Reduced-motion preferences remove nonessential transitions.
+
+## Premium instrument layer
+
+- Layered surfaces use quiet inner highlights and low-chroma shadows.
+- Obsidian navigation, paper-white reading surfaces, violet action, and diagnostic teal evidence create a stable clinical hierarchy.
+- Workspace trustlines expose exam context, local persistence health, sandbox state, and external-service boundaries before users act.
+- Daily momentum translates goal progress into one compact live signal.
+- Active navigation uses both color and a physical signal rail.
+- Focused sessions expose block-save and recovery state without introducing decorative status theater.
+- Admin authoring exposes a clinical-content readiness instrument rather than treating publish as an unqualified button.
+- Progress fills use a subtle scan that is disabled with reduced motion.
+- Dark mode uses explicit graphite surfaces and descendant text colors.
+- Mobile navigation floats above the safe area as a compact study dock.
+
+Premium here means calm authority, not visual excess. The system avoids glass-on-glass decoration, saturated multi-color gradients, novelty metrics, and oversized rounding. Depth is reserved for state changes, modal focus, and the single most important action.
+
+## State integrity
+
+Fresh accounts must look intentional without fabricated performance. Empty analytics explain what action creates a signal, unscheduled study days explain the recovery state, and first-use cards lead to a real next action. Demonstration labels stay visible wherever data is simulated.
+
+Active exam blocks are treated as recoverable work. Answer, confidence, elimination, position, and timing state remain visible and restorable; completion copy always distinguishes answered from unanswered items.
+
+Dark clinical surfaces must set descendant text colors explicitly. Inherited page-level heading and logo tokens cannot be relied on for sidebars, authentication panels, or the question-session toolbar.
 
 ## Accessibility floor
 
@@ -80,4 +107,3 @@ Motion is concentrated in the Reasoning Trace and immediate interaction feedback
 ## Self-critique
 
 The prior design relied heavily on purple gradients, bento cards, and very small dashboard typography. Those patterns could describe almost any productivity product. The revised system retains the recognizable Stepwise signal color but moves distinctiveness into the Reasoning Trace, clinical-reading typography, evidence labels, and purpose-specific layouts.
-

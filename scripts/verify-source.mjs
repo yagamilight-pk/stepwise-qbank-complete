@@ -17,7 +17,9 @@ const requiredFiles = [
   "src/components/Influencer.tsx",
   "src/components/ReasoningTrace.tsx",
   "src/lib/algorithms.ts",
+  "src/lib/content-governance.ts",
   "src/lib/library.ts",
+  "src/lib/session.ts",
   "src/lib/store.tsx",
   "src/app/globals.css",
   "src/app/design-system.css",
@@ -33,6 +35,8 @@ const more = read("src/components/LearnerMore.tsx");
 const session = read("src/components/Session.tsx");
 const demo = read("src/components/Demo.tsx");
 const algorithms = read("src/lib/algorithms.ts");
+const governance = read("src/lib/content-governance.ts");
+const sessionDomain = read("src/lib/session.ts");
 const css = `${read("src/app/globals.css")}\n${read("src/app/design-system.css")}`;
 const shells = read("src/components/Shells.tsx");
 const marketing = read("src/components/Marketing.tsx");
@@ -62,6 +66,13 @@ requireCheck("flashcard urgency queue", algorithms.includes("export function bui
 requireCheck("flashcard retention forecast", algorithms.includes("export function flashcardRetentionForecast") && more.includes("metrics.retention"));
 requireCheck("functional flashcard keyboard review", more.includes('event.code === "Space"') && more.includes('["1", "2", "3", "4"]'));
 requireCheck("study plan algorithm", algorithms.includes("export function generateStudyPlan"));
+requireCheck("full horizon study plan", algorithms.includes("maxCalendarDays = 366") && learner.includes("timelineLimit"));
+requireCheck("local timezone date keys", algorithms.includes("export const localDateKey"));
+requireCheck("crash safe session draft", sessionDomain.includes("writeSessionDraft") && session.includes("Block restored"));
+requireCheck("total item scoring", sessionDomain.includes("correct / boundedTotal") && session.includes("unanswered item"));
+requireCheck("content publish governance", governance.includes("validateQuestionGovernance") && governance.includes("medical-review"));
+requireCheck("demo production boundary", governance.includes("Demo content is not cleared for production"));
+requireCheck("multi format clinical stimuli", session.includes("QuestionStimulus") && session.includes('format==="Scientific abstract"'));
 requireCheck("period comparison algorithm", algorithms.includes("export function performanceWindow"));
 requireCheck("streak algorithm", algorithms.includes("export function studyStreak"));
 requireCheck("library ranking algorithm", algorithms.includes("export function rankLibraryArticles"));
@@ -82,5 +93,6 @@ requireCheck("no disabled landing-page mockup buttons", !marketing.includes("<bu
 requireCheck("security overrides present", packageJson.overrides?.postcss === "8.5.10" && packageJson.overrides?.sharp === "0.35.3");
 requireCheck("Next lint package versions aligned", packageJson.dependencies?.next === packageJson.devDependencies?.["eslint-config-next"]);
 requireCheck("medical-content disclaimer", read("README.md").includes("independent educational interface demonstration"));
+requireCheck("security response headers", read("next.config.ts").includes("X-Content-Type-Options") && read("next.config.ts").includes("Permissions-Policy"));
 
 console.log(`Stepwise source verification passed (${checks.length}/${checks.length} checks).`);
