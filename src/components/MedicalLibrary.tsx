@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight, BookOpen, BookOpenCheck, Bookmark, BookmarkCheck, Brain, Check,
@@ -31,6 +31,7 @@ export function MedicalLibraryPage() {
   
   // Search & Filter State
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const [system, setSystem] = useState("All");
   const [step, setStep] = useState<"All" | Step>("All");
   
@@ -45,8 +46,8 @@ export function MedicalLibraryPage() {
   );
   
   const ranked = useMemo(
-    () => rankLibraryArticles(medicalArticles, query, system, step, performance, state.savedArticles, state.libraryActivity),
-    [query, system, step, performance, state.savedArticles, state.libraryActivity]
+    () => rankLibraryArticles(medicalArticles, deferredQuery, system, step, performance, state.savedArticles, state.libraryActivity),
+    [deferredQuery, system, step, performance, state.savedArticles, state.libraryActivity]
   );
 
   const selected = ranked.find((article) => article.id === selectedId) ?? ranked[0] ?? medicalArticles[0];

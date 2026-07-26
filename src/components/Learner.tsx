@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import {
   Activity, AlarmClock, ArrowRight, BarChart3, BookCheck, BookOpen, BrainCircuit,
   Calendar, CalendarDays, Check, ChevronRight, CircleAlert, Clock3, Compass, Flame,
@@ -19,6 +19,7 @@ import { Badge, Donut, EmptyState, Field, formatDate, Modal, PageHeader, Progres
 import { AccessibleTabs } from "./AccessibleTabs";
 
 const SessionPage = dynamic(() => import("./Session").then((module) => module.SessionPage));
+const ExamDayPage = dynamic(() => import("./ExamDay").then((module) => module.ExamDayPage));
 const FlashcardsPage = dynamic(() => import("./LearnerMore").then((module) => module.FlashcardsPage));
 const NotebookPage = dynamic(() => import("./LearnerMore").then((module) => module.NotebookPage));
 const CommunityPage = dynamic(() => import("./LearnerMore").then((module) => module.CommunityPage));
@@ -26,8 +27,10 @@ const SettingsPage = dynamic(() => import("./LearnerMore").then((module) => modu
 const MedicalLibraryPage = dynamic(() => import("./MedicalLibrary").then((module) => module.MedicalLibraryPage));
 
 export function LearnerPage({ section }: { section: string }) {
-  if (section === "qbank") return <QBankPage/>;
+  const { state } = useStepwise();
+  if (section === "qbank") return <QBankPage key={state.planSettings.targetStep} initialStep={state.planSettings.targetStep}/>;
   if (section === "session") return <SessionPage/>;
+  if (section === "exam-day") return <ExamDayPage/>;
   if (section === "analytics") return <AnalyticsPage/>;
   if (section === "study-plan") return <StudyPlanPage/>;
   if (section === "flashcards") return <FlashcardsPage/>;
@@ -43,10 +46,11 @@ function DashboardPage() {
   const [toast, setToast] = useState("");
   const [activityRange, setActivityRange] = useState<7 | 30>(7);
   const todayKey = localDateKey(new Date());
-  const stepQuestions = state.questions.filter(question=>question.step==="Step 2 CK");
+  const activeStep = state.planSettings.targetStep;
+  const stepQuestions = state.questions.filter(question=>question.step===activeStep);
   const stepQuestionIds = new Set(stepQuestions.map(question=>question.id));
   const stepAttempts = state.attempts.filter(attempt=>stepQuestionIds.has(attempt.questionId));
-  const readiness = readinessEstimate(state, "Step 2 CK");
+  const readiness = readinessEstimate(state, activeStep);
   const performance = systemPerformance(stepQuestions, stepAttempts);
   const activity = dailyActivity(stepAttempts, activityRange);
   const sevenDay = performanceWindow(stepAttempts, 7);
@@ -74,7 +78,7 @@ function DashboardPage() {
 
   return <>
     <PageHeader
-      eyebrow="Learner workspace · Step 2 CK"
+      eyebrow={`Learner workspace · ${activeStep}`}
       title="Your next best action is ready."
       description={
         todayTasks.length
@@ -114,22 +118,23 @@ function DashboardPage() {
   </>;
 }
 
-const defaultConfig: SessionConfig = {
-  step: "Step 2 CK", mode: "Adaptive", count: 20, systems: [], disciplines: [], difficulties: [], include: "All", timePerQuestionSec: 90
-};
+const createDefaultConfig = (step: Step): SessionConfig => ({
+  step, mode: "Adaptive", count: 20, systems: [], disciplines: [], difficulties: [], include: "All", timePerQuestionSec: 90
+});
 
-function QBankPage() {
+function QBankPage({ initialStep }: { initialStep: Step }) {
   const { state } = useStepwise();
   const router = useRouter();
-  const [config,setConfig]=useState<SessionConfig>(defaultConfig);
+  const [config,setConfig]=useState<SessionConfig>(()=>createDefaultConfig(initialStep));
   const [tab,setTab]=useState<"build"|"library"|"history">("build");
   const [search,setSearch]=useState("");
+  const deferredSearch=useDeferredValue(search);
   const [builderHelp,setBuilderHelp]=useState(false);
   const [toast,setToast]=useState("");
   const available=state.questions.filter(question=>question.status==="Published"&&question.step===config.step);
   const systems=[...new Set(available.map(question=>question.system))];
   const disciplines=[...new Set(available.map(question=>question.discipline))];
-  const matches=available.filter(question=>question.stem.toLowerCase().includes(search.toLowerCase())||question.topic.toLowerCase().includes(search.toLowerCase())||question.id.toLowerCase().includes(search.toLowerCase()));
+  const matches=available.filter(question=>question.stem.toLowerCase().includes(deferredSearch.toLowerCase())||question.topic.toLowerCase().includes(deferredSearch.toLowerCase())||question.id.toLowerCase().includes(deferredSearch.toLowerCase()));
   const selectedCount=selectQuestions(state,{...config,count:999}).length;
   const examProfile=getUsmleExamProfile(config.step,state.planSettings.examDate);
   const maxCount=config.mode==="Exam"?examProfile.maxItemsPerBlock:40;
@@ -147,9 +152,9 @@ function QBankPage() {
     <AccessibleTabs tabs={["build","library","history"]} value={tab} onChange={(value)=>setTab(value as typeof tab)} label="Question bank views" renderLabel={(value)=>value==="build"?"Build a block":value==="library"?"Browse library":"Session history"}/>
     {tab==="build"&&<section className="qbank-builder-grid">
       <article className="panel builder-main">
-        <header><div><span className="feature-icon"><Settings2/></span><div><h2>Configure your block</h2><p>{selectedCount} eligible questions with current filters</p></div></div><button onClick={()=>setConfig(defaultConfig)}>Reset filters</button></header>
-        <div className="builder-section"><div className="builder-section-title"><span>1</span><div><h3>Choose your exam</h3><p>Question style and content coverage change by exam.</p></div></div><div className="large-choice-grid">{(["Step 1","Step 2 CK"] as Step[]).map(step=>{const nextProfile=getUsmleExamProfile(step,state.planSettings.examDate);return <button key={step} className={config.step===step?"active":""} onClick={()=>setConfig({...config,step,count:config.mode==="Exam"?nextProfile.maxItemsPerBlock:config.count,systems:[],disciplines:[]})}><span className="exam-choice-mark">{step==="Step 1"?"S1":"S2"}</span><div><b>USMLE {step}</b><small>{step==="Step 1"?"Foundational science and mechanisms":"Clinical knowledge and decision making"}</small></div>{config.step===step&&<Check/>}</button>})}</div></div>
-        <div className="builder-section"><div className="builder-section-title"><span>2</span><div><h3>Select a session mode</h3><p>Control feedback timing, pacing, and question selection.</p></div></div><div className="mode-grid">{(["Tutor","Timed","Exam","Adaptive"] as SessionMode[]).map(mode=><button key={mode} className={config.mode===mode?"active":""} onClick={()=>setConfig({...config,mode,count:mode==="Exam"?examProfile.maxItemsPerBlock:config.count})}><span>{mode==="Tutor"?<BookOpen/>:mode==="Timed"?<Clock3/>:mode==="Exam"?<LockKeyhole/>:<Sparkles/>}</span><b>{mode}</b><small>{mode==="Tutor"?"Immediate explanations":mode==="Timed"?"Paced, review after":mode==="Exam"?"Reviewable answers, feedback at end":"Weakness weighted"}</small>{mode==="Adaptive"&&<Badge tone="brand">Recommended</Badge>}</button>)}</div><div className={config.mode==="Exam"?"exam-standard active":"exam-standard"}><Clock3/><div><b>{examProfile.label}</b><p>{config.step} · {examProfile.blocksPerExam} × {examProfile.blockMinutes}-minute blocks · no more than {examProfile.maxItemsPerBlock} items per block</p></div><Badge tone="info">{formatDate(state.planSettings.examDate,{month:"short",day:"numeric",year:"numeric"})}</Badge></div></div>
+        <header><div><span className="feature-icon"><Settings2/></span><div><h2>Configure your block</h2><p>{selectedCount} eligible questions with current filters</p></div></div><button onClick={()=>setConfig(createDefaultConfig(state.planSettings.targetStep))}>Reset filters</button></header>
+        <div className="builder-section"><div className="builder-section-title"><span>1</span><div><h3>Choose your exam</h3><p>Question style and content coverage change by exam.</p></div></div><div className="large-choice-grid">{(["Step 1","Step 2 CK"] as Step[]).map(step=>{const nextProfile=getUsmleExamProfile(step,state.planSettings.examDate);return <button key={step} className={config.step===step?"active":""} aria-pressed={config.step===step} onClick={()=>setConfig({...config,step,count:config.mode==="Exam"?nextProfile.maxItemsPerBlock:config.count,systems:[],disciplines:[]})}><span className="exam-choice-mark">{step==="Step 1"?"S1":"S2"}</span><div><b>USMLE {step}</b><small>{step==="Step 1"?"Foundational science and mechanisms":"Clinical knowledge and decision making"}</small></div>{config.step===step&&<Check/>}</button>})}</div></div>
+        <div className="builder-section"><div className="builder-section-title"><span>2</span><div><h3>Select a session mode</h3><p>Control feedback timing, pacing, and question selection.</p></div></div><div className="mode-grid">{(["Tutor","Timed","Exam","Adaptive"] as SessionMode[]).map(mode=><button key={mode} className={config.mode===mode?"active":""} aria-pressed={config.mode===mode} onClick={()=>setConfig({...config,mode,count:mode==="Exam"?examProfile.maxItemsPerBlock:config.count})}><span>{mode==="Tutor"?<BookOpen/>:mode==="Timed"?<Clock3/>:mode==="Exam"?<LockKeyhole/>:<Sparkles/>}</span><b>{mode}</b><small>{mode==="Tutor"?"Immediate explanations":mode==="Timed"?"Paced, review after":mode==="Exam"?"Reviewable answers, feedback at end":"Weakness weighted"}</small>{mode==="Adaptive"&&<Badge tone="brand">Recommended</Badge>}</button>)}</div><div className={config.mode==="Exam"?"exam-standard active":"exam-standard"}><Clock3/><div><b>{examProfile.label}</b><p>{config.step} · {examProfile.blocksPerExam} × {examProfile.blockMinutes}-minute blocks · no more than {examProfile.maxItemsPerBlock} items per block</p></div><Badge tone="info">{formatDate(state.planSettings.examDate,{month:"short",day:"numeric",year:"numeric"})}</Badge></div></div>
         <div className="builder-section"><div className="builder-section-title"><span>3</span><div><h3>Focus the content</h3><p>Leave selections empty to include every category.</p></div></div><div className="filter-columns"><div><div className="filter-head"><b>Systems</b><button onClick={()=>setConfig({...config,systems:config.systems.length?[]:systems})}>{config.systems.length?"Clear":"Select all"}</button></div><div className="check-list">{systems.map(system=><label key={system}><input type="checkbox" checked={config.systems.includes(system)} onChange={()=>setConfig({...config,systems:toggleArray(config.systems,system)})}/><i><Check/></i><span>{system}</span><small>{available.filter(q=>q.system===system).length}</small></label>)}</div></div><div><div className="filter-head"><b>Disciplines</b><button onClick={()=>setConfig({...config,disciplines:config.disciplines.length?[]:disciplines})}>{config.disciplines.length?"Clear":"Select all"}</button></div><div className="check-list">{disciplines.map(discipline=><label key={discipline}><input type="checkbox" checked={config.disciplines.includes(discipline)} onChange={()=>setConfig({...config,disciplines:toggleArray(config.disciplines,discipline)})}/><i><Check/></i><span>{discipline}</span><small>{available.filter(q=>q.discipline===discipline).length}</small></label>)}</div></div></div></div>
         <div className="builder-section builder-final"><div><div className="builder-section-title"><span>4</span><div><h3>Set block details</h3><p>Choose volume, difficulty, and question status.</p></div></div><div className="inline-fields"><Field label="Question count" hint={config.mode==="Exam"?`${examProfile.blockMinutes}-minute exam block · maximum ${examProfile.maxItemsPerBlock} items`:"Focused practice or a custom mixed block"}><div className="question-count-control"><div className="stepper"><button aria-label="Decrease question count" onClick={()=>setConfig({...config,count:Math.max(5,config.count-5)})}>−</button><input aria-label="Question count" type="number" min="1" max={maxCount} value={config.count} onChange={e=>setConfig({...config,count:Math.min(maxCount,Math.max(1,Number(e.target.value)||1))})}/><button aria-label="Increase question count" onClick={()=>setConfig({...config,count:Math.min(maxCount,config.count+5)})}>+</button></div><div className="block-presets">{[...new Set(countPresets)].map(count=><button type="button" key={count} className={config.count===count?"active":""} onClick={()=>setConfig({...config,count})}>{count}</button>)}</div></div></Field><Field label="Question status"><select value={config.include} onChange={e=>setConfig({...config,include:e.target.value as SessionConfig["include"]})}>{["All","Unused","Incorrect","Flagged","Bookmarked"].map(option=><option key={option}>{option}</option>)}</select></Field></div><div className="difficulty-picker"><span>Difficulty</span>{(["Easy","Medium","Hard"] as Difficulty[]).map(item=><button key={item} className={config.difficulties.includes(item)?"active":""} onClick={()=>setConfig({...config,difficulties:toggleArray(config.difficulties,item)})}>{item}</button>)}</div></div></div>
       </article>

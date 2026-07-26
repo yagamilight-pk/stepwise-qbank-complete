@@ -10,6 +10,8 @@ export interface UsmleExamProfile {
   maxItemsPerBlock: number;
   maxItemsPerExam: number;
   examDayHours: number;
+  breakMinutes: number;
+  tutorialMinutes: number;
   label: string;
 }
 
@@ -33,6 +35,8 @@ export function getUsmleExamProfile(step: Step, examDate: string): UsmleExamProf
     maxItemsPerBlock: modernSoftware ? 20 : 40,
     maxItemsPerExam: stepOne ? 280 : 318,
     examDayHours: stepOne ? 8 : 9,
+    breakMinutes: modernSoftware ? 55 : 45,
+    tutorialMinutes: modernSoftware ? 5 : 15,
     label: modernSoftware ? "2026 testing software" : "Legacy testing software"
   };
 }

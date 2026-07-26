@@ -37,6 +37,9 @@ Implemented behavior:
 - Early completion explicitly reports unanswered items, and scoring uses the full block denominator.
 - Keyboard choice movement, strikeout, flag, bookmark, timer display, contrast, large text, reduced motion, calculator, and searchable laboratory-value utilities work in the session surface.
 - Essential controls remain reachable on desktop, tablet, and phone; compact screens also expose all utilities through the session-tools hub.
+- The Exam Command Deck supports the current full-day block count or a three-block rehearsal.
+- The optional tutorial, starting break reserve, unused-tutorial credit, unused-block credit, automatic between-block break clock, and persistent phase recovery are modeled explicitly.
+- Completed blocks are permanently closed; answers and explanations remain concealed during the run, with aggregate debrief unlocked only after the final block.
 
 ## Question-format alignment
 
@@ -50,7 +53,7 @@ The repository now has typed and responsive learner renderers for:
 - Audio/video evidence with an accessible transcript surface
 - Sequential-set context and item-order metadata
 
-The editor validates required format-specific structures before local publication. Full sequential response locking across an authored multi-item set and production media licensing remain incomplete and are not claimed.
+The editor validates required format-specific structures before local publication and provides dedicated chart-row, abstract-section, sequential-set, and media/transcript controls. Sequential items sharing a set ID are arranged by authored order, and submitted sequential responses lock against navigation and editing. Production media licensing and a clinically reviewed production item corpus remain external requirements.
 
 ## Content-outline alignment
 
@@ -58,8 +61,8 @@ The shared USMLE content outline is the correct blueprint source for future cont
 
 ## Remaining gaps before production-grade exam simulation
 
-1. Complete sequential-set orchestration and locking, add dedicated structured authoring controls for each advanced format, and validate licensed production media.
-2. Add a full exam-day orchestrator with tutorial accounting, block transitions, break-time ledger, restart protection, recovery, and a 16-block Step 2 CK summary.
+1. Author and medically review production-scale sequential sets, abstracts, chart items, and licensed clinical media.
+2. Move exam-day state, protected content, entitlements, and recovery from browser storage to an authenticated, cross-device service.
 3. Map every item to versioned USMLE blueprint nodes and build coverage thresholds for systems, disciplines, physician tasks, age groups, and cross-cutting content.
 4. Replace condensed demonstration laboratory values with appropriately licensed, clinically validated reference material.
 5. Establish named medical reviewers, evidence citations, guideline versions, approval records, content retirement rules, and immutable editorial audit history.
@@ -68,6 +71,6 @@ The shared USMLE content outline is the correct blueprint source for future cont
 
 ## Automated contracts
 
-`tests/visual/exam-behavior.spec.ts` protects the current Step 2 CK profile, exam timer, no-feedback-before-block-end rule, editable-answer review, crash recovery, answer reconciliation, total-item scoring, responsive toolbar access, settings, and mobile utility access.
+`tests/visual/exam-behavior.spec.ts` protects the current Step 2 CK profile, exam timer, no-feedback-before-block-end rule, editable-answer review, crash recovery, answer reconciliation, total-item scoring, all advanced stimulus renderers, the full exam-day phase transition, irreversible closure, automatic break accounting, responsive toolbar access, settings, and mobile utility access.
 
 `tests/visual/product-contracts.spec.ts` protects onboarding continuity, content-governance boundaries, baseline security headers, one-main landmark structure, and horizontal-overflow behavior.

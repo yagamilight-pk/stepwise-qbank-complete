@@ -36,7 +36,7 @@ export function FlashcardsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [front, setFront] = useState("");
   const [back, setBack] = useState("");
-  const [tags, setTags] = useState("Step 2 CK");
+  const [tags, setTags] = useState<string>(state.planSettings.targetStep);
   const [reviewQueue, setReviewQueue] = useState<string[]>([]);
   const [reviewIndex, setReviewIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -81,7 +81,7 @@ export function FlashcardsPage() {
     setEditingId(null);
     setFront("");
     setBack("");
-    setTags("Step 2 CK");
+    setTags(state.planSettings.targetStep);
   };
 
   const openCreate = () => {

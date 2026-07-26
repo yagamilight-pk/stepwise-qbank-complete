@@ -53,17 +53,36 @@ export function validateQuestionGovernance(
   if (!question.physicianTask) warn("physician-task", "Map the item to a physician task.");
   if (!question.competencies?.length) warn("competencies", "Add at least one competency.");
 
-  if (question.format === "Chart / tabular" && !question.patientChart?.length) {
-    error("chart", "Add patient-chart data for this item format.");
+  if (question.format === "Chart / tabular" && (
+    !question.patientChart?.length
+    || question.patientChart.some((section) => !hasText(section.title) || !section.rows.length || section.rows.some((row) => !hasText(row.label) || !hasText(row.value)))
+  )) {
+    error("chart", "Complete every patient-chart section, label, and value.");
   }
-  if (question.format === "Scientific abstract" && !question.scientificAbstract) {
-    error("abstract", "Add the scientific abstract sections.");
+  if (question.format === "Scientific abstract" && (
+    !question.scientificAbstract
+    || !hasText(question.scientificAbstract.title)
+    || !hasText(question.scientificAbstract.background)
+    || !hasText(question.scientificAbstract.methods)
+    || !hasText(question.scientificAbstract.results)
+  )) {
+    error("abstract", "Complete the abstract title, background, methods, and results.");
   }
-  if (question.format === "Sequential set" && !question.sequentialSet) {
-    error("sequential", "Configure the sequential item set.");
+  if (question.format === "Sequential set" && (
+    !question.sequentialSet
+    || !hasText(question.sequentialSet.setId)
+    || question.sequentialSet.total < 2
+    || question.sequentialSet.order < 1
+    || question.sequentialSet.order > question.sequentialSet.total
+    || !question.sequentialSet.locksAfterSubmit
+  )) {
+    error("sequential", "Configure a valid, response-locking sequential item set.");
   }
   if (question.format === "Audio / video" && !question.media?.audioUrl && !question.media?.videoUrl) {
     error("media", "Attach audio or video for this item format.");
+  }
+  if (question.format === "Audio / video" && !hasText(question.media?.transcript, 12)) {
+    error("media-transcript", "Add an accessible transcript for the clinical media.");
   }
   if ((question.media?.questionImages?.length || question.media?.explanationImages?.length)
       && !question.media?.altText?.length) {

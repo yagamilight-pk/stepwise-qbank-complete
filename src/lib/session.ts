@@ -20,11 +20,32 @@ export interface SessionDraft {
   selected: Record<string, string>;
   confidence: Record<string, Confidence>;
   submitted: string[];
+  lockedSequential?: string[];
   struck: Record<string, string[]>;
   results: LocalSessionResult[];
   elapsedSeconds: number;
   elapsedByQuestion: Record<string, number>;
   savedAt: string;
+}
+
+export function arrangeQuestionsForSession(questions: Question[]): Question[] {
+  const emittedSets = new Set<string>();
+  const arranged: Question[] = [];
+  for (const question of questions) {
+    const setId = question.sequentialSet?.setId;
+    if (!setId) {
+      arranged.push(question);
+      continue;
+    }
+    if (emittedSets.has(setId)) continue;
+    emittedSets.add(setId);
+    arranged.push(
+      ...questions
+        .filter((candidate) => candidate.sequentialSet?.setId === setId)
+        .sort((left, right) => (left.sequentialSet?.order ?? 0) - (right.sequentialSet?.order ?? 0))
+    );
+  }
+  return arranged;
 }
 
 export interface SessionScore {

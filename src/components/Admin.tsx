@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import {
   Activity, AlertTriangle, ArrowRight, BarChart3, Check, CheckCircle2,
   CircleDollarSign, Copy, CreditCard, Download, Edit3, Eye,
-  FileStack, Filter, Flag, Gauge, Globe2, Image as ImageIcon, Layers3, Mail, MoreHorizontal, Plus,
+  FileStack, Filter, Flag, Gauge, Globe2, Image as ImageIcon, Layers3, LockKeyhole, Mail, MoreHorizontal, Play, Plus,
   RefreshCw, Scale, Search, Send, Settings, ShieldCheck, Smartphone, Sparkles, Tablet, Target, Trash2, TrendingUp, UploadCloud, UserCheck,
   UserMinus, Users, X
 } from "lucide-react";
@@ -599,6 +599,7 @@ function QuestionsAdmin() {
   const [systemFilter, setSystemFilter] = useState("All");
   const [difficultyFilter, setDifficultyFilter] = useState<"All" | Difficulty>("All");
   const [statusFilter, setStatusFilter] = useState<"All" | QuestionStatus>("All");
+  const [rowLimit, setRowLimit] = useState(100);
 
   const [editor, setEditor] = useState<Question | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Question | null>(null);
@@ -607,16 +608,18 @@ function QuestionsAdmin() {
   const subjects = useMemo(() => ["All", ...new Set(state.questions.map(q => q.discipline || q.taxonomy?.subject).filter(Boolean))], [state.questions]);
   const systems = useMemo(() => ["All", ...new Set(state.questions.map(q => q.system || q.taxonomy?.organSystem).filter(Boolean))], [state.questions]);
 
-  const filtered = state.questions.filter(question => {
+  const deferredSearch = useDeferredValue(search);
+  const filtered = useMemo(() => state.questions.filter(question => {
     const keywords = (question.tags || []).join(" ");
     const haystack = `${question.id} ${question.questionId || ""} ${question.stem} ${question.system} ${question.topic} ${keywords}`.toLowerCase();
-    const matchesSearch = haystack.includes(search.toLowerCase());
+    const matchesSearch = haystack.includes(deferredSearch.toLowerCase());
     const matchesSubject = subjectFilter === "All" || (question.discipline || question.taxonomy?.subject) === subjectFilter;
     const matchesSystem = systemFilter === "All" || (question.system || question.taxonomy?.organSystem) === systemFilter;
     const matchesDifficulty = difficultyFilter === "All" || question.difficulty === difficultyFilter;
     const matchesStatus = statusFilter === "All" || question.status === statusFilter;
     return matchesSearch && matchesSubject && matchesSystem && matchesDifficulty && matchesStatus;
-  });
+  }), [deferredSearch, difficultyFilter, state.questions, statusFilter, subjectFilter, systemFilter]);
+  const visibleQuestions = filtered.slice(0, rowLimit);
 
   const saveQuestion = (qToSave: Question) => {
     const normalized: Question = {
@@ -704,7 +707,7 @@ function QuestionsAdmin() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map(question => (
+            {visibleQuestions.map(question => (
               <tr key={question.id}>
                 <td>
                   <div className="qid-cell">
@@ -744,6 +747,7 @@ function QuestionsAdmin() {
           </tbody>
         </table>
       </div>
+      {visibleQuestions.length < filtered.length && <footer className="incremental-list-footer"><span>Showing {visibleQuestions.length} of {filtered.length} matching items</span><button className="btn btn-secondary" onClick={() => setRowLimit((current) => current + 100)}>Load 100 more</button></footer>}
     </section>
 
     {editor && (
@@ -893,6 +897,8 @@ function QuestionEditorModal({ question, onClose, onSave }: { question: Question
               </Field>
             </section>
 
+            <FormatAuthoringFields question={eq} onChange={setEq}/>
+
             <section className="form-section">
               <div className="section-head-between">
                 <h3>Options & Answer Key</h3>
@@ -963,6 +969,7 @@ function QuestionEditorModal({ question, onClose, onSave }: { question: Question
                     <Badge tone={eq.difficulty === "Easy" ? "success" : eq.difficulty === "Hard" ? "danger" : "warning"}>{eq.difficulty}</Badge>
                   </div>
                   <h4 className="preview-vignette-text">{eq.stem || "Your vignette stem text will appear here in real time as you edit."}</h4>
+                  <QuestionFormatPreview question={eq}/>
                 </div>
 
                 <div className="preview-options-list">
@@ -1001,6 +1008,75 @@ function QuestionEditorModal({ question, onClose, onSave }: { question: Question
       </div>
     </div>
   );
+}
+
+function FormatAuthoringFields({ question, onChange }: { question: Question; onChange: (question: Question) => void }) {
+  if (question.format === "Chart / tabular") {
+    const sections = question.patientChart ?? [];
+    const updateSections = (patientChart: NonNullable<Question["patientChart"]>) => onChange({ ...question, patientChart });
+    return <section className="form-section format-authoring">
+      <div className="section-head-between"><div><h3>Patient chart structure</h3><p>Organize evidence into scannable clinical sections and rows.</p></div><button className="btn btn-secondary btn-sm" onClick={() => updateSections([...sections, { title: `Chart section ${sections.length + 1}`, rows: [{ label: "Field", value: "" }] }])}><Plus/> Add section</button></div>
+      <div className="chart-authoring-list">{sections.map((section, sectionIndex) => <article key={`${section.title}-${sectionIndex}`}>
+        <header><input aria-label={`Chart section ${sectionIndex + 1} title`} value={section.title} onChange={(event) => updateSections(sections.map((item, itemIndex) => itemIndex === sectionIndex ? { ...item, title: event.target.value } : item))}/><button aria-label={`Remove chart section ${sectionIndex + 1}`} onClick={() => updateSections(sections.filter((_, itemIndex) => itemIndex !== sectionIndex))}><Trash2/></button></header>
+        {section.rows.map((row, rowIndex) => <div className="chart-row-editor" key={`${sectionIndex}-${rowIndex}`}>
+          <input aria-label={`Row ${rowIndex + 1} label`} value={row.label} onChange={(event) => updateSections(sections.map((item, itemIndex) => itemIndex === sectionIndex ? { ...item, rows: item.rows.map((candidate, candidateIndex) => candidateIndex === rowIndex ? { ...candidate, label: event.target.value } : candidate) } : item))} placeholder="Label"/>
+          <input aria-label={`Row ${rowIndex + 1} value`} value={row.value} onChange={(event) => updateSections(sections.map((item, itemIndex) => itemIndex === sectionIndex ? { ...item, rows: item.rows.map((candidate, candidateIndex) => candidateIndex === rowIndex ? { ...candidate, value: event.target.value } : candidate) } : item))} placeholder="Clinical value"/>
+          <select aria-label={`Row ${rowIndex + 1} flag`} value={row.flag ?? ""} onChange={(event) => updateSections(sections.map((item, itemIndex) => itemIndex === sectionIndex ? { ...item, rows: item.rows.map((candidate, candidateIndex) => candidateIndex === rowIndex ? { ...candidate, flag: (event.target.value || undefined) as typeof row.flag } : candidate) } : item))}><option value="">No flag</option><option value="high">High</option><option value="low">Low</option><option value="critical">Critical</option></select>
+          <button aria-label={`Remove row ${rowIndex + 1}`} onClick={() => updateSections(sections.map((item, itemIndex) => itemIndex === sectionIndex ? { ...item, rows: item.rows.filter((_, candidateIndex) => candidateIndex !== rowIndex) } : item))}><X/></button>
+        </div>)}
+        <button className="format-add-row" onClick={() => updateSections(sections.map((item, itemIndex) => itemIndex === sectionIndex ? { ...item, rows: [...item.rows, { label: "", value: "" }] } : item))}><Plus/> Add chart row</button>
+      </article>)}</div>
+      {!sections.length && <div className="format-empty"><FileStack/><p>Add the first chart section to satisfy the structured-item publish gate.</p></div>}
+    </section>;
+  }
+
+  if (question.format === "Scientific abstract") {
+    const abstract = question.scientificAbstract ?? { title: "", background: "", methods: "", results: "", conclusion: "" };
+    const update = (patch: Partial<typeof abstract>) => onChange({ ...question, scientificAbstract: { ...abstract, ...patch } });
+    return <section className="form-section format-authoring">
+      <div className="section-head-between"><div><h3>Scientific abstract</h3><p>Preserve the evidence hierarchy learners must interpret.</p></div><Badge tone="info">Structured evidence</Badge></div>
+      <Field label="Study title"><input value={abstract.title} onChange={(event) => update({ title: event.target.value })} placeholder="Concise study title"/></Field>
+      <div className="form-grid-2"><Field label="Background"><textarea rows={5} value={abstract.background} onChange={(event) => update({ background: event.target.value })}/></Field><Field label="Methods"><textarea rows={5} value={abstract.methods} onChange={(event) => update({ methods: event.target.value })}/></Field><Field label="Results"><textarea rows={5} value={abstract.results} onChange={(event) => update({ results: event.target.value })}/></Field><Field label="Conclusion (optional)"><textarea rows={5} value={abstract.conclusion ?? ""} onChange={(event) => update({ conclusion: event.target.value })}/></Field></div>
+    </section>;
+  }
+
+  if (question.format === "Sequential set") {
+    const sequential = question.sequentialSet ?? { setId: "", order: 1, total: 2, locksAfterSubmit: true };
+    return <section className="form-section format-authoring">
+      <div className="section-head-between"><div><h3>Sequential item set</h3><p>Questions sharing a set ID are delivered together in numerical order.</p></div><Badge tone="warning"><LockKeyhole/> Irreversible</Badge></div>
+      <div className="form-grid-2"><Field label="Set ID"><input value={sequential.setId} onChange={(event) => onChange({ ...question, sequentialSet: { ...sequential, setId: event.target.value } })} placeholder="e.g. SEQ-CARDIO-04"/></Field><Field label="Position"><input type="number" min={1} max={sequential.total} value={sequential.order} onChange={(event) => onChange({ ...question, sequentialSet: { ...sequential, order: Math.max(1, Number(event.target.value) || 1) } })}/></Field><Field label="Total items in set"><input type="number" min={2} value={sequential.total} onChange={(event) => onChange({ ...question, sequentialSet: { ...sequential, total: Math.max(2, Number(event.target.value) || 2) } })}/></Field></div>
+      <Toggle checked={sequential.locksAfterSubmit} onChange={(locksAfterSubmit) => onChange({ ...question, sequentialSet: { ...sequential, locksAfterSubmit } })} label="Lock each response after submission" detail="Learners cannot return to a submitted item in this clinical sequence."/>
+    </section>;
+  }
+
+  if (question.format === "Audio / video") {
+    const media = question.media ?? {};
+    const update = (patch: Partial<typeof media>) => onChange({ ...question, media: { ...media, ...patch } });
+    return <section className="form-section format-authoring">
+      <div className="section-head-between"><div><h3>Clinical media</h3><p>Attach one playable source and an accessible transcript.</p></div><Badge tone="info"><Play/> Media item</Badge></div>
+      <div className="form-grid-2"><Field label="Audio URL"><input type="url" value={media.audioUrl ?? ""} onChange={(event) => update({ audioUrl: event.target.value, videoUrl: event.target.value ? undefined : media.videoUrl })} placeholder="https://…/finding.mp3"/></Field><Field label="Video URL"><input type="url" value={media.videoUrl ?? ""} onChange={(event) => update({ videoUrl: event.target.value, audioUrl: event.target.value ? undefined : media.audioUrl })} placeholder="https://…/finding.mp4"/></Field></div>
+      <Field label="Accessible transcript" hint="Required for learner access and editorial review"><textarea rows={6} value={media.transcript ?? ""} onChange={(event) => update({ transcript: event.target.value })} placeholder="Describe spoken content and clinically relevant sounds or motion."/></Field>
+    </section>;
+  }
+
+  return null;
+}
+
+function QuestionFormatPreview({ question }: { question: Question }) {
+  if (question.format === "Chart / tabular" && question.patientChart?.length) {
+    return <div className="editor-format-preview chart">{question.patientChart.map((section) => <section key={section.title}><b>{section.title}</b>{section.rows.map((row) => <p key={row.label}><span>{row.label}</span><strong className={row.flag ?? ""}>{row.value || "—"}</strong></p>)}</section>)}</div>;
+  }
+  if (question.format === "Scientific abstract" && question.scientificAbstract) {
+    const abstract = question.scientificAbstract;
+    return <div className="editor-format-preview abstract"><b>{abstract.title || "Untitled scientific abstract"}</b><p><span>Background</span>{abstract.background || "Add the study background."}</p><p><span>Methods</span>{abstract.methods || "Add the study methods."}</p><p><span>Results</span>{abstract.results || "Add the study results."}</p></div>;
+  }
+  if (question.format === "Sequential set" && question.sequentialSet) {
+    return <div className="editor-format-preview sequential"><LockKeyhole/><span><b>Sequential item {question.sequentialSet.order} of {question.sequentialSet.total}</b><small>{question.sequentialSet.setId || "Set ID required"} · response locks after submission</small></span></div>;
+  }
+  if (question.format === "Audio / video") {
+    return <div className="editor-format-preview media"><Play/><span><b>{question.media?.videoUrl ? "Video finding" : question.media?.audioUrl ? "Audio finding" : "Media source required"}</b><small>{question.media?.transcript ? "Accessible transcript attached" : "Transcript required"}</small></span></div>;
+  }
+  return null;
 }
 
 function UsersAdmin() {

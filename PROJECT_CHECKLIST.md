@@ -6,7 +6,7 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 
 ## 1. Product foundation
 
-- [x] Explicit Next.js App Router pages for all 35 product destinations
+- [x] Explicit Next.js App Router pages for all 36 product destinations
 - [x] Route-specific metadata and `noindex` rules for private surfaces
 - [x] Loading, error, not-found, Open Graph, and Twitter image experiences
 - [x] Manifest, robots, sitemap, baseline security response headers, and private-route indexing boundaries
@@ -28,6 +28,7 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 ## 3. Public and account experience
 
 - [x] Responsive marketing page and five-question guided sample
+- [x] Immediate Step 1/Step 2 CK positioning, current delivery rails, and direct exam-day rehearsal discovery
 - [x] Login, signup, password-recovery, and onboarding demonstrations
 - [x] Privacy, terms, cookies, accessibility, help, and 404 surfaces
 - [x] Accessible primary/mobile navigation, FAQ, billing toggle, forms, and live status
@@ -38,11 +39,14 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 ## 4. Learner workspace
 
 - [x] Dashboard organized around the next action, plan, and supporting evidence
+- [x] Selected-exam continuity from onboarding through dashboard analysis, QBank defaults, and flashcard authoring
 - [x] QBank builder, inventory, exact-question launch, and full-screen session
 - [x] Keyboard shortcuts, timer, navigator, strikeout, confidence, calculator, and lab tools
 - [x] Date-aware 2026 Step 1 and Step 2 CK block profiles, continuous Exam timing, answer review, and delayed feedback
 - [x] Crash-safe active-block recovery for answers, confidence, eliminations, position, and elapsed time
 - [x] Answer reconciliation, early block completion, unanswered-item accounting, and full-block score denominator
+- [x] Persistent Exam Command Deck with tutorial, full/rehearsal block ledger, automatic break accounting, irreversible closure, recovery, and final debrief
+- [x] Sequential sets arranged by authored order with response locking after submission
 - [x] Responsive session-tool access and working in-session display/accessibility controls
 - [x] Explanation, reasoning diagnosis, Reasoning Trace, notes, flashcards, and review
 - [x] Analytics, study plan, notebook, medical library, private study circle, and settings
@@ -62,7 +66,8 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] Sequential-set, chart/tabular, scientific-abstract, and audio/video stimulus renderers
 - [x] Typed evidence, rights, reviewer, approval, version, competency, and physician-task records
 - [x] Admin import structural validation and explicit demo-versus-production publish gates
-- [ ] Full exam-day tutorial, block, break-ledger, recovery, and completion orchestration
+- [x] Dedicated chart, scientific-abstract, sequential-set, and audio/video authoring controls with live preview
+- [x] Full exam-day tutorial, block, break-ledger, recovery, and completion orchestration
 - [ ] Named medical reviewers, evidence citations, guideline versions, and approval records
 - [ ] Production editorial governance, licensing, and immutable clinical audit trail
 
@@ -97,23 +102,24 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] Heavy learner/admin/partner implementations deferred into dynamic chunks
 - [x] Provider boundaries scoped to account, learner, admin, and partner route groups
 - [x] Long study-plan/table rows use browser content-visibility containment
-- [x] Production build and 42 generated static outputs reviewed
+- [x] Deferred search, memoized filtering, and incremental disclosure for high-volume learner/admin lists
+- [x] Production build and 43 generated static outputs reviewed
 - [x] Source audit covers route, accessibility, honesty, algorithm, and product invariants
 - [ ] Production-scale list virtualization and dataset profiling
 - [ ] Field Core Web Vitals, error monitoring, and real-user performance budgets
 
 ## 9. Verification and handoff
 
-- [x] `npm.cmd run verify:source` — 64/64
+- [x] `npm.cmd run verify:source` — 74/74
 - [x] `npm.cmd run lint` — zero findings
 - [x] `npm.cmd run typecheck`
-- [x] `npm.cmd run build` — 42/42 static outputs
+- [x] `npm.cmd run build` — 43/43 static outputs
 - [x] Production-server HTTP smoke on 13 representative routes, including expected 404
 - [x] Architecture, design system, USMLE alignment, current status, and verification log are current
 - [x] README describes the delivered scope and production boundaries
-- [x] Production Chrome matrix: 76 passed, 56 intentionally skipped, zero runtime errors
-- [x] 65 desktop/tablet/mobile light/dark captures plus targeted visual inspection
-- [x] Session recovery, answer-edit, full-denominator scoring, onboarding-continuity, governance, landmark, overflow, and security-header contracts
+- [x] Production Chrome matrix: 81 passed, 60 intentionally skipped, zero runtime errors
+- [x] 68 desktop/tablet/mobile light/dark captures plus targeted visual inspection
+- [x] Exam-day lifecycle, advanced stimuli, session recovery, answer-edit, full-denominator scoring, onboarding-continuity, governance, landmark, overflow, and security-header contracts
 - [x] Cached offline dependency audit: zero findings; live advisory refresh remains unverified
 - [ ] Manual pointer, keyboard, zoom, and assistive-technology walkthrough
 

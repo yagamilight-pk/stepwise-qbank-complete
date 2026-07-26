@@ -9,7 +9,7 @@ import {
   BarChart3, Bell, BookOpen, CalendarDays, CircleHelp,
   Command, CreditCard, FileStack, Flag, Gauge, GraduationCap, Home, Layers3, LayoutDashboard,
   LibraryBig, Menu, Moon, NotebookPen, PanelLeftClose, PanelLeftOpen, Search, Settings, ShieldCheck,
-  Sparkles, Sun, UploadCloud, Users, X
+  Sparkles, Sun, TimerReset, UploadCloud, Users, X
 } from "lucide-react";
 import { useStepwise } from "@/lib/store";
 import { localDateKey } from "@/lib/algorithms";
@@ -30,6 +30,7 @@ const InfluencerPage = dynamic(() => import("./Influencer").then((module) => mod
 const learnerNav = [
   { href: "/app", label: "Overview", icon: Home },
   { href: "/app/qbank", label: "QBank", icon: GraduationCap },
+  { href: "/app/exam-day", label: "Exam day", icon: TimerReset },
   { href: "/app/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/app/study-plan", label: "Study plan", icon: CalendarDays },
   { href: "/app/flashcards", label: "Flashcards", icon: Layers3 },
@@ -119,7 +120,7 @@ function CommandPalette({ open, onClose, admin = false }: { open: boolean; onClo
   const nav = admin ? adminNav : learnerNav;
   const quick = admin
     ? [{ href: "/admin/questions", label: "Create a new question", icon: FileStack }, { href: "/admin/reports", label: "Review content reports", icon: Flag }]
-    : [{ href: "/app/qbank", label: "Start an adaptive block", icon: Sparkles }, { href: "/app/library", label: "Search the medical library", icon: LibraryBig }, { href: "/app/flashcards", label: "Review due flashcards", icon: Layers3 }];
+    : [{ href: "/app/qbank", label: "Start an adaptive block", icon: Sparkles }, { href: "/app/exam-day", label: "Open exam-day rehearsal", icon: TimerReset }, { href: "/app/library", label: "Search the medical library", icon: LibraryBig }, { href: "/app/flashcards", label: "Review due flashcards", icon: Layers3 }];
   const results = [...quick, ...nav].filter((item) => item.label.toLowerCase().includes(query.toLowerCase()));
   useEffect(() => {
     if (!open) return;
@@ -240,7 +241,7 @@ export function LearnerShell() {
     window.addEventListener("keydown",listener); return()=>window.removeEventListener("keydown",listener);
   },[]);
   const section = pathname.split("/")[2] || "overview";
-  const titles: Record<string,string> = { overview:"Overview", qbank:"QBank", session:"Question session", analytics:"Analytics", "study-plan":"Study plan", flashcards:"Flashcards", library:"Medical library", notebook:"Notebook", community:"Study circle", settings:"Settings" };
+  const titles: Record<string,string> = { overview:"Overview", qbank:"QBank", "exam-day":"Exam-day rehearsal", session:"Question session", analytics:"Analytics", "study-plan":"Study plan", flashcards:"Flashcards", library:"Medical library", notebook:"Notebook", community:"Study circle", settings:"Settings" };
   const unread = state.notifications.filter(item=>!item.read).length;
   const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
 

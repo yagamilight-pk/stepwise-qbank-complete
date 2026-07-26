@@ -1,6 +1,122 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("current USMLE exam-mode behavior", () => {
+  test("renders every structured USMLE item stimulus from persisted content", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440");
+    await page.goto("/app", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("stepwise-qbank-state-v8"))).not.toBeNull();
+
+    const formats = [
+      {
+        format: "Chart / tabular",
+        selector: ".question-stimulus.chart",
+        patch: { patientChart: [{ title: "Vital signs", rows: [{ label: "Blood pressure", value: "82/48 mm Hg", flag: "critical" }] }] }
+      },
+      {
+        format: "Scientific abstract",
+        selector: ".question-stimulus.abstract",
+        patch: { scientificAbstract: { title: "Clinical outcomes study", background: "The treatment effect is uncertain.", methods: "Adults were randomized to treatment or placebo.", results: "The primary outcome occurred less often with treatment.", conclusion: "Treatment reduced the primary outcome." } }
+      },
+      {
+        format: "Sequential set",
+        selector: ".question-stimulus.sequential",
+        patch: { sequentialSet: { setId: "SEQ-TEST", order: 1, total: 2, locksAfterSubmit: true } }
+      },
+      {
+        format: "Audio / video",
+        selector: ".question-stimulus.media",
+        patch: { media: { audioUrl: "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=", transcript: "Accessible demonstration transcript." } }
+      }
+    ];
+
+    for (const item of formats) {
+      await page.evaluate(({ format, patch }) => {
+        const key = "stepwise-qbank-state-v8";
+        const state = JSON.parse(window.localStorage.getItem(key) || "{}");
+        const question = { ...state.questions[0], format, ...patch };
+        state.questions[0] = question;
+        window.localStorage.setItem(key, JSON.stringify(state));
+        window.sessionStorage.removeItem("stepwise-active-session-v1");
+        window.sessionStorage.setItem("stepwise-session-config", JSON.stringify({
+          step: question.step, mode: "Tutor", count: 1, systems: [], disciplines: [],
+          difficulties: [], include: "All", timePerQuestionSec: 90, questionIds: [question.id]
+        }));
+      }, item);
+      await page.goto("/app/session", { waitUntil: "domcontentloaded" });
+      await expect(page.locator(item.selector)).toBeVisible({ timeout: 15_000 });
+    }
+
+    await page.evaluate(() => {
+      const key = "stepwise-qbank-state-v8";
+      const state = JSON.parse(window.localStorage.getItem(key) || "{}");
+      const first = { ...state.questions[0], format: "Sequential set", sequentialSet: { setId: "SEQ-LOCK", order: 1, total: 2, locksAfterSubmit: true } };
+      const second = { ...state.questions[1], step: first.step, format: "Sequential set", sequentialSet: { setId: "SEQ-LOCK", order: 2, total: 2, locksAfterSubmit: true } };
+      state.questions[0] = first;
+      state.questions[1] = second;
+      window.localStorage.setItem(key, JSON.stringify(state));
+      window.sessionStorage.removeItem("stepwise-active-session-v1");
+      window.sessionStorage.setItem("stepwise-session-config", JSON.stringify({
+        step: first.step, mode: "Tutor", count: 2, systems: [], disciplines: [],
+        difficulties: [], include: "All", timePerQuestionSec: 90, questionIds: [second.id, first.id]
+      }));
+    });
+    await page.goto("/app/session", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".question-stimulus.sequential")).toContainText("Sequential item 1 of 2");
+    await page.locator(".session-choice .choice-select").first().click();
+    await page.getByRole("button", { name: "Submit answer" }).click();
+    await page.getByRole("button", { name: "Next question" }).click();
+    await expect(page.locator(".question-stimulus.sequential")).toContainText("Sequential item 2 of 2");
+    await page.getByRole("button", { name: "Question navigator" }).click();
+    await page.locator(".question-palette > div > button").first().click();
+    await expect(page.locator(".session-progress-title")).toContainText("Question 2 of 2");
+    await expect(page.getByText("Sequential responses cannot be reopened after submission")).toBeVisible();
+  });
+
+  test("orchestrates tutorial, irreversible block closure, and automatic break accounting", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440");
+
+    const runtimeErrors: string[] = [];
+    page.on("pageerror", (error) => runtimeErrors.push(`pageerror: ${error.message}`));
+    page.on("console", (message) => {
+      if (message.type() === "error") runtimeErrors.push(`console: ${message.text()}`);
+    });
+    await page.addInitScript(() => {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    });
+    await page.goto("/app/exam-day", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
+    await page.getByRole("button", { name: /Full-day simulation/ }).click();
+    await page.getByRole("button", { name: /Enter orientation/ }).click();
+    await expect(page.locator(".exam-orientation")).toBeVisible();
+    for (const item of await page.locator(".orientation-checklist label").all()) await item.click();
+    await page.getByRole("button", { name: /Complete orientation/ }).click();
+
+    await expect(page.locator(".block-rail article")).toHaveCount(16);
+    await expect(page.locator(".command-strip")).toContainText("Between blocks");
+    await page.getByRole("button", { name: /Begin block 1/ }).click();
+    await expect(page.locator(".session-page")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(".session-timer b")).toHaveText(/30:00|29:59/);
+    await page.locator(".session-choice .choice-select").first().click();
+    await page.getByRole("button", { name: "Question navigator" }).click();
+    await page.getByRole("button", { name: "Finish block" }).click();
+    await page.getByRole("dialog", { name: "Finish this block now?" }).getByRole("button", { name: "Finish & score" }).click();
+
+    await expect(page.locator(".exam-block-closed")).toBeVisible();
+    await expect(page.getByText("Responses locked. Break time is running.")).toBeVisible();
+    await expect(page.locator(".summary-review")).toHaveCount(0);
+    await page.getByRole("button", { name: "Open command deck" }).click();
+    await expect(page.locator(".exam-command")).toBeVisible();
+    await expect(page.locator(".block-rail article").first()).toHaveClass(/complete/);
+    await expect(page.locator(".break-console")).toHaveClass(/active/);
+    await expect.poll(() => page.evaluate(() => {
+      const run = JSON.parse(window.localStorage.getItem("stepwise-exam-day-v1") || "{}");
+      return { status: run.status, firstBlock: run.blocks?.[0]?.status };
+    })).toEqual({ status: "On break", firstBlock: "Complete" });
+    expect(runtimeErrors).toEqual([]);
+  });
+
   test("restores a timed block with answer, confidence, elimination, position, and elapsed state", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440");
 

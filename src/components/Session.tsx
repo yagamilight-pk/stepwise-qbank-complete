@@ -6,11 +6,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, ArrowRight, Bookmark, BrainCircuit, Calculator, Check, CheckCircle2, CircleAlert,
   Clock3, FileStack, Flag, FlaskConical, Highlighter, Layers3, List, LockKeyhole, MoreHorizontal, NotebookPen,
-  Pause, Play, RotateCcw, Search, Settings2, Sparkles, TimerReset, X, XCircle
+  Pause, Play, RotateCcw, Search, Settings2, ShieldCheck, Sparkles, TimerReset, X, XCircle
 } from "lucide-react";
 import { choicePeerDistribution, diagnoseReasoningTrap, selectQuestions } from "@/lib/algorithms";
 import {
   SESSION_CONFIG_KEY,
+  arrangeQuestionsForSession,
   buildSessionResults,
   clearSessionDraft,
   readSessionDraft,
@@ -18,6 +19,7 @@ import {
   writeSessionDraft,
   type LocalSessionResult
 } from "@/lib/session";
+import { completeExamBlock, readExamDayRun, writeExamDayRun } from "@/lib/exam-day";
 import { useStepwise } from "@/lib/store";
 import type { Confidence, Question, SessionConfig } from "@/lib/types";
 import { getUsmleExamProfile } from "@/lib/usmle";
@@ -27,7 +29,7 @@ import { ReasoningTrace } from "./ReasoningTrace";
 const fallbackConfig: SessionConfig = { step:"Step 2 CK",mode:"Adaptive",count:10,systems:[],disciplines:[],difficulties:[],include:"All",timePerQuestionSec:90 };
 
 export function SessionPage() {
-  const { state, dispatch }=useStepwise();
+  const { state, dispatch, hydrated }=useStepwise();
   const router=useRouter();
   const [sessionId,setSessionId]=useState(()=>uid("session"));
   const [config,setConfig]=useState<SessionConfig>(fallbackConfig);
@@ -36,6 +38,7 @@ export function SessionPage() {
   const [selected,setSelected]=useState<Record<string,string>>({});
   const [confidence,setConfidence]=useState<Record<string,Confidence>>({});
   const [submitted,setSubmitted]=useState<string[]>([]);
+  const [lockedSequential,setLockedSequential]=useState<string[]>([]);
   const [struck,setStruck]=useState<Record<string,string[]>>({});
   const [results,setResults]=useState<LocalSessionResult[]>([]);
   const [seconds,setSeconds]=useState(0);
@@ -71,6 +74,7 @@ export function SessionPage() {
   const elapsedByQuestionRef=useRef<Record<string,number>>({});
 
   useEffect(()=>{
+    if(!hydrated)return;
     const initTimer=window.setTimeout(()=>{
       if(initialized.current)return;
       initialized.current=true;
@@ -99,6 +103,7 @@ export function SessionPage() {
         setSelected(draft.selected);
         setConfidence(draft.confidence);
         setSubmitted(draft.submitted);
+        setLockedSequential(draft.lockedSequential ?? []);
         setStruck(draft.struck);
         setResults(draft.results);
         setSeconds(restoredElapsed);
@@ -111,8 +116,8 @@ export function SessionPage() {
         }
       }else{
         if(draft)clearSessionDraft(sessionStorage);
-        const chosen=selectQuestions(state,nextConfig);
-        const finalQuestions=chosen.length?chosen:selectQuestions(state,{...fallbackConfig,step:nextConfig.step,include:"All"});
+        const chosen=arrangeQuestionsForSession(selectQuestions(state,nextConfig));
+        const finalQuestions=chosen.length?chosen:arrangeQuestionsForSession(selectQuestions(state,{...fallbackConfig,step:nextConfig.step,include:"All"}));
         wallClockStartRef.current=Date.now();
         setConfig(nextConfig);setQuestions(finalQuestions);
         dispatch({type:"ADD_SESSION",session:{id:sessionId,createdAt:new Date().toISOString(),config:nextConfig,questionIds:finalQuestions.map(q=>q.id),currentIndex:0}});
@@ -120,7 +125,7 @@ export function SessionPage() {
       setDraftReady(true);
     },0);
     return()=>window.clearTimeout(initTimer);
-  },[dispatch,sessionId,state]);
+  },[dispatch,hydrated,sessionId,state]);
 
   useEffect(()=>{
     if(paused||summary||!questions.length)return;
@@ -136,6 +141,7 @@ export function SessionPage() {
   const answered=question?submitted.includes(question.id):false;
   const revealAnswer=answered&&config.mode==="Tutor";
   const chosenChoice=question?selected[question.id]:undefined;
+  const sequenceLocked=question?lockedSequential.includes(question.id):false;
   const correctChoice=question?.correctChoiceId;
   const peerDistribution=useMemo(() => question ? choicePeerDistribution(question) : [], [question]);
   useEffect(()=>{secondsRef.current=seconds},[seconds]);
@@ -180,7 +186,9 @@ export function SessionPage() {
     }
   },[config.mode,paused]);
   const examProfile=getUsmleExamProfile(config.step,state.planSettings.examDate);
-  const timeLimit=config.mode==="Exam"?examProfile.blockMinutes*60:questions.length*config.timePerQuestionSec;
+  const timeLimit=config.mode==="Exam"
+    ? (config.examDay?questions.length*config.timePerQuestionSec:examProfile.blockMinutes*60)
+    : questions.length*config.timePerQuestionSec;
   const remaining=Math.max(0,timeLimit-seconds);
   const calculatorResult=useMemo(()=>{
     const left=Number(calculator.left);
@@ -216,6 +224,7 @@ export function SessionPage() {
     dispatch({type:"UPSERT_ATTEMPT",attempt:{id:uid("attempt"),...result,createdAt:new Date().toISOString(),sessionId,mode:config.mode}});
   },[config.mode,dispatch,sessionId]);
   const selectChoice=useCallback((questionId:string,choiceId:string)=>{
+    if(lockedSequential.includes(questionId))return;
     setSelected((current)=>({...current,[questionId]:choiceId}));
     if(config.mode==="Tutor")return;
     setSubmitted((current)=>current.includes(questionId)?current:[...current,questionId]);
@@ -231,7 +240,7 @@ export function SessionPage() {
         ? current.map((item)=>item.questionId===questionId?next:item)
         : [...current,next];
     });
-  },[confidence,config.mode,getElapsedForQuestion,questions]);
+  },[confidence,config.mode,getElapsedForQuestion,lockedSequential,questions]);
   const finishSession=useCallback(()=>{
     const elapsed=snapshotElapsedByQuestion();
     const finalResults=buildSessionResults(questions,selected,confidence,elapsed);
@@ -254,13 +263,24 @@ export function SessionPage() {
       unansweredCount:score.unanswered,
       accuracy:score.accuracy
     }});
-  },[confidence,config.mode,dispatch,questions,selected,sessionId,snapshotElapsedByQuestion,state.attempts]);
+    if(config.examRunId&&typeof config.examBlockIndex==="number"){
+      const examRun=readExamDayRun(localStorage);
+      if(examRun?.id===config.examRunId){
+        writeExamDayRun(localStorage,completeExamBlock(examRun,config.examBlockIndex,secondsRef.current,score.answered,score.correct));
+      }
+    }
+  },[confidence,config.examBlockIndex,config.examRunId,config.mode,dispatch,questions,selected,sessionId,snapshotElapsedByQuestion,state.attempts]);
   const goTo=useCallback((nextIndex:number)=>{
     const bounded=Math.max(0,Math.min(questions.length-1,nextIndex));
+    if(lockedSequential.includes(questions[bounded]?.id)&&bounded!==index){
+      setToast("Sequential responses cannot be reopened after submission");
+      window.setTimeout(()=>setToast(""),1800);
+      return;
+    }
     setIndex(bounded);
     setStemHighlighted(false);
     dispatch({type:"UPDATE_SESSION",id:sessionId,patch:{currentIndex:bounded}});
-  },[dispatch,questions.length,sessionId]);
+  },[dispatch,index,lockedSequential,questions,sessionId]);
   const goNext=useCallback(()=>{
     if(index<questions.length-1)goTo(index+1);
     else finishSession();
@@ -277,6 +297,9 @@ export function SessionPage() {
     if(config.mode==="Tutor"&&submitted.includes(question.id)){goNext();return}
     const level=confidence[question.id]||3;
     const result:LocalSessionResult={questionId:question.id,selectedChoiceId:choice,correct:choice===question.correctChoiceId,confidence:level,timeSec:getElapsedForQuestion(question.id)};
+    if(question.sequentialSet?.locksAfterSubmit){
+      setLockedSequential((current)=>current.includes(question.id)?current:[...current,question.id]);
+    }
     if(config.mode==="Tutor"){
       persistResult(result);
       playFeedback(result.correct);
@@ -298,6 +321,7 @@ export function SessionPage() {
       selected,
       confidence,
       submitted,
+      lockedSequential,
       struck,
       results,
       elapsedSeconds:seconds,
@@ -306,7 +330,7 @@ export function SessionPage() {
     });
     const statusTimer=window.setTimeout(()=>setAutosaveStatus(saved?"saved":"error"),0);
     return()=>window.clearTimeout(statusTimer);
-  },[confidence,config,draftReady,index,questions,results,seconds,selected,sessionId,snapshotElapsedByQuestion,struck,submitted,summary]);
+  },[confidence,config,draftReady,index,lockedSequential,questions,results,seconds,selected,sessionId,snapshotElapsedByQuestion,struck,submitted,summary]);
 
   useEffect(()=>{
     const listener=(event:KeyboardEvent)=>{
@@ -315,14 +339,14 @@ export function SessionPage() {
       if(!currentQuestion)return;
       if(["1","2","3","4","5"].includes(event.key)){
         const choice=currentQuestion.choices[Number(event.key)-1];
-        if(choice&&!(config.mode==="Tutor"&&submitted.includes(currentQuestion.id)))selectChoice(currentQuestion.id,choice.id);
+        if(choice&&!(config.mode==="Tutor"&&submitted.includes(currentQuestion.id))&&!lockedSequential.includes(currentQuestion.id))selectChoice(currentQuestion.id,choice.id);
       }
       if(event.key==="ArrowUp"||event.key==="ArrowDown"){
         event.preventDefault();
         const currentChoiceIndex=Math.max(0,currentQuestion.choices.findIndex(choice=>choice.id===selected[currentQuestion.id]));
         const delta=event.key==="ArrowDown"?1:-1;
         const nextChoice=currentQuestion.choices[(currentChoiceIndex+delta+currentQuestion.choices.length)%currentQuestion.choices.length];
-        if(nextChoice&&!(config.mode==="Tutor"&&submitted.includes(currentQuestion.id)))selectChoice(currentQuestion.id,nextChoice.id);
+        if(nextChoice&&!(config.mode==="Tutor"&&submitted.includes(currentQuestion.id))&&!lockedSequential.includes(currentQuestion.id))selectChoice(currentQuestion.id,nextChoice.id);
       }
       if(event.key.toLowerCase()==="f")dispatch({type:"TOGGLE_FLAG",questionId:currentQuestion.id});
       if(event.key.toLowerCase()==="b")dispatch({type:"TOGGLE_BOOKMARK",questionId:currentQuestion.id});
@@ -330,7 +354,7 @@ export function SessionPage() {
     };
     window.addEventListener("keydown",listener);
     return()=>window.removeEventListener("keydown",listener);
-  },[calculatorOpen,cardOpen,config.mode,dispatch,exitOpen,finishOpen,goNext,index,labOpen,noteOpen,questions,reportOpen,selectChoice,selected,settingsOpen,submitted,summary,toolsOpen]);
+  },[calculatorOpen,cardOpen,config.mode,dispatch,exitOpen,finishOpen,goNext,index,labOpen,lockedSequential,noteOpen,questions,reportOpen,selectChoice,selected,settingsOpen,submitted,summary,toolsOpen]);
   const saveNote=()=>{
     if(!question||!noteBody.trim())return;
     dispatch({type:"UPSERT_NOTE",note:{id:uid("note"),questionId:question.id,title:`${question.topic} — ${question.id}`,body:noteBody,tags:[question.system.toLowerCase(),question.step],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}});setNoteBody("");setNoteOpen(false);showToast("Note saved to your notebook");
@@ -352,7 +376,7 @@ export function SessionPage() {
   },[config.mode,finishSession,paused,questions.length,remaining,summary]);
 
   if(!questions.length)return <div className="session-loading"><span><Sparkles/></span><h2>Building your block</h2><p>Ranking eligible questions by weakness, recency, and challenge fit…</p></div>;
-  if(summary)return <SessionSummary questions={questions} results={results} seconds={seconds} onReview={setReviewIndex} reviewIndex={reviewIndex} onBack={()=>setReviewIndex(null)} onRestart={()=>router.push("/app/qbank")}/>;
+  if(summary)return <SessionSummary questions={questions} results={results} seconds={seconds} blockSeconds={timeLimit} examDay={Boolean(config.examDay)} examBlockIndex={config.examBlockIndex} examBlockCount={config.examBlockCount} onReview={setReviewIndex} reviewIndex={reviewIndex} onBack={()=>setReviewIndex(null)} onRestart={()=>router.push(config.examDay?"/app/exam-day":"/app/qbank")}/>;
 
   return <div className="session-page">
     <header className="session-toolbar"><div><button className="session-exit" onClick={()=>setExitOpen(true)}><ArrowLeft/> Exit</button><div className="session-progress-title"><b>{config.step} · {config.mode}</b><span>Question {index+1} of {questions.length}</span></div><span className={`session-save-state ${autosaveStatus}`} role="status" aria-live="polite"><CheckCircle2/> {autosaveStatus==="saved"?"Block saved":"Save unavailable"}</span></div><div className="session-tools"><button onClick={()=>setPaletteOpen(!paletteOpen)} aria-label="Question navigator" aria-expanded={paletteOpen} aria-controls="question-palette"><List/><span>Navigator</span></button><button onClick={()=>setLabOpen(true)} aria-label="Laboratory values"><FlaskConical/><span>Lab values</span></button><button onClick={()=>setCalculatorOpen(true)} aria-label="Calculator"><Calculator/><span>Calculator</span></button><button onClick={()=>setSettingsOpen(true)} aria-label="Session settings"><Settings2/><span>Settings</span></button>{config.mode==="Exam"?<span className="exam-continuous" title="Exam-mode timing cannot be paused"><LockKeyhole/><b>Continuous</b></span>:<button onClick={togglePause} aria-label={paused?"Resume session":"Pause session"} aria-pressed={paused}>{paused?<Play/>:<Pause/>}<span>{paused?"Resume":"Pause"}</span></button>}{state.settings.showTimer&&<div className={remaining<180&&config.mode!=="Tutor"?"session-timer warning":"session-timer"} aria-label={`${config.mode==="Tutor"?formatSeconds(seconds):formatSeconds(remaining)} ${config.mode==="Tutor"?"elapsed":"remaining"}`}><Clock3/><b>{config.mode==="Tutor"?formatSeconds(seconds):formatSeconds(remaining)}</b><small>{config.mode==="Tutor"?"elapsed":"remaining"}</small></div>}</div></header>
@@ -371,12 +395,12 @@ export function SessionPage() {
           const peer=peerDistribution.find((item)=>item.choiceId===choice.id)?.percent??0;
           return <div key={choice.id} className={`session-choice ${selectedNow?"selected":""} ${isCorrect?"correct":""} ${isWrong?"wrong":""} ${eliminated?"eliminated":""}`}>
             {revealAnswer&&<span className="peer-option-fill" style={{width:`${peer}%`}} aria-hidden="true"/>}
-            <button className="choice-select" disabled={revealAnswer} onClick={()=>!revealAnswer&&selectChoice(question.id,choice.id)} aria-pressed={selectedNow} aria-label={`${String.fromCharCode(65+choiceIndex)}. ${choice.text}`}>
+            <button className="choice-select" disabled={revealAnswer||sequenceLocked} onClick={()=>!revealAnswer&&!sequenceLocked&&selectChoice(question.id,choice.id)} aria-pressed={selectedNow} aria-label={`${String.fromCharCode(65+choiceIndex)}. ${choice.text}`}>
               <span>{String.fromCharCode(65+choiceIndex)}</span><p>{choice.text}</p>
               {revealAnswer&&<strong className="peer-option-percent">{peer}%</strong>}
               {isCorrect&&<CheckCircle2/>}{isWrong&&<XCircle/>}
             </button>
-            <button className="strike-button" disabled={revealAnswer} onClick={()=>setStruck(current=>({...current,[question.id]:(current[question.id]||[]).includes(choice.id)?(current[question.id]||[]).filter(id=>id!==choice.id):[...(current[question.id]||[]),choice.id]}))} aria-label={`${eliminated?"Restore":"Strike out"} choice ${String.fromCharCode(65+choiceIndex)}`} aria-pressed={eliminated}><span/></button>
+            <button className="strike-button" disabled={revealAnswer||sequenceLocked} onClick={()=>setStruck(current=>({...current,[question.id]:(current[question.id]||[]).includes(choice.id)?(current[question.id]||[]).filter(id=>id!==choice.id):[...(current[question.id]||[]),choice.id]}))} aria-label={`${eliminated?"Restore":"Strike out"} choice ${String.fromCharCode(65+choiceIndex)}`} aria-pressed={eliminated}><span/></button>
           </div>})}</div>
         {revealAnswer&&<p className="distribution-note">Response percentages are simulated sample data for this demonstration.</p>}
         {!revealAnswer&&<div className="confidence-select"><span>How confident are you?</span><div>{([1,2,3,4,5] as Confidence[]).map(level=><button key={level} className={confidence[question.id]===level?"active":""} aria-pressed={confidence[question.id]===level} onClick={()=>setConfidenceLevel(question.id,level)}><b>{level}</b><small>{["Guess","Low","Medium","High","Certain"][level-1]}</small></button>)}</div></div>}
@@ -392,7 +416,7 @@ export function SessionPage() {
     <Modal open={cardOpen} onClose={()=>setCardOpen(false)} title="Create a flashcard" description="The learning objective becomes the prompt."><Field label="Front"><textarea rows={3} readOnly value={question.objective}/></Field><Field label="Back"><textarea rows={6} value={cardBack} onChange={e=>setCardBack(e.target.value)}/></Field><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setCardOpen(false)}>Cancel</button><button className="btn btn-brand" onClick={saveCard}><Layers3/> Add flashcard</button></div></Modal>
     <Modal open={reportOpen} onClose={()=>setReportOpen(false)} title="Report a content issue" description={`${question.id} · Reports appear in the admin review queue.`}><Field label="Issue type"><select value={reportReason} onChange={event=>setReportReason(event.target.value as typeof reportReason)}><option>Medical accuracy</option><option>Ambiguous wording</option><option>Typo</option><option>Outdated guideline</option></select></Field><Field label="What should the content team review?"><textarea rows={6} value={reportDetail} onChange={event=>setReportDetail(event.target.value)} placeholder="Describe the specific statement, option, or explanation concern…"/></Field><div className="modal-actions"><button className="btn btn-ghost" onClick={()=>setReportOpen(false)}>Cancel</button><button className="btn btn-brand" onClick={submitReport}>Submit report</button></div></Modal>
     <Modal open={finishOpen} onClose={()=>setFinishOpen(false)} title="Finish this block now?" description={`${Math.max(0,questions.length-new Set(Object.keys(selected)).size)} unanswered item${Math.max(0,questions.length-new Set(Object.keys(selected)).size)===1?"":"s"} will count in the total-item score. You can review every item after completion.`}><div className="exit-modal-actions"><button className="btn btn-secondary" onClick={()=>setFinishOpen(false)}>Return to block</button><button className="btn btn-brand" onClick={()=>{setFinishOpen(false);finishSession()}}><Check/> Finish & score</button></div></Modal>
-    <Modal open={exitOpen} onClose={()=>setExitOpen(false)} title="Discard this active block?" description="Your block is recoverable while you stay in it or refresh. Exiting now discards the active draft; completed attempts remain in your history."><div className="exit-modal-actions"><button className="btn btn-secondary" onClick={()=>setExitOpen(false)}>Keep studying</button><Link className="btn btn-danger" href="/app/qbank" onClick={()=>clearSessionDraft(sessionStorage)}>Discard & exit</Link></div></Modal>
+    <Modal open={exitOpen} onClose={()=>setExitOpen(false)} title={config.examDay?"Return to the command deck?":"Discard this active block?"} description={config.examDay?"The active block remains recoverable in this browser. Its wall-clock exam timer continues while you are away.":"Your block is recoverable while you stay in it or refresh. Exiting now discards the active draft; completed attempts remain in your history."}><div className="exit-modal-actions"><button className="btn btn-secondary" onClick={()=>setExitOpen(false)}>Keep studying</button><Link className={config.examDay?"btn btn-brand":"btn btn-danger"} href={config.examDay?"/app/exam-day":"/app/qbank"} onClick={()=>{if(!config.examDay)clearSessionDraft(sessionStorage)}}>{config.examDay?"Save & return":"Discard & exit"}</Link></div></Modal>
     <Toast message={toast} visible={Boolean(toast)}/>
   </div>;
 }
@@ -452,9 +476,19 @@ function Explanation({question,selectedChoiceId,onCard,onNote}:{question:Questio
   </section>;
 }
 
-function SessionSummary({questions,results,seconds,onReview,reviewIndex,onBack,onRestart}:{questions:Question[];results:LocalSessionResult[];seconds:number;onReview:(index:number)=>void;reviewIndex:number|null;onBack:()=>void;onRestart:()=>void}) {
+function SessionSummary({questions,results,seconds,blockSeconds,examDay,examBlockIndex,examBlockCount,onReview,reviewIndex,onBack,onRestart}:{questions:Question[];results:LocalSessionResult[];seconds:number;blockSeconds:number;examDay:boolean;examBlockIndex?:number;examBlockCount?:number;onReview:(index:number)=>void;reviewIndex:number|null;onBack:()=>void;onRestart:()=>void}) {
   const { state } = useStepwise();
   const [filter,setFilter]=useState<"All"|"Incorrect"|"Correct"|"Unanswered">("All");
+  if(examDay){
+    const score=scoreSession(questions.length,results);
+    const earned=Math.max(0,blockSeconds-seconds);
+    return <main className="session-summary exam-block-closed">
+      <header><div><span className="summary-check"><LockKeyhole/></span><div><Badge tone="success">Block {(examBlockIndex??0)+1} of {examBlockCount} closed</Badge><h1>Responses locked. Break time is running.</h1><p>This block is no longer available for review or answer changes. Any unused block time has been credited to the reserve.</p></div></div></header>
+      <section className="panel block-closure-panel"><div><ShieldCheck/><span><small>BLOCK STATE</small><b>Permanently closed</b></span></div><div><FileStack/><span><small>ITEMS RECORDED</small><b>{score.answered} of {score.total}</b></span></div><div><TimerReset/><span><small>TIME CREDIT</small><b>+{formatSeconds(earned)}</b></span></div></section>
+      <div className="exam-closure-note"><CircleAlert/><p>Performance and explanations stay concealed during the run to preserve testing-day behavior. The completed-run debrief unlocks after the final block.</p></div>
+      <footer className="summary-footer"><span/><button className="btn btn-brand btn-lg" onClick={onRestart}>Open command deck <ArrowRight/></button></footer>
+    </main>;
+  }
   if(reviewIndex!==null){
     const question=questions[reviewIndex];
     const result=results.find(item=>item.questionId===question.id);
@@ -473,13 +507,13 @@ function SessionSummary({questions,results,seconds,onReview,reviewIndex,onBack,o
     return Boolean(item.result&&!item.result.correct);
   });
   return <main className="session-summary">
-    <header><div><span className="summary-check"><Check/></span><div><Badge tone="success">Block complete</Badge><h1>Strong work. Now consolidate it.</h1><p>Your answers are saved and your adaptive profile has been updated.</p></div></div><Link className="btn btn-secondary" href="/app">Return to dashboard</Link></header>
+    <header><div><span className="summary-check"><Check/></span><div><Badge tone="success">{examDay?`Exam block ${(examBlockIndex??0)+1} of ${examBlockCount} closed`:"Block complete"}</Badge><h1>{examDay?"Block locked. Reset before the next one.":"Strong work. Now consolidate it."}</h1><p>{examDay?"Unused block time has been credited to your break reserve. This block can no longer be changed.":"Your answers are saved and your adaptive profile has been updated."}</p></div></div><Link className="btn btn-secondary" href={examDay?"/app/exam-day":"/app"}>{examDay?"Return to command deck":"Return to dashboard"}</Link></header>
     <section className="summary-score panel"><div className="summary-score-main"><Donut value={accuracy} size={180} detail="block score"/><div><span>Performance</span><h2>{accuracy>=80?"Excellent control":accuracy>=65?"Building momentum":"Useful diagnostic block"}</h2><p>{correct} correct of {score.total} total items · {score.answered} answered · {score.unanswered} unanswered.</p><Badge tone={accuracy>=70?"success":"warning"}>{accuracy>=70?"Strong block performance":"Review recommended"}</Badge></div></div><div className="summary-metrics"><div><Clock3/><span><b>{formatSeconds(seconds)}</b><small>Total time</small></span></div><div><TimerReset/><span><b>{formatSeconds(avg)}</b><small>Answered-item pace</small></span></div><div><Flag/><span><b>{confidentMisses}</b><small>Confident misses</small></span></div><div><Bookmark/><span><b>{bookmarks}</b><small>Bookmarked</small></span></div></div></section>
     <section className="summary-grid">
       <article className="panel summary-review"><header><div><h2>Question review</h2><p>Open any item to inspect the explanation and sample response distribution.</p></div><select aria-label="Filter question review" value={filter} onChange={event=>setFilter(event.target.value as typeof filter)}><option>All</option><option>Incorrect</option><option>Correct</option><option>Unanswered</option></select></header><div>{visibleQuestions.map(({question,index,result})=><button key={question.id} onClick={()=>onReview(index)}><span className={!result?"unanswered":result.correct?"correct":"incorrect"}>{!result?<CircleAlert/>:result.correct?<Check/>:<X/>}</span><div><b>Question {index+1}</b><p>{question.system} · {question.topic}</p></div><span>{result?formatSeconds(result.timeSec):"Unanswered"}</span><ArrowRight/></button>)}{!visibleQuestions.length&&<p className="summary-empty">No questions match this filter.</p>}</div></article>
       <aside><article className="panel next-step-card"><div className="insight-icon"><Sparkles/></div><Badge tone="brand">Recommended next</Badge><h2>Review {Math.max(0,results.length-correct)} missed concepts</h2><p>{results.length-correct?"Spend 12–18 minutes on explanation recall before starting another block.":"Use the strongest item to create a recall card and maintain the concept."}</p><button className="btn btn-brand btn-block" onClick={()=>{const firstWrong=results.findIndex(result=>!result.correct);onReview(firstWrong>=0?firstWrong:0)}} disabled={!questions.length}>Begin review <ArrowRight/></button></article><article className="panel"><h3>Block signals</h3><div className="signal-list"><div><span>Knowledge</span><Progress value={accuracy}/><b>{accuracy}%</b></div><div><span>Calibration</span><Progress value={Math.max(40,100-confidentMisses*15)}/><b>{Math.max(40,100-confidentMisses*15)}%</b></div><div><span>Pacing</span><Progress value={Math.min(100,Math.round(90/Math.max(avg,1)*100))}/><b>{avg<=90?"On target":"Slow"}</b></div></div></article></aside>
     </section>
-    <footer className="summary-footer"><button className="btn btn-secondary" onClick={onRestart}><RotateCcw/> Build another block</button><Link className="btn btn-brand" href="/app/analytics">View analytics <ArrowRight/></Link></footer>
+    <footer className="summary-footer"><button className="btn btn-secondary" onClick={onRestart}>{examDay?<TimerReset/>:<RotateCcw/>} {examDay?"Continue exam day":"Build another block"}</button><Link className="btn btn-brand" href="/app/analytics">View analytics <ArrowRight/></Link></footer>
   </main>;
 }
 

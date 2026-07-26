@@ -22,7 +22,7 @@ test.describe("enterprise product contracts", () => {
       window.sessionStorage.clear();
     });
 
-    for (const route of ["/app", "/app/session", "/admin/questions"]) {
+    for (const route of ["/app", "/app/exam-day", "/app/session", "/admin/questions"]) {
       const response = await page.goto(route, { waitUntil: "domcontentloaded" });
       expect(response?.status()).toBe(200);
       await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
@@ -36,16 +36,27 @@ test.describe("enterprise product contracts", () => {
     await page.addInitScript(() => window.localStorage.clear());
     await page.goto("/admin/questions", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
-    await page.getByRole("button", { name: /^Edit / }).first().click();
-    await expect(page.locator(".governance-readiness")).toBeVisible();
+    await expect(page.locator(".workspace-trustline")).toContainText("Local state saved", { timeout: 15_000 });
+    const editButton = page.getByRole("button", { name: /^Edit / }).first();
+    await expect(editButton).toBeEnabled();
+    await editButton.click();
+    await expect(page.locator(".governance-readiness")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByLabel("Delivery boundary")).toHaveValue("Demo");
     await expect(page.locator(".governance-readiness")).toContainText("isolated from production learner delivery");
     await expect(page.getByRole("button", { name: "Publish demo" })).toBeVisible();
+
+    await page.getByLabel("Item format").selectOption("Chart / tabular");
+    await expect(page.getByText("Patient chart structure")).toBeVisible();
+    await page.getByRole("button", { name: "Add section" }).click();
+    await expect(page.locator(".chart-row-editor")).toHaveCount(1);
+    await expect(page.locator(".editor-format-preview.chart")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Publish demo" })).toBeDisabled();
   });
 
   test("signup intent reaches onboarding and initializes the learner workspace", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440");
     await page.goto("/signup", { waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("stepwise-qbank-state-v8")), { timeout: 15_000 }).not.toBeNull();
     await page.getByLabel("Full name").fill("Jordan Lee");
     await page.getByLabel("Email address").fill("jordan@example.com");
     await page.getByRole("textbox", { name: "Password" }).fill("secure-demo-password");
@@ -64,6 +75,11 @@ test.describe("enterprise product contracts", () => {
     await expect(page).toHaveURL(/\/app$/);
     await expect(page.locator(".workspace-trustline")).toContainText("Step 1 study workspace");
     await expect(page.locator(".profile-button")).toContainText("Jordan Lee");
+    await expect(page.getByText("Learner workspace · Step 1", { exact: true })).toBeVisible();
+
+    await page.goto("/app/qbank", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.locator(".large-choice-grid > button[aria-pressed='true']")).toContainText("USMLE Step 1");
   });
 
   test("production responses include baseline security headers", async ({ request }, testInfo) => {

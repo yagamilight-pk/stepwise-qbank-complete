@@ -281,3 +281,62 @@ The cached offline dependency audit reported zero findings. The live npm advisor
 ### Remaining verification boundary
 
 The embedded in-app browser was unavailable after the documented connection and discovery retry. Repository-local production Google Chrome verification is complete. Manual 200%/400% zoom, full keyboard-only traversal, NVDA, VoiceOver, iOS Safari, Android Chrome, live Core Web Vitals, production providers, named clinical review, licensed content, and immutable audit logging remain external gates.
+
+## July 26, 2026 - Exam Command Deck and advanced-item completion
+
+### Implemented and protected
+
+- Added `/app/exam-day` with current date-aware Step 1 and Step 2 CK day structures.
+- Added full-day and three-block presets, optional tutorial orientation, break reserve, unused tutorial/block time credit, automatic between-block debit, persistent recovery, block ledger, and final debrief.
+- Made exam-day block closure irreversible and concealed answers, scores, and explanations until the run is complete.
+- Added ordered sequential-set delivery with response locking after submission.
+- Added dedicated patient-chart, scientific-abstract, sequential-set, and audio/video transcript authoring controls with live previews and strict publish validation.
+- Added deferred search, memoized filtering, and incremental disclosure to high-volume learner, library, and admin explorers.
+- Expanded browser contracts to execute every advanced stimulus renderer and the complete tutorial-to-block-to-break lifecycle.
+
+### Final automated verification
+
+```text
+npm.cmd run verify:source  -> 74/74 passed
+npm.cmd run lint           -> zero findings
+npm.cmd run typecheck      -> passed
+npm.cmd run build          -> 43/43 static outputs
+node scripts/run-visual-capture.mjs
+                           -> 81 passed
+                           -> 60 intentionally skipped
+                           -> 0 browser console errors
+                           -> 0 uncaught page errors
+```
+
+The production Chrome run contains 68 desktop, tablet, phone, and dark-theme captures. The new exam-day surface was visually inspected at 1440px and 390px. The remaining gates are external: production identity/content services, a licensed and medically reviewed bank, immutable audit history, live observability, manual zoom/assistive-technology review, and real iOS/Android device certification.
+
+## July 26, 2026 - Live-site convergence and selected-exam continuity
+
+### Implemented
+
+- Retained the premium indigo/navy clinical-instrument direction instead of copying the flatter deployed teal surface.
+- Reworked public positioning around USMLE Step 1, Step 2 CK, the five-question reasoning sample, and the Exam Command Deck.
+- Added a responsive exam-delivery rail showing the current 14-block Step 1 and 16-block Step 2 CK structures, block length, item ceiling, exam-day duration, and exam-specific practice signals.
+- Replaced developer-facing and misleading public copy with truthful preview, local-persistence, and production-service boundaries.
+- Added guided-trial Reasoning Trace discovery and renamed account actions so they do not claim to save an in-progress sample.
+- Propagated the onboarding-selected exam through dashboard evidence, QBank initialization/reset behavior, and new flashcard tags.
+- Added pressed-state semantics to exam and session-mode choices.
+- Extended the onboarding product contract to prove a Step 1 profile reaches a Step 1 dashboard and Step 1-selected QBank after hydration.
+
+### Verification
+
+```text
+npm.cmd run audit
+                           -> source 74/74
+                           -> ESLint zero findings
+                           -> TypeScript passed
+                           -> production build 43/43 static outputs
+node scripts/run-visual-capture.mjs
+                           -> full matrix 81 passed
+                           -> 60 intentionally skipped
+                           -> 0 browser console errors
+                           -> 0 uncaught page errors
+targeted convergence rerun -> 4 passed, 2 intentional project skips
+```
+
+The refreshed marketing surface was visually inspected at 1440px and 390px, and the guided trial at 1440px. The selected-exam regression contract passed in production Chrome.

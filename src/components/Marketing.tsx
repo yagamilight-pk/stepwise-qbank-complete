@@ -4,18 +4,42 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import {
   ArrowRight, BarChart3, BookOpenCheck, BrainCircuit, Check, ChevronDown, Command,
-  FileText, Layers3, Menu, MessageSquareText, ShieldCheck, Sparkles, Target, X, Zap
+  FileText, Layers3, Menu, MessageSquareText, MonitorPlay, ShieldCheck, Sparkles,
+  Target, TimerReset, X, Zap
 } from "lucide-react";
 import { Donut, Logo, Progress, Sparkline } from "./ui";
 import { ReasoningTrace } from "./ReasoningTrace";
 
 const faqs = [
   ["Is Stepwise affiliated with the USMLE program?", "No. Stepwise is an independent learning interface concept. USMLE is a jointly sponsored program of the Federation of State Medical Boards and the National Board of Medical Examiners."],
-  ["Can I switch between Step 1 and Step 2 CK?", "Yes. Your workspace, analytics, study plan, question filters, notes, and flashcards can all be scoped to either exam."],
-  ["How does adaptive mode work?", "The demo algorithm prioritizes unseen items, weak systems, recent overconfidence errors, stale knowledge, and an appropriate difficulty challenge."],
-  ["Does this repository include a backend?", "This deliverable is the requested frontend. It uses typed local persistence so every workflow is interactive without external services. Production authentication, billing, APIs, and protected medical content require a backend."],
-  ["Can the UI be deployed to Vercel?", "Yes. It is a standard Next.js App Router project and includes build, start, lint, and development scripts."],
+  ["Which exams does this preview support?", "The learner workspace, question filters, analytics, study plan, notes, flashcards, and exam-day rehearsal can be scoped to USMLE Step 1 or Step 2 CK."],
+  ["What happens after I miss a question?", "Stepwise shows the option-level context, classifies the reasoning pattern behind the miss, and turns the correction into a focused next block, note, or recall card."],
+  ["How does adaptive mode choose questions?", "The explainable preview model prioritizes unseen items, weak systems, recent overconfidence errors, stale knowledge, and an appropriate difficulty challenge."],
+  ["Where is my progress stored in this preview?", "This frontend preview saves activity in the current browser so every workflow stays interactive. Secure account sync, production billing, APIs, and protected medical content still require production services."],
 ];
+
+const examSpecs = [
+  {
+    step: "Step 1",
+    descriptor: "Foundational mechanisms",
+    blocks: 14,
+    blockMinutes: 30,
+    itemLimit: 20,
+    dayHours: 8,
+    focus: "Pathophysiology, mechanisms, pharmacology, microbiology, and integrated foundational science.",
+    signals: ["Mechanism-first explanations", "System and discipline analytics", "Pass/fail-safe readiness language"]
+  },
+  {
+    step: "Step 2 CK",
+    descriptor: "Clinical decisions",
+    blocks: 16,
+    blockMinutes: 30,
+    itemLimit: 20,
+    dayHours: 9,
+    focus: "Diagnosis, management, prevention, emergency care, and patient-centered clinical decision making.",
+    signals: ["Next-best-step reasoning", "Management sequence diagnostics", "Pacing and confidence calibration"]
+  }
+] as const;
 
 const features = [
   { icon: <BrainCircuit/>, title: "Adaptive intelligence", body: "Blocks evolve with your weaknesses, confidence calibration, recency, and difficulty fit—not a generic shuffle.", className: "feature-large feature-purple" },
@@ -36,22 +60,22 @@ export function MarketingPage() {
 
   return (
     <main className="marketing-page">
-      <div className="announcement">3-day interactive trial · Up to 100 questions · No card required <span>Try five questions now <ArrowRight size={14}/></span></div>
+      <div className="announcement"><span className="announcement-copy">Current 2026 test-delivery structure · Step 1 + Step 2 CK</span><Link href="/try">Try 5 questions <ArrowRight size={14}/></Link></div>
       <header className="marketing-nav shell-width">
         <Logo />
         <nav id={mobileNavId} aria-label="Primary navigation" className={mobileOpen ? "marketing-links is-open" : "marketing-links"}>
-          <a href="#product" onClick={()=>setMobileOpen(false)}>Product</a><a href="#workflow" onClick={()=>setMobileOpen(false)}>How it works</a><Link href="/try" onClick={()=>setMobileOpen(false)}>Try it</Link><a href="#pricing" onClick={()=>setMobileOpen(false)}>Pricing</a><a href="#faq" onClick={()=>setMobileOpen(false)}>FAQ</a>
+          <a href="#exams" onClick={()=>setMobileOpen(false)}>Exams</a><a href="#reasoning" onClick={()=>setMobileOpen(false)}>Reasoning trace</a><a href="#product" onClick={()=>setMobileOpen(false)}>Product</a><a href="#pricing" onClick={()=>setMobileOpen(false)}>Pricing</a><a href="#faq" onClick={()=>setMobileOpen(false)}>FAQ</a>
         </nav>
-        <div className="marketing-actions"><Link className="btn btn-ghost" href="/login">Sign in</Link><Link className="btn btn-dark" href="/signup">Start free <ArrowRight size={16}/></Link></div>
+        <div className="marketing-actions"><Link className="btn btn-ghost" href="/login">Sign in</Link><Link className="btn btn-dark" href="/signup">Start preview <ArrowRight size={16}/></Link></div>
         <button className="mobile-menu" onClick={() => setMobileOpen((value) => !value)} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls={mobileNavId}>{mobileOpen ? <X/> : <Menu/>}</button>
       </header>
 
       <section className="hero shell-width">
         <div className="hero-copy">
-          <div className="pill"><Sparkles size={14}/> An adaptive operating system for exam prep</div>
-          <h1>See why you miss questions.<br/><em>Know what to do next.</em></h1>
-          <p>Stepwise connects exam-style practice to reasoning diagnostics, focused review blocks, and spaced repetition—so every miss becomes a specific correction.</p>
-          <div className="hero-actions"><Link className="btn btn-brand btn-lg" href="/try">Try five questions <ArrowRight size={18}/></Link><Link className="btn btn-secondary btn-lg" href="/app">Explore full workspace</Link></div>
+          <div className="pill"><Sparkles size={14}/> USMLE Step 1 · Step 2 CK · Exam-day rehearsal</div>
+          <h1>See why you miss USMLE questions.<br/><em>Know what to train next.</em></h1>
+          <p>Stepwise connects exam-faithful question blocks to option-level reasoning diagnostics, focused review, and spaced repetition—so every miss becomes a specific correction.</p>
+          <div className="hero-actions"><Link className="btn btn-brand btn-lg" href="/try">Try 5 questions <ArrowRight size={18}/></Link><Link className="btn btn-secondary btn-lg" href="/app/qbank">Explore the QBank</Link></div>
           <div className="hero-proof"><div className="avatar-stack" aria-hidden="true"><span>WHY</span><span>MISS</span><span>NEXT</span></div><div><b>Reasoning Trace</b><small>Cue → hypothesis → decision → correction → review</small></div></div>
         </div>
         <div className="hero-product" aria-label="Stepwise product preview">
@@ -76,9 +100,37 @@ export function MarketingPage() {
         </div>
       </section>
 
-      <section className="trust-strip shell-width"><span>One connected workspace for</span><div><b>STEP 1</b><i/> <b>STEP 2 CK</b><i/> <b>QBank</b><i/> <b>Analytics</b><i/> <b>Spaced repetition</b></div></section>
+      <section className="trust-strip shell-width"><span>One connected preparation system</span><div><b>STEP 1</b><i/> <b>STEP 2 CK</b><i/> <b>EXAM-DAY REHEARSAL</b><i/> <b>REASONING DIAGNOSTICS</b></div></section>
 
-      <section className="section shell-width marketing-trace" aria-labelledby="reasoning-trace-preview">
+      <section id="exams" className="section shell-width exam-pathways" aria-labelledby="exam-pathways-title">
+        <div className="section-heading">
+          <div className="eyebrow">Built around the exam you will take</div>
+          <h2 id="exam-pathways-title">Two USMLE pathways.<br/>One deliberate practice system.</h2>
+          <p>Choose the exam once. Stepwise carries that context through block construction, performance analysis, planning, recall, and testing-day rehearsal.</p>
+        </div>
+        <div className="exam-pathway-grid">
+          {examSpecs.map((exam) => <article key={exam.step} className="exam-pathway-card">
+            <header><div><span>{exam.step === "Step 1" ? "S1" : "S2"}</span><div><small>USMLE</small><h3>{exam.step}</h3></div></div><b>{exam.descriptor}</b></header>
+            <p>{exam.focus}</p>
+            <ul className="exam-focus-list">{exam.signals.map((signal) => <li key={signal}><Check/>{signal}</li>)}</ul>
+            <div className="exam-delivery-rail">
+              <div className="exam-rail-label"><span>Current delivery structure</span><b>{exam.blocks} blocks</b></div>
+              <div className="exam-block-rail" aria-label={`${exam.blocks} blocks, ${exam.blockMinutes} minutes each`}>
+                {Array.from({ length: exam.blocks }, (_, index) => <i key={index}/>)}
+              </div>
+            </div>
+            <dl><div><dt>Block</dt><dd>{exam.blockMinutes} min</dd></div><div><dt>Items</dt><dd>up to {exam.itemLimit}</dd></div><div><dt>Exam day</dt><dd>{exam.dayHours} hr</dd></div></dl>
+          </article>)}
+          <aside className="exam-command-brief">
+            <div className="exam-command-icon"><MonitorPlay/></div>
+            <div><span className="eyebrow">Exam Command Deck</span><h3>Rehearse the operating conditions.</h3><p>Train the actions that disappear from ordinary practice blocks: orientation, irreversible block closure, break allocation, pacing, and recovery after a refresh.</p></div>
+            <ul><li><TimerReset/> Three-block or full-day run</li><li><ShieldCheck/> Resume-safe phase recovery</li><li><BrainCircuit/> No answer feedback before block close</li></ul>
+            <Link className="btn btn-white" href="/app/exam-day">Open exam-day rehearsal <ArrowRight/></Link>
+          </aside>
+        </div>
+      </section>
+
+      <section id="reasoning" className="section shell-width marketing-trace" aria-labelledby="reasoning-trace-preview">
         <div className="section-heading">
           <div className="eyebrow">The Stepwise difference</div>
           <h2 id="reasoning-trace-preview">Make the reasoning visible.</h2>
@@ -140,7 +192,7 @@ export function MarketingPage() {
       <section className="testimonial-section" aria-labelledby="learner-outcome-title"><div className="shell-width"><div className="quote-mark" aria-hidden="true">“</div><p className="eyebrow">Product principle</p><blockquote id="learner-outcome-title">A missed question should become an understandable correction and a concrete next study action.</blockquote><div className="quote-person"><span aria-hidden="true">RT</span><div><b>The Stepwise Reasoning Trace</b><small>Product direction, not a learner testimonial</small></div></div></div></section>
 
       <section id="pricing" className="section shell-width pricing-section">
-        <div className="section-heading centered"><div className="eyebrow">Pricing preview</div><h2>A plan for every phase.</h2><p id={billingLabelId}>These illustrative prices do not initiate checkout. Production billing and final commercial terms are not connected yet.</p></div>
+        <div className="section-heading centered"><div className="eyebrow">Access preview</div><h2>A plan for every phase of preparation.</h2><p id={billingLabelId}>These illustrative prices do not initiate checkout. Production billing and final commercial terms are not connected yet.</p></div>
         <div className="billing-toggle" role="group" aria-labelledby={billingLabelId}><button type="button" className={billing === "monthly" ? "active" : ""} aria-pressed={billing === "monthly"} onClick={() => setBilling("monthly")}>Monthly</button><button type="button" className={billing === "annual" ? "active" : ""} aria-pressed={billing === "annual"} onClick={() => setBilling("annual")}>Annual <span>Save about 25%</span></button></div>
         <div className="pricing-grid">
           <article><div><span className="plan-icon"><BookOpenCheck/></span><h3>Core</h3><p>Focused QBank practice and essential analytics.</p></div><div className="price"><b>${billing === "annual" ? 29 : 39}</b><span>/ month</span></div>{billing === "annual" && <small>$348 billed annually in this pricing preview</small>}<Link className="btn btn-secondary btn-block" href="/signup">Explore Core</Link><ul>{["Step 1 or Step 2 CK QBank","Tutor and timed modes","System analytics","Notes and bookmarks"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
@@ -151,7 +203,7 @@ export function MarketingPage() {
 
       <section id="faq" className="section shell-width faq-section"><div className="faq-intro"><div className="eyebrow">Questions, answered</div><h2>Before you start.</h2><p>Everything important about the demo, the learning model, and production integration.</p><div className="faq-help"><MessageSquareText/><div><b>Still exploring?</b><span>Questions or licensing? Email hello@stepwise.page</span></div></div></div><div className="faq-list">{faqs.map(([question,answer],index)=>{const questionId = `${faqId}-question-${index}`; const panelId = `${faqId}-panel-${index}`; const isOpen = openFaq === index; return <article key={question} className={isOpen ? "open" : ""}><h3 style={{margin:0,font:"inherit"}}><button type="button" id={questionId} aria-expanded={isOpen} aria-controls={panelId} onClick={()=>setOpenFaq(isOpen?-1:index)}><span>{question}</span><ChevronDown aria-hidden="true"/></button></h3><div id={panelId} role="region" aria-labelledby={questionId} hidden={!isOpen}><p>{answer}</p></div></article>})}</div></section>
 
-      <section className="final-cta shell-width"><div className="cta-orbit cta-orbit-one"/><div className="cta-orbit cta-orbit-two"/><div className="pill"><Zap size={14}/> Your next block is waiting</div><h2>Make every question<br/>move you forward.</h2><p>Start with a fully interactive workspace and see how the complete study loop fits together.</p><div><Link className="btn btn-white btn-lg" href="/try">Try five questions <ArrowRight size={18}/></Link><Link className="btn btn-glass btn-lg" href="/app">Open full workspace</Link></div></section>
+      <section className="final-cta shell-width"><div className="cta-orbit cta-orbit-one"/><div className="cta-orbit cta-orbit-two"/><div className="pill"><Zap size={14}/> Your next block is waiting</div><h2>Make every USMLE question<br/>move you forward.</h2><p>Start with a five-question reasoning sample, then explore the complete Step 1 and Step 2 CK preparation workspace.</p><div><Link className="btn btn-white btn-lg" href="/try">Try 5 questions <ArrowRight size={18}/></Link><Link className="btn btn-glass btn-lg" href="/app">Open full workspace</Link></div></section>
 
       <footer className="marketing-footer"><div className="shell-width"><div className="footer-top"><div><Logo inverse/><p>An adaptive QBank experience for focused medical exam preparation.</p></div><div className="footer-links"><div><b>Product</b><a href="#product">Features</a><a href="#workflow">How it works</a><Link href="/try">Question demo</Link><Link href="/app">Learner workspace</Link></div><div><b>Workspace</b><Link href="/app/qbank">QBank</Link><Link href="/app/analytics">Analytics</Link><Link href="/app/study-plan">Study plan</Link><Link href="/app/flashcards">Flashcards</Link></div><div><b>Legal</b><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/cookies">Cookies</Link><Link href="/accessibility">Accessibility</Link></div><div><b>Contact</b><a href="mailto:support@stepwise.page">support@stepwise.page</a><a href="mailto:hello@stepwise.page">hello@stepwise.page</a><a href="mailto:billing@stepwise.page">billing@stepwise.page</a></div></div></div><div className="footer-bottom"><span>© 2026 Stepwise. All rights reserved.</span><span>Not affiliated with or endorsed by USMLE, NBME, or FSMB. Security: admin@stepwise.page</span></div></div></footer>
     </main>

@@ -1,6 +1,6 @@
 # Stepwise — Complete USMLE QBank Frontend
 
-Stepwise is a frontend-complete, responsive Next.js experience for USMLE Step 1 and Step 2 CK preparation. It includes a public product website, a guided five-question trial, account and onboarding demonstrations, a learner workspace, full-screen question sessions, an original medical library, analytics, study planning, working spaced-repetition flashcards, a private study circle, an administrative console, and a partner portal.
+Stepwise is a frontend-complete, responsive Next.js experience for USMLE Step 1 and Step 2 CK preparation. It includes a USMLE-first public product website with current delivery-structure previews, a guided five-question trial, account and onboarding demonstrations, a learner workspace, full-screen question sessions, an Exam Command Deck, an original medical library, analytics, study planning, working spaced-repetition flashcards, a private study circle, an administrative console, and a partner portal.
 
 The repository is intentionally usable without a backend: versioned typed demo state is persisted in `localStorage`, while crash-safe active question blocks use `sessionStorage`. Every workflow that can be completed honestly in frontend code is interactive. Production authentication, payments, payouts, protected medical content, cross-device state, and real cohort analytics still require server-side services.
 
@@ -44,6 +44,7 @@ npm run security:audit
 - `/login`, `/signup`, `/onboarding` — account flow
 - `/app` — learner overview
 - `/app/qbank` — block builder and question inventory
+- `/app/exam-day` — full-day and three-block testing-day rehearsal
 - `/app/session` — dedicated question workspace
 - `/app/analytics` — performance, calibration, pacing, and cohort context
 - `/app/study-plan` — generated timeline and calendar
@@ -79,6 +80,8 @@ npm run security:audit
 - Crash-safe block recovery for answers, confidence, eliminations, position, question timing, and total elapsed time
 - Reconciled answer edits, explicit early completion, unanswered-item accounting, and full-block score denominator
 - Chart/tabular records, scientific abstracts, audio/video evidence, and sequential-set stimulus rendering
+- Exam Command Deck with current tutorial and break allowances, block ledger, automatic time credit/debit, restart recovery, irreversible closure, and completed-run debrief
+- Authored sequential-set ordering and response locking after submission
 - Answer distribution rendered only after submission as a subtle background fill inside options
 - Session summaries, correction review, pacing, calibration, and block signals
 - Honest empty states: systems with no history display `Not started` rather than fabricated performance
@@ -115,6 +118,7 @@ The library uses high-density medical-reference workflow conventions, but it doe
 - Operations dashboard
 - Question CRUD, preview, duplication, status workflow, publishing, deletion, and export
 - Structural import validation and visible demo/production publish gates
+- Dedicated patient-chart, scientific-abstract, sequential-set, and media/transcript authoring controls with live student preview
 - Evidence, provenance, rights, medical-review, approval, version, competency, and physician-task metadata
 - Learner search and access controls
 - Blueprint coverage and content recommendations
@@ -142,6 +146,7 @@ The connected algorithms live in `src/lib/algorithms.ts`, `src/lib/session.ts`, 
 - Readiness and simulated cohort benchmarks
 - Local-timezone-safe dynamic study-plan generation through the complete exam horizon
 - Active-session draft validation, recovery, final-result reconciliation, and total-item scoring
+- Persistent exam-day phase, block, tutorial, break-reserve, closure, and recovery orchestration
 - Content completeness, format, evidence, rights, medical-review, and approval gates
 - Spaced-repetition scheduling, urgency queue, and retention forecast
 - Medical-library relevance and study-priority ranking
@@ -179,14 +184,14 @@ npm run audit
 
 On July 26, 2026:
 
-- Source audit passed 64/64 checks
+- Source audit passed 74/74 checks
 - ESLint passed with zero findings
 - TypeScript passed
-- The production build generated 42/42 static outputs
+- The production build generated 43/43 static outputs
 - Representative production-server routes returned the expected 200 responses and the unknown route returned 404
-- The production Google Chrome suite passed 76 cases with zero browser runtime errors
-- Visual evidence includes 65 light/dark route/viewport captures
-- Browser contracts passed for current Step 2 CK behavior, Exam feedback timing, answer review, crash recovery, answer reconciliation, unanswered scoring, onboarding continuity, governance boundaries, security headers, landmark structure, responsive overflow, and compact-screen session tools
+- The production Google Chrome suite passed 81 cases with zero browser runtime errors
+- Visual evidence includes 68 light/dark route/viewport captures
+- Browser contracts passed for the current Step 2 CK structure, exam-day phase and break orchestration, irreversible closure, all advanced stimulus renderers, Exam feedback timing, answer review, crash recovery, answer reconciliation, unanswered scoring, onboarding continuity, governance boundaries, security headers, landmark structure, responsive overflow, and compact-screen session tools
 - The cached offline dependency audit reported zero findings; a current live advisory refresh is not claimed
 
 The embedded in-app browser surface was unavailable, but desktop/tablet/mobile production screenshots were captured and visually reviewed through the repository-local Chrome suite. Manual zoom, physical keyboard traversal, screen readers, and real iOS/Android browsers remain explicit handoff checks rather than claimed results.

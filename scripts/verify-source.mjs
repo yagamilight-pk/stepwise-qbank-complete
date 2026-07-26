@@ -13,6 +13,7 @@ const requiredFiles = [
   "src/components/Demo.tsx",
   "src/components/MedicalLibrary.tsx",
   "src/components/Session.tsx",
+  "src/components/ExamDay.tsx",
   "src/components/Admin.tsx",
   "src/components/Influencer.tsx",
   "src/components/ReasoningTrace.tsx",
@@ -20,11 +21,13 @@ const requiredFiles = [
   "src/lib/content-governance.ts",
   "src/lib/library.ts",
   "src/lib/session.ts",
+  "src/lib/exam-day.ts",
   "src/lib/store.tsx",
   "src/app/globals.css",
   "src/app/design-system.css",
   "src/app/(marketing)/try/page.tsx",
   "src/app/(learner)/app/session/page.tsx",
+  "src/app/(learner)/app/exam-day/page.tsx",
   "src/app/(admin)/admin/page.tsx",
   "src/app/(influencer)/influencer/page.tsx"
 ];
@@ -37,6 +40,10 @@ const demo = read("src/components/Demo.tsx");
 const algorithms = read("src/lib/algorithms.ts");
 const governance = read("src/lib/content-governance.ts");
 const sessionDomain = read("src/lib/session.ts");
+const examDay = read("src/lib/exam-day.ts");
+const examDayComponent = read("src/components/ExamDay.tsx");
+const admin = read("src/components/Admin.tsx");
+const usmle = read("src/lib/usmle.ts");
 const css = `${read("src/app/globals.css")}\n${read("src/app/design-system.css")}`;
 const shells = read("src/components/Shells.tsx");
 const marketing = read("src/components/Marketing.tsx");
@@ -48,6 +55,7 @@ const componentFiles = ["Admin.tsx","Auth.tsx","Demo.tsx","Influencer.tsx","Lear
 const allComponents = componentFiles.map((file) => read(`src/components/${file}`)).join("\n");
 
 requireCheck("medical library route", shells.includes('href: "/app/library"'));
+requireCheck("exam day route", shells.includes('href: "/app/exam-day"') && examDayComponent.includes("Exam Command Deck"));
 requireCheck("guided trial route", tryRoute.includes("<DemoPage") && marketing.includes('href="/try"'));
 requireCheck("full-screen session route", sessionRoute.includes("<LearnerShell") && shells.includes('if (section === "session") return <LearnerPage section="session"/>'));
 requireCheck("explicit App Router routes", !existsSync(resolve(root, "src/app/[[...slug]]/page.tsx")));
@@ -69,10 +77,16 @@ requireCheck("study plan algorithm", algorithms.includes("export function genera
 requireCheck("full horizon study plan", algorithms.includes("maxCalendarDays = 366") && learner.includes("timelineLimit"));
 requireCheck("local timezone date keys", algorithms.includes("export const localDateKey"));
 requireCheck("crash safe session draft", sessionDomain.includes("writeSessionDraft") && session.includes("Block restored"));
+requireCheck("persistent exam day orchestration", examDay.includes("writeExamDayRun") && examDay.includes("completeExamBlock") && examDay.includes("settleExamBreak"));
+requireCheck("current 2026 break and tutorial profile", usmle.includes("modernSoftware ? 55 : 45") && usmle.includes("modernSoftware ? 5 : 15"));
+requireCheck("exam block closure conceals review", session.includes("Performance and explanations stay concealed") && examDay.includes('status: complete ? "Complete" : "On break"'));
+requireCheck("sequential sets lock and arrange", sessionDomain.includes("arrangeQuestionsForSession") && session.includes("lockedSequential"));
 requireCheck("total item scoring", sessionDomain.includes("correct / boundedTotal") && session.includes("unanswered item"));
 requireCheck("content publish governance", governance.includes("validateQuestionGovernance") && governance.includes("medical-review"));
 requireCheck("demo production boundary", governance.includes("Demo content is not cleared for production"));
 requireCheck("multi format clinical stimuli", session.includes("QuestionStimulus") && session.includes('format==="Scientific abstract"'));
+requireCheck("structured multi format authoring", admin.includes("FormatAuthoringFields") && admin.includes("Patient chart structure") && admin.includes("Scientific abstract") && admin.includes("Accessible transcript"));
+requireCheck("production scale deferred filtering", admin.includes("useDeferredValue") && learner.includes("useDeferredValue") && medicalLibrary.includes("useDeferredValue"));
 requireCheck("period comparison algorithm", algorithms.includes("export function performanceWindow"));
 requireCheck("streak algorithm", algorithms.includes("export function studyStreak"));
 requireCheck("library ranking algorithm", algorithms.includes("export function rankLibraryArticles"));

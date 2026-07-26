@@ -204,6 +204,10 @@ export interface SessionConfig {
   include: "All" | "Unused" | "Incorrect" | "Flagged" | "Bookmarked";
   timePerQuestionSec: number;
   questionIds?: string[];
+  examRunId?: string;
+  examBlockIndex?: number;
+  examBlockCount?: number;
+  examDay?: boolean;
 }
 
 export interface SessionRecord {
