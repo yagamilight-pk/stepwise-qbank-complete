@@ -28,6 +28,53 @@ export interface SessionDraft {
   savedAt: string;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function isStringRecord(value: unknown) {
+  return isRecord(value) && Object.values(value).every((item) => typeof item === "string");
+}
+
+function isConfidenceRecord(value: unknown) {
+  return isRecord(value) && Object.values(value).every(
+    (item) => Number.isInteger(item) && Number(item) >= 1 && Number(item) <= 5
+  );
+}
+
+function isStringArrayRecord(value: unknown) {
+  return isRecord(value) && Object.values(value).every(
+    (item) => Array.isArray(item) && item.every((entry) => typeof entry === "string")
+  );
+}
+
+function isNumberRecord(value: unknown) {
+  return isRecord(value) && Object.values(value).every((item) => Number.isFinite(item));
+}
+
+export function isSessionConfig(value: unknown): value is SessionConfig {
+  if (!isRecord(value)) return false;
+  return (value.step === "Step 1" || value.step === "Step 2 CK")
+    && ["Tutor", "Timed", "Exam", "Adaptive"].includes(String(value.mode))
+    && Number.isFinite(value.count)
+    && Number(value.count) > 0
+    && Array.isArray(value.systems)
+    && value.systems.every((item) => typeof item === "string")
+    && Array.isArray(value.disciplines)
+    && value.disciplines.every((item) => typeof item === "string")
+    && Array.isArray(value.difficulties)
+    && value.difficulties.every((item) => ["Easy", "Medium", "Hard"].includes(String(item)))
+    && ["All", "Unused", "Incorrect", "Flagged", "Bookmarked"].includes(String(value.include))
+    && Number.isFinite(value.timePerQuestionSec)
+    && Number(value.timePerQuestionSec) > 0
+    && (value.questionIds === undefined || (
+      Array.isArray(value.questionIds) && value.questionIds.every((item) => typeof item === "string")
+    ))
+    && (value.timeLimitSeconds === undefined || (
+      Number.isFinite(value.timeLimitSeconds) && Number(value.timeLimitSeconds) >= 0
+    ));
+}
+
 export function arrangeQuestionsForSession(questions: Question[]): Question[] {
   const emittedSets = new Set<string>();
   const arranged: Question[] = [];
@@ -94,17 +141,38 @@ export function buildSessionResults(
 }
 
 export function isSessionDraft(value: unknown): value is SessionDraft {
-  if (!value || typeof value !== "object") return false;
+  if (!isRecord(value)) return false;
   const candidate = value as Partial<SessionDraft>;
   return candidate.version === 1
     && typeof candidate.sessionId === "string"
-    && Boolean(candidate.config && typeof candidate.config === "object")
+    && isSessionConfig(candidate.config)
     && Array.isArray(candidate.questionIds)
-    && typeof candidate.selected === "object"
-    && typeof candidate.confidence === "object"
+    && candidate.questionIds.every((item) => typeof item === "string")
+    && Number.isInteger(candidate.index)
+    && Number(candidate.index) >= 0
+    && isStringRecord(candidate.selected)
+    && isConfidenceRecord(candidate.confidence)
     && Array.isArray(candidate.submitted)
+    && candidate.submitted.every((item) => typeof item === "string")
+    && (candidate.lockedSequential === undefined || (
+      Array.isArray(candidate.lockedSequential)
+      && candidate.lockedSequential.every((item) => typeof item === "string")
+    ))
+    && isStringArrayRecord(candidate.struck)
     && Array.isArray(candidate.results)
-    && Number.isFinite(candidate.elapsedSeconds);
+    && candidate.results.every((result) => Boolean(
+      result
+      && typeof result.questionId === "string"
+      && typeof result.selectedChoiceId === "string"
+      && typeof result.correct === "boolean"
+      && Number.isInteger(result.confidence)
+      && result.confidence >= 1
+      && result.confidence <= 5
+      && Number.isFinite(result.timeSec)
+    ))
+    && Number.isFinite(candidate.elapsedSeconds)
+    && isNumberRecord(candidate.elapsedByQuestion)
+    && typeof candidate.savedAt === "string";
 }
 
 export function readSessionDraft(storage: Storage): SessionDraft | null {

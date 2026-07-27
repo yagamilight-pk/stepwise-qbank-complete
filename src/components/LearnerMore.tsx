@@ -9,7 +9,7 @@ import {
   NotebookPen, Plus, RefreshCw, Search, Send, Settings, Shield,
   Sparkles, Star, Tag, Trash2, Trophy, TrendingUp, UserRound, Users
 } from "lucide-react";
-import { buildFlashcardReviewQueue, flashcardRetentionForecast, studyCircleEligibility } from "@/lib/algorithms";
+import { buildFlashcardReviewQueue, flashcardRetentionForecast, flashcardReviewIntervalLabel, studyCircleEligibility } from "@/lib/algorithms";
 import { useStepwise } from "@/lib/store";
 import { ACTIVE_SESSION_KEY, SESSION_CONFIG_KEY } from "@/lib/session";
 import type { Flashcard, Note, ReviewRating, SessionConfig } from "@/lib/types";
@@ -207,12 +207,9 @@ export function FlashcardsPage() {
 
   if (view === "review" && current) {
     const dueLabel = now !== null && new Date(current.dueAt).getTime() <= now ? "Due now" : `Scheduled ${formatDate(current.dueAt, { month: "short", day: "numeric" })}`;
-    const intervalPreview: Record<ReviewRating, string> = {
-      again: "10 min",
-      hard: `${Math.max(1, current.interval || 1)} day`,
-      good: `${current.repetitions < 2 ? 3 : Math.max(3, Math.round(current.interval * current.ease))} days`,
-      easy: `${Math.max(5, Math.round(Math.max(current.interval, 1) * current.ease * 1.3))} days`
-    };
+    const intervalPreview = Object.fromEntries(
+      ratingLabels.map(({ rating }) => [rating, flashcardReviewIntervalLabel(current, rating)])
+    ) as Record<ReviewRating, string>;
     return <div className="flashcard-review">
       <header className="flashcard-review-header">
         <button className="btn btn-secondary" onClick={() => setView("library")}><ArrowLeft size={16}/> End review</button>

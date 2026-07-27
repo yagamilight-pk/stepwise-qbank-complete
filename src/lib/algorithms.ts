@@ -85,7 +85,7 @@ export function selectQuestions(state: AppState, config: SessionConfig): Questio
   return ranked.slice(0, Math.min(config.count, ranked.length));
 }
 
-export function reviewFlashcard(card: Flashcard, rating: ReviewRating, now = new Date()): Flashcard {
+export function flashcardReviewSchedule(card: Flashcard, rating: ReviewRating) {
   let { interval, ease, repetitions, lapses } = card;
   if (rating === "again") {
     interval = 0;
@@ -105,16 +105,29 @@ export function reviewFlashcard(card: Flashcard, rating: ReviewRating, now = new
     ease = Math.min(3.1, ease + 0.15);
   }
 
-  const due = new Date(now);
-  if (rating === "again") due.setMinutes(due.getMinutes() + 10);
-  else due.setDate(due.getDate() + interval);
-
   return {
-    ...card,
     interval,
     ease: Number(ease.toFixed(2)),
     repetitions,
-    lapses,
+    lapses
+  };
+}
+
+export function flashcardReviewIntervalLabel(card: Flashcard, rating: ReviewRating) {
+  if (rating === "again") return "10 min";
+  const { interval } = flashcardReviewSchedule(card, rating);
+  return `${interval} day${interval === 1 ? "" : "s"}`;
+}
+
+export function reviewFlashcard(card: Flashcard, rating: ReviewRating, now = new Date()): Flashcard {
+  const schedule = flashcardReviewSchedule(card, rating);
+  const due = new Date(now);
+  if (rating === "again") due.setMinutes(due.getMinutes() + 10);
+  else due.setDate(due.getDate() + schedule.interval);
+
+  return {
+    ...card,
+    ...schedule,
     lastReviewedAt: now.toISOString(),
     dueAt: due.toISOString()
   };

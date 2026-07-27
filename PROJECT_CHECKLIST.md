@@ -1,6 +1,6 @@
 # Stepwise Frontend Completion Checklist
 
-Last updated: July 26, 2026
+Last updated: July 27, 2026
 
 This is the frontend handoff source of truth. Checked items are implemented in this repository; unchecked items require a real browser/device pass, production-scale evidence, or external services and governance.
 
@@ -43,14 +43,15 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] QBank builder, inventory, exact-question launch, and full-screen session
 - [x] Keyboard shortcuts, timer, navigator, strikeout, confidence, calculator, and lab tools
 - [x] Date-aware 2026 Step 1 and Step 2 CK block profiles, continuous Exam timing, answer review, and delayed feedback
-- [x] Crash-safe active-block recovery for answers, confidence, eliminations, position, and elapsed time
+- [x] Schema-validated active-block recovery for answers, confidence, eliminations, position, and elapsed time, with safe rejection of malformed drafts
 - [x] Answer reconciliation, early block completion, unanswered-item accounting, and full-block score denominator
-- [x] Persistent Exam Command Deck with tutorial, full/rehearsal block ledger, automatic break accounting, irreversible closure, recovery, and final debrief
+- [x] Persistent Exam Command Deck with tutorial wall-clock recovery/expiry, full/rehearsal block ledger, break-overrun testing-time penalties, irreversible closure, and final debrief
 - [x] Sequential sets arranged by authored order with response locking after submission
 - [x] Responsive session-tool access and working in-session display/accessibility controls
 - [x] Explanation, reasoning diagnosis, Reasoning Trace, notes, flashcards, and review
 - [x] Analytics, study plan, notebook, medical library, private study circle, and settings
 - [x] Local-timezone-safe activity keys and study-plan generation through the exam horizon
+- [x] Exact due-now flashcard counts and rating interval previews sourced from the scheduling algorithm
 - [x] Accessible tabs, charts, calendars, tables, filters, controls, and dynamic status
 - [x] Sample dates, cohort data, readiness heuristic, and response distributions disclosed
 
@@ -63,7 +64,7 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] Production review requirements named at point of use
 - [x] Simulated cohort, readiness-model, and non-predictive limitations shown in context
 - [x] Current official delivery assumptions and known alignment gaps documented in `USMLE_ALIGNMENT.md`
-- [x] Sequential-set, chart/tabular, scientific-abstract, and audio/video stimulus renderers
+- [x] Sequential-set, chart/tabular, scientific-abstract, audio/video, and imported question/explanation-image stimulus renderers
 - [x] Typed evidence, rights, reviewer, approval, version, competency, and physician-task records
 - [x] Admin import structural validation and explicit demo-versus-production publish gates
 - [x] Dedicated chart, scientific-abstract, sequential-set, and audio/video authoring controls with live preview
@@ -117,9 +118,9 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] Production-server HTTP smoke on 13 representative routes, including expected 404
 - [x] Architecture, design system, USMLE alignment, current status, and verification log are current
 - [x] README describes the delivered scope and production boundaries
-- [x] Production Chrome matrix: 81 passed, 60 intentionally skipped, zero runtime errors
+- [x] Production Chrome matrix: 84 passed, 66 intentionally skipped, zero runtime errors
 - [x] 68 desktop/tablet/mobile light/dark captures plus targeted visual inspection
-- [x] Exam-day lifecycle, advanced stimuli, session recovery, answer-edit, full-denominator scoring, onboarding-continuity, governance, landmark, overflow, and security-header contracts
+- [x] Exam-day lifecycle including tutorial persistence and break overrun, imported images, schema-safe session recovery, answer-edit, flashcard scheduling, full-denominator scoring, onboarding-continuity, governance, landmark, overflow, and security-header contracts
 - [x] Cached offline dependency audit: zero findings; live advisory refresh remains unverified
 - [ ] Manual pointer, keyboard, zoom, and assistive-technology walkthrough
 

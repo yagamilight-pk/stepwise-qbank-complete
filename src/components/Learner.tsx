@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 import {
   Activity, AlarmClock, ArrowRight, BarChart3, BookCheck, BookOpen, BrainCircuit,
   Calendar, CalendarDays, Check, ChevronRight, CircleAlert, Clock3, Compass, Flame,
@@ -45,6 +45,13 @@ function DashboardPage() {
   const { state, dispatch, rebuildPlan } = useStepwise();
   const [toast, setToast] = useState("");
   const [activityRange, setActivityRange] = useState<7 | 30>(7);
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const updateNow = () => setNow(Date.now());
+    updateNow();
+    const timer = window.setInterval(updateNow, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const todayKey = localDateKey(new Date());
   const activeStep = state.planSettings.targetStep;
   const stepQuestions = state.questions.filter(question=>question.step===activeStep);
@@ -58,7 +65,7 @@ function DashboardPage() {
   const todayTasks = state.studyTasks.filter(task=>task.date === todayKey);
   const completed = todayTasks.filter(task=>task.completed).length;
   const answeredToday = stepAttempts.filter(attempt=>localDateKey(new Date(attempt.createdAt))===todayKey).length;
-  const dueCards = state.flashcards.filter(card=>new Date(card.dueAt)<=new Date(`${todayKey}T23:59:59Z`)).length;
+  const dueCards = now === null ? 0 : state.flashcards.filter(card=>new Date(card.dueAt).getTime()<=now).length;
   const recentMisses = stepAttempts.filter(attempt=>!attempt.correct).length;
   const highestLeverage = performance[0];
   const hasPerformanceSignal = stepAttempts.length > 0;

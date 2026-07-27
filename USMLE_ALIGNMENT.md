@@ -38,7 +38,7 @@ Implemented behavior:
 - Keyboard choice movement, strikeout, flag, bookmark, timer display, contrast, large text, reduced motion, calculator, and searchable laboratory-value utilities work in the session surface.
 - Essential controls remain reachable on desktop, tablet, and phone; compact screens also expose all utilities through the session-tools hub.
 - The Exam Command Deck supports the current full-day block count or a three-block rehearsal.
-- The optional tutorial, starting break reserve, unused-tutorial credit, unused-block credit, automatic between-block break clock, and persistent phase recovery are modeled explicitly.
+- The optional tutorial uses a persisted wall clock and expires automatically; starting break reserve, unused-tutorial credit, unused-block credit, automatic between-block debit, and excess-break deductions from subsequent testing time are modeled explicitly.
 - Completed blocks are permanently closed; answers and explanations remain concealed during the run, with aggregate debrief unlocked only after the final block.
 
 ## Question-format alignment
@@ -51,6 +51,7 @@ The repository now has typed and responsive learner renderers for:
 - Chart/tabular patient records with flagged values
 - Structured scientific abstracts
 - Audio/video evidence with an accessible transcript surface
+- Imported clinical question images and explanation figures with alternative-text support
 - Sequential-set context and item-order metadata
 
 The editor validates required format-specific structures before local publication and provides dedicated chart-row, abstract-section, sequential-set, and media/transcript controls. Sequential items sharing a set ID are arranged by authored order, and submitted sequential responses lock against navigation and editing. Production media licensing and a clinically reviewed production item corpus remain external requirements.
@@ -71,6 +72,6 @@ The shared USMLE content outline is the correct blueprint source for future cont
 
 ## Automated contracts
 
-`tests/visual/exam-behavior.spec.ts` protects the current Step 2 CK profile, exam timer, no-feedback-before-block-end rule, editable-answer review, crash recovery, answer reconciliation, total-item scoring, all advanced stimulus renderers, the full exam-day phase transition, irreversible closure, automatic break accounting, responsive toolbar access, settings, and mobile utility access.
+`tests/visual/exam-behavior.spec.ts` protects the current Step 2 CK profile, exam timer, no-feedback-before-block-end rule, editable-answer review, schema-safe crash recovery, answer reconciliation, total-item scoring, imported image and advanced stimulus renderers, persisted tutorial expiry, break-overrun penalties, irreversible closure, responsive toolbar access, settings, and mobile utility access.
 
 `tests/visual/product-contracts.spec.ts` protects onboarding continuity, content-governance boundaries, baseline security headers, one-main landmark structure, and horizontal-overflow behavior.

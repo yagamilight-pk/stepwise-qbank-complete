@@ -340,3 +340,31 @@ targeted convergence rerun -> 4 passed, 2 intentional project skips
 ```
 
 The refreshed marketing surface was visually inspected at 1440px and 390px, and the guided trial at 1440px. The selected-exam regression contract passed in production Chrome.
+
+## July 27, 2026 - Review remediation and behavioral hardening
+
+### Implemented
+
+- Persisted the exam tutorial wall clock, added automatic tutorial expiry, and retained compatibility with existing saved runs.
+- Added explicit break-overrun accounting that deducts excess break time from subsequent exam blocks without re-crediting the penalty as unused block time.
+- Added responsive learner rendering for imported clinical question images and explanation figures with alternative-text support.
+- Replaced permissive session/config restoration checks with schema-aware validation and safe malformed-draft rejection.
+- Unified flashcard rating previews and persisted scheduling through one calculation path.
+- Changed the dashboard’s “ready now” count to compare against the current instant instead of a UTC end-of-day boundary.
+- Added production-browser regressions for each behavior above.
+
+### Verification
+
+```text
+npm.cmd run verify:source  -> 74/74 passed
+npm.cmd run lint           -> zero findings
+npm.cmd run typecheck      -> passed
+npm.cmd run build          -> 43/43 static outputs
+node scripts/run-visual-capture.mjs
+                           -> 84 passed
+                           -> 66 intentionally skipped
+                           -> 0 browser console errors
+                           -> 0 uncaught page errors
+```
+
+The new contracts cover persisted tutorial time and automatic expiry, break-overrun testing-time penalties, imported question/explanation images, malformed session drafts, exact due-now counts, and scheduler-matched rating previews. Production-service and manual assistive-technology boundaries remain unchanged.

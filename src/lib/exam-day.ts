@@ -18,6 +18,8 @@ export interface ExamDayBlock {
   correct: number;
   accuracy: number;
   breakSecondsEarned: number;
+  allottedSeconds?: number;
+  timePenaltySeconds?: number;
 }
 
 export interface ExamDayRun {
@@ -29,6 +31,7 @@ export interface ExamDayRun {
   status: ExamDayStatus;
   createdAt: string;
   updatedAt: string;
+  tutorialStartedAt?: string;
   tutorialCompletedAt?: string;
   tutorialSecondsUsed: number;
   blockMinutes: number;
@@ -37,6 +40,8 @@ export interface ExamDayRun {
   startingBreakSeconds: number;
   breakRemainingSeconds: number;
   breakStartedAt?: string;
+  pendingTestPenaltySeconds?: number;
+  totalBreakOverrunSeconds?: number;
   recycledDemoContent: boolean;
   blocks: ExamDayBlock[];
 }
@@ -75,12 +80,15 @@ export function createExamDayRun(
     status: "Tutorial",
     createdAt: now,
     updatedAt: now,
+    tutorialStartedAt: now,
     tutorialSecondsUsed: 0,
     blockMinutes: profile.blockMinutes,
     maxItemsPerBlock: profile.maxItemsPerBlock,
     officialBlockCount: profile.blocksPerExam,
     startingBreakSeconds: breakSeconds,
     breakRemainingSeconds: breakSeconds,
+    pendingTestPenaltySeconds: 0,
+    totalBreakOverrunSeconds: 0,
     recycledDemoContent: eligible.length < blockCount * profile.maxItemsPerBlock,
     blocks: Array.from({ length: blockCount }, (_, index) => ({
       index,
@@ -100,8 +108,41 @@ export function isExamDayRun(value: unknown): value is ExamDayRun {
   const candidate = value as Partial<ExamDayRun>;
   return candidate.version === 1
     && typeof candidate.id === "string"
+    && (candidate.step === "Step 1" || candidate.step === "Step 2 CK")
+    && typeof candidate.createdAt === "string"
+    && ["Tutorial", "Between blocks", "In block", "On break", "Complete"].includes(candidate.status ?? "")
     && Array.isArray(candidate.blocks)
-    && typeof candidate.breakRemainingSeconds === "number";
+    && candidate.blocks.every((block) => Boolean(
+      block
+      && typeof block === "object"
+      && typeof block.index === "number"
+      && ["Ready", "Active", "Complete"].includes(block.status)
+      && Array.isArray(block.questionIds)
+    ))
+    && Number.isFinite(candidate.breakRemainingSeconds);
+}
+
+function normalizeExamDayRun(run: ExamDayRun): ExamDayRun {
+  const blockSeconds = Math.max(0, run.blockMinutes * 60);
+  return {
+    ...run,
+    tutorialStartedAt: run.tutorialStartedAt ?? run.createdAt,
+    pendingTestPenaltySeconds: Number.isFinite(run.pendingTestPenaltySeconds)
+      ? Math.max(0, run.pendingTestPenaltySeconds ?? 0)
+      : 0,
+    totalBreakOverrunSeconds: Number.isFinite(run.totalBreakOverrunSeconds)
+      ? Math.max(0, run.totalBreakOverrunSeconds ?? 0)
+      : 0,
+    blocks: run.blocks.map((block) => ({
+      ...block,
+      allottedSeconds: Number.isFinite(block.allottedSeconds)
+        ? Math.max(0, block.allottedSeconds ?? blockSeconds)
+        : blockSeconds,
+      timePenaltySeconds: Number.isFinite(block.timePenaltySeconds)
+        ? Math.max(0, block.timePenaltySeconds ?? 0)
+        : 0
+    }))
+  };
 }
 
 export function readExamDayRun(storage: Storage): ExamDayRun | null {
@@ -109,7 +150,7 @@ export function readExamDayRun(storage: Storage): ExamDayRun | null {
     const raw = storage.getItem(EXAM_DAY_KEY);
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
-    return isExamDayRun(parsed) ? parsed : null;
+    return isExamDayRun(parsed) ? normalizeExamDayRun(parsed) : null;
   } catch {
     return null;
   }
@@ -145,12 +186,24 @@ export function completeTutorial(run: ExamDayRun, elapsedSeconds: number): ExamD
 }
 
 export function startExamBlock(run: ExamDayRun, blockIndex: number): ExamDayRun {
+  const blockSeconds = Math.max(0, run.blockMinutes * 60);
+  const pendingPenalty = Math.max(0, run.pendingTestPenaltySeconds ?? 0);
+  const appliedPenalty = Math.min(blockSeconds, pendingPenalty);
   const blocks = run.blocks.map((block) => block.index === blockIndex ? {
     ...block,
     status: "Active" as const,
-    startedAt: block.startedAt ?? new Date().toISOString()
+    startedAt: block.startedAt ?? new Date().toISOString(),
+    allottedSeconds: Math.max(0, blockSeconds - appliedPenalty),
+    timePenaltySeconds: appliedPenalty
   } : block);
-  return { ...run, status: "In block", blocks, breakStartedAt: undefined, updatedAt: new Date().toISOString() };
+  return {
+    ...run,
+    status: "In block",
+    blocks,
+    breakStartedAt: undefined,
+    pendingTestPenaltySeconds: Math.max(0, pendingPenalty - appliedPenalty),
+    updatedAt: new Date().toISOString()
+  };
 }
 
 export function completeExamBlock(
@@ -162,7 +215,9 @@ export function completeExamBlock(
 ): ExamDayRun {
   const completedAt = new Date();
   const elapsed = Math.max(0, Math.round(elapsedSeconds));
-  const earned = Math.max(0, run.blockMinutes * 60 - elapsed);
+  const targetBlock = run.blocks.find((block) => block.index === blockIndex);
+  const allottedSeconds = targetBlock?.allottedSeconds ?? run.blockMinutes * 60;
+  const earned = Math.max(0, allottedSeconds - elapsed);
   const blocks = run.blocks.map((block) => block.index === blockIndex ? {
     ...block,
     status: "Complete" as const,
@@ -193,10 +248,13 @@ export function settleExamBreak(run: ExamDayRun, now = Date.now()): ExamDayRun {
   if (!run.breakStartedAt) return run;
   const started = Date.parse(run.breakStartedAt);
   const elapsed = Number.isFinite(started) ? Math.max(0, Math.floor((now - started) / 1000)) : 0;
+  const overrun = Math.max(0, elapsed - run.breakRemainingSeconds);
   return {
     ...run,
     status: "Between blocks",
     breakRemainingSeconds: Math.max(0, run.breakRemainingSeconds - elapsed),
+    pendingTestPenaltySeconds: Math.max(0, run.pendingTestPenaltySeconds ?? 0) + overrun,
+    totalBreakOverrunSeconds: Math.max(0, run.totalBreakOverrunSeconds ?? 0) + overrun,
     breakStartedAt: undefined,
     updatedAt: new Date(now).toISOString()
   };
@@ -207,6 +265,13 @@ export function visibleBreakSeconds(run: ExamDayRun, now = Date.now()) {
   const started = Date.parse(run.breakStartedAt);
   const elapsed = Number.isFinite(started) ? Math.max(0, Math.floor((now - started) / 1000)) : 0;
   return Math.max(0, run.breakRemainingSeconds - elapsed);
+}
+
+export function visibleBreakOverrunSeconds(run: ExamDayRun, now = Date.now()) {
+  if (!run.breakStartedAt) return 0;
+  const started = Date.parse(run.breakStartedAt);
+  const elapsed = Number.isFinite(started) ? Math.max(0, Math.floor((now - started) / 1000)) : 0;
+  return Math.max(0, elapsed - run.breakRemainingSeconds);
 }
 
 export function examBlockConfig(run: ExamDayRun, block: ExamDayBlock): SessionConfig {
@@ -223,6 +288,7 @@ export function examBlockConfig(run: ExamDayRun, block: ExamDayBlock): SessionCo
     examRunId: run.id,
     examBlockIndex: block.index,
     examBlockCount: run.blocks.length,
-    examDay: true
+    examDay: true,
+    timeLimitSeconds: block.allottedSeconds ?? run.blockMinutes * 60
   };
 }

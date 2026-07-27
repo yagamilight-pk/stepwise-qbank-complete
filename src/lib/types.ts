@@ -208,6 +208,7 @@ export interface SessionConfig {
   examBlockIndex?: number;
   examBlockCount?: number;
   examDay?: boolean;
+  timeLimitSeconds?: number;
 }
 
 export interface SessionRecord {

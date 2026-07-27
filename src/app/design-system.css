@@ -924,6 +924,8 @@ td > small, td > b + small { color: var(--ink-soft); font-size: 12px; }
 .break-console p{color:var(--muted);line-height:1.6;margin:18px 0}
 .break-lock-note{display:flex;align-items:center;gap:9px;padding:11px;border-radius:10px;background:var(--surface-2);color:var(--brand)}
 .break-lock-note>span{display:grid;color:var(--text)}.break-lock-note small{color:var(--muted);font-size:8px}
+.break-overrun-note{display:flex;align-items:center;gap:9px;margin-top:14px;padding:11px;border:1px solid color-mix(in srgb,var(--correction) 35%,var(--rule));border-radius:10px;background:color-mix(in srgb,var(--correction) 8%,var(--surface));color:var(--correction)}
+.break-overrun-note>span{display:grid;color:var(--text)}.break-overrun-note small{color:var(--muted);font-size:9px}
 .exam-demo-boundary{max-width:none;padding:15px 17px}
 .exam-demo-boundary b{color:var(--text)}
 .exam-complete-score{display:flex;align-items:center;gap:28px;padding:30px}
@@ -2027,6 +2029,12 @@ html[data-motion="reduced"] .loading-mark i {
 .question-stimulus.media audio,
 .question-stimulus.media video { display: block; width: calc(100% - 28px); margin: 14px; }
 .question-stimulus.media details { margin: 0 14px; color: var(--ink-soft); font-size: 11px; }
+
+.question-stimulus.clinical-images { padding-bottom: 14px; }
+.clinical-image-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px; padding: 14px; }
+.clinical-image-grid figure { display: grid; gap: 7px; margin: 0; }
+.clinical-image-grid img { display: block; width: 100%; max-height: 520px; object-fit: contain; border: 1px solid var(--rule); border-radius: 10px; background: #fff; }
+.clinical-image-grid figcaption { color: var(--ink-soft); font-size: 10px; line-height: 1.5; }
 
 .question-stimulus.sequential {
   display: flex;

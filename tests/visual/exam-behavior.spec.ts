@@ -1,6 +1,50 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("current USMLE exam-mode behavior", () => {
+  test("highlights only selected question-stem text", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440");
+    await page.goto("/app", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("stepwise-qbank-state-v8"))).not.toBeNull();
+    await page.evaluate(() => {
+      const state = JSON.parse(window.localStorage.getItem("stepwise-qbank-state-v8") || "{}");
+      const question = state.questions[0];
+      window.sessionStorage.removeItem("stepwise-active-session-v1");
+      window.sessionStorage.setItem("stepwise-session-config", JSON.stringify({
+        step: question.step, mode: "Tutor", count: 1, systems: [], disciplines: [],
+        difficulties: [], include: "All", timePerQuestionSec: 90, questionIds: [question.id]
+      }));
+    });
+    await page.goto("/app/session", { waitUntil: "domcontentloaded" });
+
+    const stem = page.locator(".question-stem");
+    const highlighter = page.getByRole("button", { name: "Highlight selected question text" });
+    await expect(stem).toBeVisible({ timeout: 15_000 });
+    const originalStem = await stem.textContent();
+    await highlighter.click();
+    await expect(stem.locator("mark")).toHaveCount(0);
+    await expect(page.getByText("Select text in the question stem first")).toBeVisible();
+
+    const selectedText = await stem.evaluate((element) => {
+      const textNode = element.firstChild;
+      if (!textNode?.textContent) throw new Error("Question stem has no text");
+      const end = Math.min(28, textNode.textContent.length);
+      const range = document.createRange();
+      range.setStart(textNode, 0);
+      range.setEnd(textNode, end);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      return textNode.textContent.slice(0, end);
+    });
+    await highlighter.click();
+    await expect(stem.locator("mark")).toHaveText(selectedText);
+    await expect(stem).toHaveText(originalStem || "");
+
+    await highlighter.click();
+    await expect(stem.locator("mark")).toHaveCount(0);
+  });
+
   test("renders every structured USMLE item stimulus from persisted content", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440");
     await page.goto("/app", { waitUntil: "domcontentloaded" });
@@ -31,6 +75,7 @@ test.describe("current USMLE exam-mode behavior", () => {
     ];
 
     for (const item of formats) {
+      await page.goto("/", { waitUntil: "domcontentloaded" });
       await page.evaluate(({ format, patch }) => {
         const key = "stepwise-qbank-state-v8";
         const state = JSON.parse(window.localStorage.getItem(key) || "{}");
@@ -47,6 +92,34 @@ test.describe("current USMLE exam-mode behavior", () => {
       await expect(page.locator(item.selector)).toBeVisible({ timeout: 15_000 });
     }
 
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => {
+      const key = "stepwise-qbank-state-v8";
+      const state = JSON.parse(window.localStorage.getItem(key) || "{}");
+      const question = {
+        ...state.questions[0],
+        format: "Single best answer",
+        media: {
+          questionImages: ["data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23e7f6f3'/%3E%3C/svg%3E"],
+          explanationImages: ["data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23eeedff'/%3E%3C/svg%3E"],
+          altText: ["Demonstration clinical finding", "Demonstration explanation figure"]
+        }
+      };
+      state.questions[0] = question;
+      window.localStorage.setItem(key, JSON.stringify(state));
+      window.sessionStorage.removeItem("stepwise-active-session-v1");
+      window.sessionStorage.setItem("stepwise-session-config", JSON.stringify({
+        step: question.step, mode: "Tutor", count: 1, systems: [], disciplines: [],
+        difficulties: [], include: "All", timePerQuestionSec: 90, questionIds: [question.id]
+      }));
+    });
+    await page.goto("/app/session", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("img", { name: "Demonstration clinical finding" })).toBeVisible();
+    await page.locator(".session-choice .choice-select").first().click();
+    await page.getByRole("button", { name: "Submit answer" }).click();
+    await expect(page.getByRole("img", { name: "Demonstration explanation figure" })).toBeVisible();
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
     await page.evaluate(() => {
       const key = "stepwise-qbank-state-v8";
       const state = JSON.parse(window.localStorage.getItem(key) || "{}");
@@ -117,6 +190,68 @@ test.describe("current USMLE exam-mode behavior", () => {
     expect(runtimeErrors).toEqual([]);
   });
 
+  test("persists tutorial time and deducts break overruns from the next block", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440");
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    });
+    await page.goto("/app/exam-day", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
+    await page.getByRole("button", { name: /Full-day simulation/ }).click();
+    await page.getByRole("button", { name: /Enter orientation/ }).click();
+    await page.evaluate(() => {
+      const key = "stepwise-exam-day-v1";
+      const run = JSON.parse(window.localStorage.getItem(key) || "{}");
+      run.tutorialStartedAt = new Date(Date.now() - 120_000).toISOString();
+      window.localStorage.setItem(key, JSON.stringify(run));
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator(".orientation-timer b")).toHaveText(/2:\d{2}|3:0\d/);
+
+    await page.evaluate(() => {
+      const key = "stepwise-exam-day-v1";
+      const run = JSON.parse(window.localStorage.getItem(key) || "{}");
+      run.tutorialStartedAt = new Date(Date.now() - 360_000).toISOString();
+      window.localStorage.setItem(key, JSON.stringify(run));
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator(".exam-command")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(".command-strip")).toContainText("Between blocks");
+
+    await page.evaluate(() => {
+      const key = "stepwise-exam-day-v1";
+      const run = JSON.parse(window.localStorage.getItem(key) || "{}");
+      run.status = "On break";
+      run.breakRemainingSeconds = 2;
+      run.breakStartedAt = new Date(Date.now() - 12_000).toISOString();
+      window.localStorage.setItem(key, JSON.stringify(run));
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator(".break-overrun-note")).toContainText("over reserve");
+    await page.getByRole("button", { name: /End break & begin/ }).click();
+    await expect(page.locator(".session-page")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(".session-timer b")).toHaveText(/29:4[5-9]|29:5[0-2]/);
+    await expect.poll(() => page.evaluate(() => {
+      const run = JSON.parse(window.localStorage.getItem("stepwise-exam-day-v1") || "{}");
+      return {
+        overrun: run.totalBreakOverrunSeconds,
+        pending: run.pendingTestPenaltySeconds,
+        allotted: run.blocks?.[0]?.allottedSeconds
+      };
+    })).toEqual({
+      overrun: expect.any(Number),
+      pending: 0,
+      allotted: expect.any(Number)
+    });
+    const penalty = await page.evaluate(() => {
+      const run = JSON.parse(window.localStorage.getItem("stepwise-exam-day-v1") || "{}");
+      return 1800 - run.blocks[0].allottedSeconds;
+    });
+    expect(penalty).toBeGreaterThanOrEqual(9);
+  });
+
   test("restores a timed block with answer, confidence, elimination, position, and elapsed state", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440");
 
@@ -162,6 +297,49 @@ test.describe("current USMLE exam-mode behavior", () => {
     await expect(page.locator(".session-choice .strike-button").nth(1)).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".confidence-select button").filter({ hasText: "High" })).toHaveAttribute("aria-pressed", "true");
 
+    expect(runtimeErrors).toEqual([]);
+  });
+
+  test("rejects malformed active-session storage and starts a safe replacement block", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440");
+    const runtimeErrors: string[] = [];
+    page.on("pageerror", (error) => runtimeErrors.push(error.message));
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => {
+      window.sessionStorage.clear();
+      window.sessionStorage.setItem("stepwise-session-config", JSON.stringify({
+        step: "Step 2 CK", mode: "Timed", count: 2, systems: [], disciplines: [],
+        difficulties: [], include: "All", timePerQuestionSec: 90
+      }));
+      window.sessionStorage.setItem("stepwise-active-session-v1", JSON.stringify({
+        version: 1,
+        sessionId: "corrupt-session",
+        config: {
+          step: "Step 2 CK", mode: "Timed", count: 2, systems: [], disciplines: [],
+          difficulties: [], include: "All", timePerQuestionSec: 90
+        },
+        questionIds: ["missing-question"],
+        index: 0,
+        selected: null,
+        confidence: null,
+        submitted: [],
+        struck: null,
+        results: [],
+        elapsedSeconds: 10,
+        elapsedByQuestion: null,
+        savedAt: new Date().toISOString()
+      }));
+    });
+    await page.goto("/app/session", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".session-page")).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => page.evaluate(() => {
+      const draft = JSON.parse(window.sessionStorage.getItem("stepwise-active-session-v1") || "{}");
+      return {
+        selected: Boolean(draft.selected && typeof draft.selected === "object"),
+        confidence: Boolean(draft.confidence && typeof draft.confidence === "object"),
+        struck: Boolean(draft.struck && typeof draft.struck === "object")
+      };
+    })).toEqual({ selected: true, confidence: true, struck: true });
     expect(runtimeErrors).toEqual([]);
   });
 

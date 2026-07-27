@@ -15,6 +15,7 @@ import {
   settleExamBreak,
   startExamBlock,
   startExamBreak,
+  visibleBreakOverrunSeconds,
   visibleBreakSeconds,
   writeExamDayRun,
   type ExamDayPreset,
@@ -45,14 +46,12 @@ export function ExamDayPage() {
   const [loaded, setLoaded] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [toast, setToast] = useState("");
-  const [tutorialStartedAt, setTutorialStartedAt] = useState(0);
   const profile = getUsmleExamProfile(step, state.planSettings.examDate);
 
   useEffect(() => {
     const restoreTimer = window.setTimeout(() => {
       const restored = readExamDayRun(localStorage);
       setRun(restored);
-      if (restored?.status === "Tutorial") setTutorialStartedAt(Date.now());
       setLoaded(true);
     }, 0);
     return () => window.clearTimeout(restoreTimer);
@@ -60,7 +59,22 @@ export function ExamDayPage() {
 
   useEffect(() => {
     if (!run || (run.status !== "On break" && run.status !== "Tutorial")) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    const timer = window.setInterval(() => {
+      const currentNow = Date.now();
+      setNow(currentNow);
+      if (run.status !== "Tutorial") return;
+      const allowance = getUsmleExamProfile(run.step, run.examDate).tutorialMinutes * 60;
+      const startedAt = Date.parse(run.tutorialStartedAt ?? run.createdAt);
+      const elapsed = Number.isFinite(startedAt)
+        ? Math.max(0, Math.floor((currentNow - startedAt) / 1000))
+        : 0;
+      if (elapsed < allowance) return;
+      const next = completeTutorial(run, allowance);
+      setRun(next);
+      if (!writeExamDayRun(localStorage, next)) {
+        setToast("This browser could not save the exam-day run.");
+      }
+    }, 1000);
     return () => window.clearInterval(timer);
   }, [run]);
 
@@ -81,14 +95,16 @@ export function ExamDayPage() {
       return;
     }
     const next = createExamDayRun(step, state.planSettings.examDate, preset, state.questions);
-    setTutorialStartedAt(Date.now());
     setOrientationChecks(ORIENTATION.map(() => false));
     saveRun(next);
   };
 
   const finishOrientation = () => {
     if (!run) return;
-    const elapsed = Math.floor((Date.now() - tutorialStartedAt) / 1000);
+    const tutorialStartedAt = Date.parse(run.tutorialStartedAt ?? run.createdAt);
+    const elapsed = Number.isFinite(tutorialStartedAt)
+      ? Math.floor((Date.now() - tutorialStartedAt) / 1000)
+      : 0;
     saveRun(completeTutorial(run, elapsed));
   };
 
@@ -100,8 +116,13 @@ export function ExamDayPage() {
       return;
     }
     const next = block.status === "Active" ? settled : startExamBlock(settled, blockIndex);
+    const activeBlock = next.blocks.find((item) => item.index === blockIndex);
+    if (!activeBlock) {
+      showToast("This exam block could not be restored.");
+      return;
+    }
     writeExamDayRun(localStorage, next);
-    sessionStorage.setItem(SESSION_CONFIG_KEY, JSON.stringify(examBlockConfig(next, block)));
+    sessionStorage.setItem(SESSION_CONFIG_KEY, JSON.stringify(examBlockConfig(next, activeBlock)));
     if (block.status !== "Active") sessionStorage.removeItem(ACTIVE_SESSION_KEY);
     router.push("/app/session");
   };
@@ -118,9 +139,18 @@ export function ExamDayPage() {
     setRun(null);
     setResetOpen(false);
     setOrientationChecks(ORIENTATION.map(() => false));
-    setTutorialStartedAt(Date.now());
     showToast("Exam-day run cleared.");
   };
+
+  const tutorialAllowance = run?.status === "Tutorial"
+    ? getUsmleExamProfile(run.step, run.examDate).tutorialMinutes * 60
+    : 0;
+  const tutorialStartMs = run?.status === "Tutorial"
+    ? Date.parse(run.tutorialStartedAt ?? run.createdAt)
+    : Number.NaN;
+  const tutorialElapsed = run?.status === "Tutorial" && Number.isFinite(tutorialStartMs)
+    ? Math.max(0, Math.floor((now - tutorialStartMs) / 1000))
+    : 0;
 
   if (!loaded) {
     return <div className="exam-day-loading" role="status"><span><Gauge/></span><b>Restoring exam-day command deck</b></div>;
@@ -168,11 +198,10 @@ export function ExamDayPage() {
   }
 
   if (run.status === "Tutorial") {
-    const tutorialAllowance = getUsmleExamProfile(run.step, run.examDate).tutorialMinutes * 60;
-    const tutorialElapsed = Math.min(tutorialAllowance, Math.max(0, Math.floor((now - tutorialStartedAt) / 1000)));
+    const boundedTutorialElapsed = Math.min(tutorialAllowance, tutorialElapsed);
     const ready = orientationChecks.every(Boolean);
     return <main className="exam-orientation">
-      <header><div><Badge tone="brand">Optional tutorial</Badge><h1>Build your testing-day muscle memory.</h1><p>Confirm the operational rules you will rely on when fatigue rises.</p></div><div className="orientation-timer"><Clock3/><span><b>{formatSeconds(Math.max(0, tutorialAllowance - tutorialElapsed))}</b><small>tutorial remaining</small></span></div></header>
+      <header><div><Badge tone="brand">Optional tutorial</Badge><h1>Build your testing-day muscle memory.</h1><p>Confirm the operational rules you will rely on when fatigue rises.</p></div><div className="orientation-timer"><Clock3/><span><b>{formatSeconds(Math.max(0, tutorialAllowance - boundedTutorialElapsed))}</b><small>tutorial remaining</small></span></div></header>
       <section className="panel orientation-panel">
         <div className="orientation-screen"><MonitorPlay/><div><span>Stepwise testing workspace</span><b>One active block. One visible timer. Deliberate closure.</b><p>Keyboard navigation, answer elimination, flagging, laboratory values, calculator, display controls, crash recovery, and block review are available in the session workspace.</p></div></div>
         <div className="orientation-checklist">
@@ -190,6 +219,8 @@ export function ExamDayPage() {
   const active = run.blocks.find((block) => block.status === "Active");
   const next = run.blocks.find((block) => block.status === "Ready");
   const breakSeconds = visibleBreakSeconds(run, now);
+  const activeBreakOverrun = visibleBreakOverrunSeconds(run, now);
+  const totalBreakOverrun = Math.max(0, run.totalBreakOverrunSeconds ?? 0) + activeBreakOverrun;
   const totalCorrect = completed.reduce((sum, block) => sum + block.correct, 0);
   const totalItems = completed.reduce((sum, block) => sum + block.questionIds.length, 0);
   const aggregateAccuracy = totalItems ? Math.round((totalCorrect / totalItems) * 100) : 0;
@@ -210,6 +241,7 @@ export function ExamDayPage() {
       <div><small>BLOCKS CLOSED</small><b>{completed.length} / {run.blocks.length}</b></div>
       <div><small>BREAK RESERVE</small><b className={breakSeconds < 300 ? "warning" : ""}>{formatSeconds(breakSeconds)}</b></div>
       <div><small>TIME EARNED</small><b>+{formatSeconds(earnedBreak)}</b></div>
+      {totalBreakOverrun > 0 && <div><small>BREAK OVERAGE</small><b className="warning">-{formatSeconds(totalBreakOverrun)}</b></div>}
     </section>
 
     <section className="block-ledger panel">
@@ -233,6 +265,7 @@ export function ExamDayPage() {
       <aside className={`panel break-console ${run.status === "On break" ? "active" : ""}`}>
         <header><span><Coffee/></span><div><small>BREAK RESERVE</small><strong>{formatSeconds(breakSeconds)}</strong></div></header>
         <Progress value={(breakSeconds / Math.max(run.startingBreakSeconds + earnedBreak, 1)) * 100}/>
+        {activeBreakOverrun > 0 && <div className="break-overrun-note" role="status"><TriangleAlert/><span><b>{formatSeconds(activeBreakOverrun)} over reserve</b><small>This time will be deducted from the next testing block.</small></span></div>}
         <p>{run.status === "On break" ? "The reserve is counting down from the stored wall clock—even if this page refreshes." : "Any time between blocks counts against the reserve. Unused block time is credited automatically."}</p>
         {run.status === "On break" ? <div className="break-lock-note"><LockKeyhole/><span><b>Break ends with the next block</b><small>This prevents uncounted time between phases.</small></span></div> : <button className="btn btn-secondary btn-block" disabled={Boolean(active) || breakSeconds <= 0} onClick={beginBreak}><Coffee/> Start break</button>}
       </aside>

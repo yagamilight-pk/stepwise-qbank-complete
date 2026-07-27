@@ -268,10 +268,12 @@ td>small, td>b+small { display:block;color:var(--muted);font-size:11px;margin-to
 @media (max-width:650px){.static-document{padding:24px}.static-document h1,.help-hero h1{font-size:30px}.help-grid{grid-template-columns:1fr}.help-footer{display:grid;gap:14px}.static-nav .btn span{display:none}}
 
 /* Session scratch utilities */
-.question-stem.highlighted {
+.question-stem mark {
   background: color-mix(in srgb, var(--warning, #f59e0b) 18%, transparent);
-  border-radius: 12px;
-  box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning, #f59e0b) 8%, transparent);
+  border-radius: 4px;
+  box-decoration-break: clone;
+  color: inherit;
+  padding: 0 2px;
 }
 .question-number button.active {
   color: var(--brand, #6657e8);

@@ -1,6 +1,6 @@
 # Current Frontend Status
 
-Last updated: July 26, 2026
+Last updated: July 27, 2026
 
 ## Outcome
 
@@ -23,16 +23,17 @@ The complete interactive Stepwise frontend is implemented and passes its local q
 - Date-aware current/legacy Step 1 and Step 2 CK block profiles based on the learner exam date
 - Target-exam continuity from onboarding through dashboard metrics, QBank defaults, and new flashcard tags
 - Continuous Exam-mode timing, editable in-block answers, delayed correctness, and non-leaking navigator states
-- Premium Exam Command Deck with current 2026 tutorial/break allowances, full-day and three-block runs, phase recovery, automatic break credit/debit, permanent block closure, and final debrief
-- Crash-safe active-block restore for answers, confidence, eliminations, position, and elapsed time
+- Premium Exam Command Deck with current 2026 tutorial/break allowances, full-day and three-block runs, persisted tutorial timing, automatic expiry, break-overrun testing-time penalties, permanent block closure, and final debrief
+- Schema-validated, crash-safe active-block restore for answers, confidence, eliminations, position, and elapsed time, with malformed drafts rejected safely
 - Reconciled answer edits, early block completion, unanswered-item accounting, and total-item scoring
 - Working session settings, deadline-based timing across revisits/background throttling, and a responsive all-utilities session hub
 - Complete exam-date study-plan horizon with local-timezone-safe activity keys and incremental timeline disclosure
-- Sequential, chart/tabular, scientific-abstract, and audio/video clinical stimulus renderers
+- Sequential, chart/tabular, scientific-abstract, audio/video, and imported question/explanation-image clinical stimulus renderers
 - Dedicated advanced-format authoring controls and live previews, with authored sequential ordering and response locking
 - Typed evidence, rights, reviewer, approval, competency, physician-task, and version records
 - Content import validation and admin publish gates separating demo delivery from production-cleared content
 - Route-group provider isolation, deferred feature chunks, versioned local persistence, and visible save health
+- Single-source flashcard interval calculations with exact due-now dashboard counts
 - Deferred search, memoized filtering, and incremental disclosure for large learner and admin datasets
 - Manifest, sitemap, robots policy, metadata, and baseline security response headers
 - Explicit local-sandbox, unconnected-provider, non-live billing/payout, and small-sample operational truth
@@ -46,10 +47,10 @@ The complete interactive Stepwise frontend is implemented and passes its local q
 - TypeScript: pass
 - Next.js production build: pass; 43/43 static outputs
 - Production HTTP smoke: 12 representative routes returned 200; unknown route returned 404
-- Production Chrome suite: 81 cases passed; 60 intentionally skipped matrix combinations; zero browser runtime errors
+- Production Chrome suite: 84 cases passed; 66 intentionally skipped matrix combinations; zero browser runtime errors
 - Visual evidence: 68 light/dark screenshots across desktop, tablet, and mobile
-- Exam contracts: current Step 2 CK profile, 30-minute clock, all advanced stimuli, tutorial-to-block transition, irreversible closure, automatic break accounting, active-block restore, answer edits, early finish, full-denominator scoring, responsive tools, and mobile laboratory-value access passed
-- Product contracts: onboarding continuity through the selected-exam QBank state, governance boundary, one-main landmark structure, responsive overflow, and security headers passed
+- Exam contracts: current Step 2 CK profile, 30-minute clock, all advanced stimuli including imported images, persisted tutorial expiry, break-overrun penalties, irreversible closure, schema-safe active-block restore, answer edits, early finish, full-denominator scoring, responsive tools, and mobile laboratory-value access passed
+- Product contracts: onboarding continuity through the selected-exam QBank state, flashcard scheduler/due-now agreement, governance boundary, one-main landmark structure, responsive overflow, and security headers passed
 - Cached offline dependency audit: zero findings; a live advisory refresh was not authorized and is not claimed
 - `git diff --check`: recorded in the final verification pass
 

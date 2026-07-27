@@ -14,6 +14,7 @@ import {
   arrangeQuestionsForSession,
   buildSessionResults,
   clearSessionDraft,
+  isSessionConfig,
   readSessionDraft,
   scoreSession,
   writeSessionDraft,
@@ -54,7 +55,7 @@ export function SessionPage() {
   const [settingsOpen,setSettingsOpen]=useState(false);
   const [toolsOpen,setToolsOpen]=useState(false);
   const [calculator,setCalculator]=useState({left:"",operator:"+",right:""});
-  const [stemHighlighted,setStemHighlighted]=useState(false);
+  const [stemHighlight,setStemHighlight]=useState<{start:number;end:number}|null>(null);
   const [noteOpen,setNoteOpen]=useState(false);
   const [cardOpen,setCardOpen]=useState(false);
   const [exitOpen,setExitOpen]=useState(false);
@@ -66,6 +67,7 @@ export function SessionPage() {
   const [noteBody,setNoteBody]=useState("");
   const [cardBack,setCardBack]=useState("");
   const initialized=useRef(false);
+  const stemRef=useRef<HTMLHeadingElement>(null);
   const secondsRef=useRef(0);
   const wallClockStartRef=useRef(0);
   const pausedAtWallRef=useRef<number|null>(null);
@@ -80,7 +82,13 @@ export function SessionPage() {
       initialized.current=true;
       const draft=readSessionDraft(sessionStorage);
       let nextConfig=fallbackConfig;
-      try{const raw=sessionStorage.getItem(SESSION_CONFIG_KEY);if(raw)nextConfig={...fallbackConfig,...JSON.parse(raw)}}catch{}
+      try{
+        const raw=sessionStorage.getItem(SESSION_CONFIG_KEY);
+        if(raw){
+          const parsed:unknown=JSON.parse(raw);
+          if(isSessionConfig(parsed))nextConfig={...fallbackConfig,...parsed};
+        }
+      }catch{}
       const restoredQuestions=draft
         ? draft.questionIds.map((id)=>state.questions.find((item)=>item.id===id)).filter((item):item is Question=>Boolean(item))
         : [];
@@ -187,7 +195,7 @@ export function SessionPage() {
   },[config.mode,paused]);
   const examProfile=getUsmleExamProfile(config.step,state.planSettings.examDate);
   const timeLimit=config.mode==="Exam"
-    ? (config.examDay?questions.length*config.timePerQuestionSec:examProfile.blockMinutes*60)
+    ? (config.examDay?(config.timeLimitSeconds??questions.length*config.timePerQuestionSec):examProfile.blockMinutes*60)
     : questions.length*config.timePerQuestionSec;
   const remaining=Math.max(0,timeLimit-seconds);
   const calculatorResult=useMemo(()=>{
@@ -202,6 +210,35 @@ export function SessionPage() {
   },[calculator]);
 
   const showToast=(message:string)=>{setToast(message);window.setTimeout(()=>setToast(""),1800)};
+  const applyStemHighlight=()=>{
+    const stem=stemRef.current;
+    const selection=window.getSelection();
+    if(!stem||!selection||selection.rangeCount===0||selection.isCollapsed){
+      if(stemHighlight){
+        setStemHighlight(null);
+        showToast("Highlight cleared");
+      }else{
+        showToast("Select text in the question stem first");
+      }
+      return;
+    }
+    const range=selection.getRangeAt(0);
+    if(!stem.contains(range.startContainer)||!stem.contains(range.endContainer)){
+      showToast("Select text in the question stem first");
+      return;
+    }
+    const prefix=range.cloneRange();
+    prefix.selectNodeContents(stem);
+    prefix.setEnd(range.startContainer,range.startOffset);
+    const start=prefix.toString().length;
+    const end=start+range.toString().length;
+    if(end<=start){
+      showToast("Select text in the question stem first");
+      return;
+    }
+    setStemHighlight({start,end});
+    selection.removeAllRanges();
+  };
   const playFeedback=(correct:boolean)=>{
     if(!state.settings.sound)return;
     try{
@@ -278,7 +315,7 @@ export function SessionPage() {
       return;
     }
     setIndex(bounded);
-    setStemHighlighted(false);
+    setStemHighlight(null);
     dispatch({type:"UPDATE_SESSION",id:sessionId,patch:{currentIndex:bounded}});
   },[dispatch,index,lockedSequential,questions,sessionId]);
   const goNext=useCallback(()=>{
@@ -387,8 +424,8 @@ export function SessionPage() {
     <main className="question-workspace">
       <aside className="question-meta"><Badge tone="brand">{question.step}</Badge><dl><div><dt>System</dt><dd>{question.system}</dd></div><div><dt>Discipline</dt><dd>{question.discipline}</dd></div><div><dt>Difficulty</dt><dd><Badge tone={question.difficulty==="Hard"?"danger":question.difficulty==="Easy"?"success":"warning"}>{question.difficulty}</Badge></dd></div></dl><div className="session-utility"><button className={state.flagged.includes(question.id)?"active":""} onClick={()=>dispatch({type:"TOGGLE_FLAG",questionId:question.id})}><Flag/> {state.flagged.includes(question.id)?"Flagged":"Flag question"}<kbd>F</kbd></button><button className={state.bookmarks.includes(question.id)?"active":""} onClick={()=>dispatch({type:"TOGGLE_BOOKMARK",questionId:question.id})}><Bookmark/> {state.bookmarks.includes(question.id)?"Bookmarked":"Bookmark"}<kbd>B</kbd></button><button onClick={()=>setNoteOpen(true)}><NotebookPen/> Add note</button><button onClick={()=>setReportOpen(true)}><CircleAlert/> Report issue</button></div><div className="shortcut-card"><b>Keyboard shortcuts</b><span><kbd>1–5</kbd> choose answer</span><span><kbd>↑ ↓</kbd> move choice</span><span><kbd>F / B</kbd> flag / bookmark</span></div></aside>
       <section className="question-main">
-        <div className="question-number"><span>{question.id}<small>{question.format}</small></span><div><button aria-label="Highlight question stem" aria-pressed={stemHighlighted} className={stemHighlighted?"active":""} onClick={()=>setStemHighlighted(!stemHighlighted)}><Highlighter/></button><button aria-label="Open session settings" onClick={()=>setSettingsOpen(true)}><Settings2/></button><button aria-label="Open session tools" onClick={()=>setToolsOpen(true)}><MoreHorizontal/></button></div></div>
-        <h1 className={`question-stem ${stemHighlighted?"highlighted":""}`}>{question.stem}</h1>
+        <div className="question-number"><span>{question.id}<small>{question.format}</small></span><div><button aria-label="Highlight selected question text" aria-pressed={Boolean(stemHighlight)} className={stemHighlight?"active":""} onMouseDown={event=>event.preventDefault()} onClick={applyStemHighlight}><Highlighter/></button><button aria-label="Open session settings" onClick={()=>setSettingsOpen(true)}><Settings2/></button><button aria-label="Open session tools" onClick={()=>setToolsOpen(true)}><MoreHorizontal/></button></div></div>
+        <h1 ref={stemRef} className="question-stem">{stemHighlight?<>{question.stem.slice(0,stemHighlight.start)}<mark>{question.stem.slice(stemHighlight.start,stemHighlight.end)}</mark>{question.stem.slice(stemHighlight.end)}</>:question.stem}</h1>
         <QuestionStimulus question={question}/>
         <div className="choice-list-session">{question.choices.map((choice,choiceIndex)=>{
           const selectedNow=chosenChoice===choice.id;const isCorrect=revealAnswer&&choice.id===correctChoice;const isWrong=revealAnswer&&selectedNow&&!isCorrect;const eliminated=struck[question.id]?.includes(choice.id);
@@ -421,28 +458,58 @@ export function SessionPage() {
   </div>;
 }
 
+function normalizeClinicalMediaSource(source:string) {
+  const trimmed=source.trim();
+  if(!trimmed)return "";
+  if(trimmed.startsWith("/")||/^(https?:|blob:|data:image\/)/i.test(trimmed))return trimmed;
+  return `/${trimmed.replace(/^\.?\//,"")}`;
+}
+
+function ClinicalImageGallery({question,kind}:{question:Question;kind:"question"|"explanation"}) {
+  const questionImages=question.media?.questionImages??[];
+  const images=kind==="question"?questionImages:(question.media?.explanationImages??[]);
+  if(!images.length)return null;
+  const altOffset=kind==="question"?0:questionImages.length;
+  return <section className={`question-stimulus clinical-images ${kind}`} aria-label={kind==="question"?"Clinical question images":"Clinical explanation images"}>
+    <header><FileStack/><div><b>{kind==="question"?"Clinical evidence":"Explanation figures"}</b><small>{kind==="question"?"Inspect every image before answering.":"Use the figures to consolidate the explanation."}</small></div></header>
+    <div className="clinical-image-grid">{images.map((source,imageIndex)=>{
+      const normalizedSource=normalizeClinicalMediaSource(source);
+      if(!normalizedSource)return null;
+      const alt=question.media?.altText?.[altOffset+imageIndex]?.trim()
+        || `${kind==="question"?"Clinical question image":"Clinical explanation figure"} ${imageIndex+1}`;
+      return <figure key={`${kind}-${source}-${imageIndex}`}>
+        {/* Imported clinical assets may be local paths or admin-provided remote URLs. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={normalizedSource} alt={alt} loading="lazy" decoding="async"/>
+        <figcaption>{alt}</figcaption>
+      </figure>;
+    })}</div>
+  </section>;
+}
+
 function QuestionStimulus({question}:{question:Question}) {
+  const questionImages=<ClinicalImageGallery question={question} kind="question"/>;
   if(question.format==="Chart / tabular"&&question.patientChart?.length){
-    return <section className="question-stimulus chart" aria-label="Patient chart">
+    return <>{questionImages}<section className="question-stimulus chart" aria-label="Patient chart">
       <header><FileStack/><div><b>Patient chart</b><small>Review the structured clinical record before answering.</small></div></header>
       <div>{question.patientChart.map((section)=><table key={section.title}><caption>{section.title}</caption><tbody>{section.rows.map((row)=><tr key={`${section.title}-${row.label}`}><th scope="row">{row.label}</th><td className={row.flag ?? ""}>{row.value}</td></tr>)}</tbody></table>)}</div>
-    </section>;
+    </section></>;
   }
   if(question.format==="Scientific abstract"&&question.scientificAbstract){
     const abstract=question.scientificAbstract;
-    return <article className="question-stimulus abstract"><header><FileStack/><div><b>{abstract.title}</b><small>Scientific abstract</small></div></header><dl><div><dt>Background</dt><dd>{abstract.background}</dd></div><div><dt>Methods</dt><dd>{abstract.methods}</dd></div><div><dt>Results</dt><dd>{abstract.results}</dd></div>{abstract.conclusion&&<div><dt>Conclusion</dt><dd>{abstract.conclusion}</dd></div>}</dl></article>;
+    return <>{questionImages}<article className="question-stimulus abstract"><header><FileStack/><div><b>{abstract.title}</b><small>Scientific abstract</small></div></header><dl><div><dt>Background</dt><dd>{abstract.background}</dd></div><div><dt>Methods</dt><dd>{abstract.methods}</dd></div><div><dt>Results</dt><dd>{abstract.results}</dd></div>{abstract.conclusion&&<div><dt>Conclusion</dt><dd>{abstract.conclusion}</dd></div>}</dl></article></>;
   }
   if(question.format==="Audio / video"&&(question.media?.audioUrl||question.media?.videoUrl)){
-    return <section className="question-stimulus media" aria-label="Clinical media">
+    return <>{questionImages}<section className="question-stimulus media" aria-label="Clinical media">
       <header><Play/><div><b>Clinical media</b><small>Use the playback controls as part of the item evidence.</small></div></header>
       {question.media.videoUrl?<video controls preload="metadata" src={question.media.videoUrl}/>:<audio controls preload="metadata" src={question.media.audioUrl}/>}
       {question.media.transcript&&<details><summary>Accessible transcript</summary><p>{question.media.transcript}</p></details>}
-    </section>;
+    </section></>;
   }
   if(question.format==="Sequential set"&&question.sequentialSet){
-    return <div className="question-stimulus sequential"><LockKeyhole/><span><b>Sequential item {question.sequentialSet.order} of {question.sequentialSet.total}</b><small>Earlier responses lock after submission to preserve the clinical sequence.</small></span></div>;
+    return <>{questionImages}<div className="question-stimulus sequential"><LockKeyhole/><span><b>Sequential item {question.sequentialSet.order} of {question.sequentialSet.total}</b><small>Earlier responses lock after submission to preserve the clinical sequence.</small></span></div></>;
   }
-  return null;
+  return questionImages;
 }
 
 function Explanation({question,selectedChoiceId,onCard,onNote}:{question:Question;selectedChoiceId?:string;onCard?:()=>void;onNote?:()=>void}) {
@@ -458,6 +525,7 @@ function Explanation({question,selectedChoiceId,onCard,onNote}:{question:Questio
     <div className="explanation-body">
       <h3>Why this is the best answer</h3>
       <p>{question.explanation}</p>
+      <ClinicalImageGallery question={question} kind="explanation"/>
       <div className="objective-box"><Sparkles/><div><b>Learning objective</b><p>{question.objective}</p></div></div>
       <div className="reasoning-trap-box"><BrainCircuit/><div><span>{correct?"Reasoning signal":"Reasoning trap"}</span><h3>{trap.label}</h3><p>{trap.description}</p><small>{trap.nextAction}</small></div></div>
       <ReasoningTrace

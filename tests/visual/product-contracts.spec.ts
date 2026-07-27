@@ -82,6 +82,43 @@ test.describe("enterprise product contracts", () => {
     await expect(page.locator(".large-choice-grid > button[aria-pressed='true']")).toContainText("USMLE Step 1");
   });
 
+  test("flashcard due-now counts and rating previews match the scheduler", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440");
+    await page.goto("/app", { waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("stepwise-qbank-state-v8"))).not.toBeNull();
+    await page.evaluate(() => {
+      const key = "stepwise-qbank-state-v8";
+      const state = JSON.parse(window.localStorage.getItem(key) || "{}");
+      const now = Date.now();
+      state.flashcards = [
+        {
+          id: "due-contract-card", front: "Due prompt", back: "Due answer", tags: ["Contract"],
+          interval: 0, ease: 2.5, repetitions: 0, lapses: 0,
+          dueAt: new Date(now - 60_000).toISOString(), createdAt: new Date(now - 60_000).toISOString()
+        },
+        {
+          id: "future-contract-card", front: "Future prompt", back: "Future answer", tags: ["Contract"],
+          interval: 3, ease: 2.5, repetitions: 1, lapses: 0,
+          dueAt: new Date(now + 3_600_000).toISOString(), createdAt: new Date(now).toISOString()
+        }
+      ];
+      window.localStorage.setItem(key, JSON.stringify(state));
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator(".quick-actions")).toContainText("1 ready now");
+
+    await page.goto("/app/flashcards", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /Review 1 cards/ }).click();
+    await page.getByRole("button", { name: /Show answer/ }).click();
+    await expect(page.locator(".rating-good")).toContainText("1 day");
+    await expect(page.locator(".rating-easy")).toContainText("3 days");
+    await page.locator(".rating-good").click();
+    await expect.poll(() => page.evaluate(() => {
+      const state = JSON.parse(window.localStorage.getItem("stepwise-qbank-state-v8") || "{}");
+      return state.flashcards.find((card: { id: string }) => card.id === "due-contract-card")?.interval;
+    })).toBe(1);
+  });
+
   test("production responses include baseline security headers", async ({ request }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440");
     const response = await request.get("/");
