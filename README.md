@@ -2,7 +2,12 @@
 
 Stepwise is a frontend-complete, responsive Next.js experience for USMLE Step 1 and Step 2 CK preparation. It includes a USMLE-first public product website with current delivery-structure previews, a guided five-question trial, account and onboarding demonstrations, a learner workspace, full-screen question sessions, an Exam Command Deck, an original medical library, analytics, study planning, working spaced-repetition flashcards, a private study circle, an administrative console, and a partner portal.
 
-The repository is intentionally usable without a backend: versioned typed demo state is persisted in `localStorage`, while crash-safe active question blocks use `sessionStorage`. Every workflow that can be completed honestly in frontend code is interactive. Production authentication, payments, payouts, protected medical content, cross-device state, and real cohort analytics still require server-side services.
+The repository remains usable without provider variables as a local demonstration. When Appwrite is configured, email/password accounts use HTTP-only server sessions, protected route layouts enforce account labels, and learner-owned progress synchronizes through a row-secured Appwrite table. Browser storage remains a resilient local cache, while crash-safe active question blocks use `sessionStorage`. Payments, payouts, protected medical-content delivery, immutable privileged audit logging, and real cohort analytics still require additional server-side services.
+
+The frontend is connected to the isolated Vercel project
+`yagamilight-pks-projects/stepwise-qbank-complete` and the GitHub Student
+Appwrite project `stepwise-qbank-complete`. See `DEPLOYMENT.md` for the live
+resource contract, environment scope, and verification boundary.
 
 > Stepwise is an independent educational interface demonstration. It is not affiliated with, sponsored by, or endorsed by USMLE, NBME, FSMB, UWorld, or any other question-bank provider. Questions and medical-library articles in this repository are original demonstration content. Cohort percentages are deterministic simulated data, not official exam or commercial-QBank statistics. This is not medical advice.
 
@@ -28,7 +33,7 @@ This removes only the generated `.next` cache and starts a fresh development gra
 
 Do not run `npm audit fix --force`. npm may propose an unrelated breaking downgrade. This repository instead pins the patched transitive versions through `overrides`:
 
-- `postcss: 8.5.10`
+- `postcss: 8.5.23`
 - `sharp: 0.35.3`
 
 After a clean install, verify dependency security separately with:

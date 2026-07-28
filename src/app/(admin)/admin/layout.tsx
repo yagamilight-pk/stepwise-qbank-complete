@@ -1,5 +1,6 @@
 import { createRouteMetadata } from "@/app/route-metadata";
 import { StepwiseProvider } from "@/lib/store";
+import { requireAppwriteUser } from "@/lib/auth";
 
 export const metadata = createRouteMetadata(
   "Administration",
@@ -7,8 +8,9 @@ export const metadata = createRouteMetadata(
   true,
 );
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  await requireAppwriteUser("admin");
   return <StepwiseProvider>{children}</StepwiseProvider>;
 }

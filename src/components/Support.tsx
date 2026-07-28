@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, CircleHelp, FileText, KeyRound, Mail, Search, ShieldCheck } from "lucide-react";
 import { Logo, Toast } from "./ui";
+import { completePasswordRecovery, requestPasswordRecovery } from "@/app/actions/auth";
 
 const legalCopy = {
   privacy: {
@@ -75,7 +76,19 @@ export function HelpPage() {
 export function ForgotPasswordPage() {
   const [email,setEmail]=useState("");
   const [sent,setSent]=useState(false);
-  return <main className="recovery-page"><section><Logo/><div className="recovery-card"><span><KeyRound aria-hidden="true"/></span><h1>Reset your password</h1><p>Enter your email to simulate a reset request. This frontend demo does not send email.</p><form onSubmit={event=>{event.preventDefault();setSent(true);}}><label className="field"><span className="field-label">Email address</span><input type="email" required value={email} onChange={e=>{setEmail(e.target.value);setSent(false);}} placeholder="you@example.com" autoComplete="email"/></label><button type="submit" className="btn btn-brand btn-block btn-lg" disabled={!email}>Simulate reset request</button></form><Link href="/login"><ArrowLeft/> Back to sign in</Link></div></section><Toast visible={sent} message="Demo reset request completed. No email was sent."/></main>;
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  return <main className="recovery-page"><section><Logo/><div className="recovery-card"><span><KeyRound aria-hidden="true"/></span><h1>Reset your password</h1><p>Enter your account email and Appwrite will send a secure recovery link.</p><form onSubmit={async event=>{event.preventDefault();setLoading(true);setError("");const result=await requestPasswordRecovery(email);setLoading(false);if(result.success)setSent(true);else setError(result.error??"Unable to send a reset link.");}}><label className="field"><span className="field-label">Email address</span><input type="email" required value={email} onChange={e=>{setEmail(e.target.value);setSent(false);setError("");}} placeholder="you@example.com" autoComplete="email"/></label>{error&&<p className="form-error" role="alert">{error}</p>}<button type="submit" className="btn btn-brand btn-block btn-lg" disabled={!email||loading}>{loading?"Sending securely…":"Send reset link"}</button></form><Link href="/login"><ArrowLeft/> Back to sign in</Link></div></section><Toast visible={sent} message="If an account exists, a recovery link has been sent."/></main>;
+}
+
+export function ResetPasswordPage({userId,secret}:{userId:string;secret:string}) {
+  const [password,setPassword]=useState("");
+  const [confirm,setConfirm]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [complete,setComplete]=useState(false);
+  const [error,setError]=useState("");
+  const validLink=Boolean(userId&&secret);
+  return <main className="recovery-page"><section><Logo/><div className="recovery-card"><span><KeyRound aria-hidden="true"/></span><h1>Choose a new password</h1><p>{validLink?"Use at least 8 characters for your new Stepwise password.":"This recovery link is incomplete or invalid."}</p>{validLink&&!complete&&<form onSubmit={async event=>{event.preventDefault();if(password!==confirm){setError("Passwords do not match.");return;}setLoading(true);setError("");const result=await completePasswordRecovery(userId,secret,password);setLoading(false);if(result.success)setComplete(true);else setError(result.error??"Unable to reset your password.");}}><label className="field"><span className="field-label">New password</span><input type="password" required minLength={8} value={password} onChange={event=>setPassword(event.target.value)} autoComplete="new-password"/></label><label className="field"><span className="field-label">Confirm password</span><input type="password" required minLength={8} value={confirm} onChange={event=>setConfirm(event.target.value)} autoComplete="new-password"/></label>{error&&<p className="form-error" role="alert">{error}</p>}<button type="submit" className="btn btn-brand btn-block btn-lg" disabled={loading}>{loading?"Updating securely…":"Update password"}</button></form>}{complete&&<p role="status">Your password has been updated. You can now sign in.</p>}<Link href="/login"><ArrowLeft/> {complete?"Continue to sign in":"Back to sign in"}</Link></div></section></main>;
 }
 
 export function NotFoundPage() {

@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LockKeyhole, ShieldCheck } f
 import { Logo } from "./ui";
 import { useStepwise } from "@/lib/store";
 import type { Step } from "@/lib/types";
+import { signInWithEmailPassword, signUpWithEmailPassword } from "@/app/actions/auth";
 
 const SIGNUP_INTENT_KEY = "stepwise-signup-intent-v1";
 
@@ -33,6 +34,7 @@ export function AuthPage({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ name: "", email: "", password: "", exam: "Step 2 CK", date: "2026-10-17" });
   const nameId = useId();
@@ -41,9 +43,19 @@ export function AuthPage({ mode }: { mode: "login" | "signup" }) {
   const examGroupId = useId();
   const examDateId = useId();
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (mode === "signup" && step === 1) { setStep(2); return; }
+    setLoading(true);
+    setError("");
+    const result = mode === "signup"
+      ? await signUpWithEmailPassword(form.name, form.email, form.password)
+      : await signInWithEmailPassword(form.email, form.password);
+    if (!result.success) {
+      setError(result.error ?? "Unable to continue.");
+      setLoading(false);
+      return;
+    }
     if (mode === "signup") {
       const intent: SignupIntent = {
         name: form.name.trim(),
@@ -53,15 +65,15 @@ export function AuthPage({ mode }: { mode: "login" | "signup" }) {
       };
       sessionStorage.setItem(SIGNUP_INTENT_KEY, JSON.stringify(intent));
     }
-    setLoading(true);
-    window.setTimeout(() => router.push(mode === "signup" ? "/onboarding" : "/app"), 450);
+    router.push(mode === "signup" ? "/onboarding" : "/app");
+    router.refresh();
   };
 
   return (
     <main className="auth-page">
       <section className="auth-visual">
         <Link href="/" className="auth-back"><ArrowLeft size={16}/> Back to home</Link>
-        <div className="auth-visual-content"><Logo inverse/><div className="auth-quote"><span>“</span><h2>Preparation becomes manageable when every study decision has a reason.</h2><p>One connected workspace for practice, review, planning, and retention.</p></div><div className="auth-proof"><div><ShieldCheck/><span><b>Local demo persistence</b><small>Your workspace survives refreshes in this browser.</small></span></div><div><LockKeyhole/><span><b>Backend-ready structure</b><small>Replace the store with your API when ready.</small></span></div></div></div>
+        <div className="auth-visual-content"><Logo inverse/><div className="auth-quote"><span>“</span><h2>Preparation becomes manageable when every study decision has a reason.</h2><p>One connected workspace for practice, review, planning, and retention.</p></div><div className="auth-proof"><div><ShieldCheck/><span><b>Secure Appwrite session</b><small>Authentication uses a protected, host-only server cookie.</small></span></div><div><LockKeyhole/><span><b>Cross-device study state</b><small>Learner progress synchronizes without exposing admin demo data.</small></span></div></div></div>
         <div className="auth-pattern" aria-hidden="true"/>
       </section>
       <section className="auth-form-wrap">
@@ -79,13 +91,13 @@ export function AuthPage({ mode }: { mode: "login" | "signup" }) {
               <div className="field" role="group" aria-labelledby={examGroupId}><span className="field-label" id={examGroupId}>Preparing for</span><div className="choice-cards"><button type="button" aria-pressed={form.exam === "Step 1"} className={form.exam === "Step 1" ? "active" : ""} onClick={()=>setForm({...form,exam:"Step 1"})}><span><b>USMLE Step 1</b><small>Foundational science and mechanisms</small></span>{form.exam === "Step 1" && <Check aria-hidden="true"/>}</button><button type="button" aria-pressed={form.exam === "Step 2 CK"} className={form.exam === "Step 2 CK" ? "active" : ""} onClick={()=>setForm({...form,exam:"Step 2 CK"})}><span><b>USMLE Step 2 CK</b><small>Clinical knowledge and decisions</small></span>{form.exam === "Step 2 CK" && <Check aria-hidden="true"/>}</button></div></div>
               <label className="field" htmlFor={examDateId}><span className="field-label">Target exam date <small>You can change this later</small></span><input id={examDateId} type="date" value={form.date} onChange={(e)=>setForm({...form,date:e.target.value})}/></label>
             </>}
-            <button type="submit" className="btn btn-brand btn-block btn-lg" disabled={loading}>{loading ? "Opening workspace…" : mode === "signup" && step === 1 ? <>Continue <ArrowRight/></> : mode === "signup" ? <>Create demo workspace <ArrowRight/></> : <>Open demo workspace <ArrowRight/></>}</button>
-            {loading && <span role="status" aria-live="polite">Opening your local demo workspace.</span>}
+            {error && <p className="form-error" role="alert">{error}</p>}
+            <button type="submit" className="btn btn-brand btn-block btn-lg" disabled={loading}>{loading ? "Connecting securely…" : mode === "signup" && step === 1 ? <>Continue <ArrowRight/></> : mode === "signup" ? <>Create account <ArrowRight/></> : <>Sign in <ArrowRight/></>}</button>
+            {loading && <span role="status" aria-live="polite">Establishing your secure workspace session.</span>}
             {mode === "signup" && step === 2 && <button className="btn btn-ghost btn-block" type="button" onClick={()=>setStep(1)}>Back</button>}
           </form>
-          {step === 1 && <><div className="auth-divider"><span>or preview with</span></div><div className="social-auth"><button type="button" aria-label="Preview Google sign-in flow" onClick={()=>router.push("/onboarding")}><b aria-hidden="true">G</b> Google demo</button><button type="button" aria-label="Preview Apple sign-in flow" onClick={()=>router.push("/onboarding")}><b aria-hidden="true">●</b> Apple demo</button></div></>}
           <p className="auth-switch">{mode === "login" ? <>New to Stepwise? <Link href="/signup">Create an account</Link></> : <>Already have an account? <Link href="/login">Sign in</Link></>}</p>
-          {mode === "signup" && <p className="legal-copy">By opening the demo, you agree to the <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>. This frontend does not create a production account or transmit these credentials.</p>}
+          {mode === "signup" && <p className="legal-copy">By creating an account, you agree to the <Link href="/terms">Terms</Link> and <Link href="/privacy">Privacy Policy</Link>. Google and Apple sign-in remain disabled until separately reviewed and configured.</p>}
         </div>
       </section>
     </main>
@@ -200,9 +212,9 @@ export function OnboardingPage() {
   return <main className="onboarding-page">
     <header className="onboarding-header"><Logo/><span>Workspace setup</span><b>{step+1} / {screens.length}</b></header>
     <aside className="onboarding-progress">
-      <div><span>STEPWISE SETUP</span><h2>Personalize the learning engine.</h2><p>Your choices initialize the demo algorithms and can be changed later.</p></div>
+      <div><span>STEPWISE SETUP</span><h2>Personalize the learning engine.</h2><p>Your choices initialize the learning workspace and can be changed later.</p></div>
       <ol>{screens.map((screen,index)=><li key={screen.label} className={index===step?"active":index<step?"complete":""}><span>{index<step?<Check/>:index+1}</span><div><b>{screen.label}</b><small>{index===0?"Exam and target":index===1?"Time and cadence":"Starting workspace"}</small></div></li>)}</ol>
-      <div className="onboarding-security"><ShieldCheck/><span><b>Stored locally</b><small>This frontend demo keeps setup data in your browser.</small></span></div>
+      <div className="onboarding-security"><ShieldCheck/><span><b>Private account sync</b><small>Setup data is cached locally and synchronized to your Appwrite account.</small></span></div>
     </aside>
     <section className="onboarding-content">
       <div className="onboarding-card">

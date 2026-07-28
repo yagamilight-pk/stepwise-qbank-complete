@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { generateStudyPlan, reviewFlashcard } from "./algorithms";
 import { initialState } from "./data";
+import { isLearnerState, mergeLearnerState, selectLearnerState, type LearnerState } from "./learner-state";
 import type { AdminUser, AppState, Attempt, ContentReport, Flashcard, InfluencerProfile, LearnerProfile, LibraryActivity, Note, Question, ReviewRating, SessionRecord, StudyPlanSettings, StudyTask, UserSettings } from "./types";
 
 const STORAGE_KEY = "stepwise-qbank-state-v8";
@@ -10,6 +11,7 @@ const LEGACY_STORAGE_KEYS = ["stepwise-qbank-state-v7", "stepwise-qbank-state-v6
 
 type Action =
   | { type: "HYDRATE"; state: AppState }
+  | { type: "HYDRATE_LEARNER"; state: LearnerState }
   | { type: "ADD_ATTEMPT"; attempt: Attempt }
   | { type: "UPSERT_ATTEMPT"; attempt: Attempt }
   | { type: "TOGGLE_BOOKMARK"; questionId: string }
@@ -48,6 +50,7 @@ type Action =
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case "HYDRATE": return action.state;
+    case "HYDRATE_LEARNER": return mergeLearnerState(state, action.state);
     case "ADD_ATTEMPT": return { ...state, attempts: [...state.attempts, action.attempt] };
     case "UPSERT_ATTEMPT": return {
       ...state,
@@ -115,6 +118,7 @@ interface StoreValue {
   state: AppState;
   hydrated: boolean;
   persistenceStatus: "loading" | "ready" | "error";
+  cloudStatus: "loading" | "syncing" | "ready" | "disabled" | "error";
   dispatch: React.Dispatch<Action>;
   resetDemo: () => void;
   rebuildPlan: (settings?: StudyPlanSettings) => void;
@@ -175,6 +179,8 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [hydrated, setHydrated] = useState(false);
   const [persistenceStatus, setPersistenceStatus] = useState<StoreValue["persistenceStatus"]>("loading");
+  const [cloudStatus, setCloudStatus] = useState<StoreValue["cloudStatus"]>("loading");
+  const cloudEnabledRef = useRef(false);
 
   useEffect(() => {
     const restoreTimer = window.setTimeout(() => {
@@ -196,6 +202,53 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
     }, 0);
     return () => window.clearTimeout(restoreTimer);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const controller = new AbortController();
+    const restoreCloudState = async () => {
+      try {
+        const response = await fetch("/api/state", { cache: "no-store", signal: controller.signal });
+        const payload: unknown = await response.json().catch(() => null);
+        const remoteUser = payload && typeof payload === "object" && "user" in payload
+          ? (payload as { user?: unknown }).user
+          : null;
+        let remoteProfile: Partial<LearnerProfile> = {};
+        if (remoteUser && typeof remoteUser === "object") {
+          const candidate = remoteUser as { name?: unknown; email?: unknown };
+          remoteProfile = {
+            ...(typeof candidate.name === "string" && candidate.name ? { name: candidate.name } : {}),
+            ...(typeof candidate.email === "string" && candidate.email ? { email: candidate.email } : {}),
+          };
+        }
+        if (response.status === 401 || response.status === 503) {
+          setCloudStatus("disabled");
+          return;
+        }
+        if (response.status === 404) {
+          dispatch({ type: "SET_LEARNER_PROFILE", profile: remoteProfile });
+          cloudEnabledRef.current = true;
+          setCloudStatus("ready");
+          return;
+        }
+        if (!response.ok) throw new Error(`Cloud restore failed (${response.status})`);
+        const remoteState = payload && typeof payload === "object" && "state" in payload
+          ? (payload as { state: unknown }).state
+          : null;
+        if (!isLearnerState(remoteState)) throw new Error("Cloud state response is invalid");
+        dispatch({ type: "HYDRATE_LEARNER", state: remoteState });
+        dispatch({ type: "SET_LEARNER_PROFILE", profile: remoteProfile });
+        cloudEnabledRef.current = true;
+        setCloudStatus("ready");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.warn("Unable to restore Stepwise cloud state", error);
+        setCloudStatus("error");
+      }
+    };
+    restoreCloudState();
+    return () => controller.abort();
+  }, [hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -221,6 +274,32 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
   }, [state, hydrated]);
 
   useEffect(() => {
+    if (!hydrated || !cloudEnabledRef.current) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setCloudStatus("syncing");
+      try {
+        const response = await fetch("/api/state", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(selectLearnerState(state)),
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`Cloud save failed (${response.status})`);
+        setCloudStatus("ready");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.warn("Unable to save Stepwise cloud state", error);
+        setCloudStatus("error");
+      }
+    }, 750);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [state, hydrated]);
+
+  useEffect(() => {
     const root = document.documentElement;
     const wantsDark = state.settings.theme === "dark" || (state.settings.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     root.dataset.theme = wantsDark ? "dark" : "light";
@@ -241,7 +320,7 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "SET_STUDY_TASKS", tasks: generateStudyPlan(settings, state.questions, state.attempts) });
   }, [state.planSettings, state.questions, state.attempts]);
 
-  const value = useMemo(() => ({ state, hydrated, persistenceStatus, dispatch, resetDemo, rebuildPlan }), [state, hydrated, persistenceStatus, resetDemo, rebuildPlan]);
+  const value = useMemo(() => ({ state, hydrated, persistenceStatus, cloudStatus, dispatch, resetDemo, rebuildPlan }), [state, hydrated, persistenceStatus, cloudStatus, resetDemo, rebuildPlan]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 

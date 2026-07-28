@@ -282,6 +282,47 @@ The cached offline dependency audit reported zero findings. The live npm advisor
 
 The embedded in-app browser was unavailable after the documented connection and discovery retry. Repository-local production Google Chrome verification is complete. Manual 200%/400% zoom, full keyboard-only traversal, NVDA, VoiceOver, iOS Safari, Android Chrome, live Core Web Vitals, production providers, named clinical review, licensed content, and immutable audit logging remain external gates.
 
+## July 28, 2026 - Appwrite and Vercel production foundation
+
+### Implemented locally
+
+- Added the official `node-appwrite` server SDK.
+- Added email/password signup, login, logout, and password-recovery server actions.
+- Added HTTP-only, secure, same-site Appwrite session cookies.
+- Added authenticated learner layouts and Appwrite-label enforcement for admin and influencer layouts.
+- Added `/api/state` with authenticated, user-scoped row permissions and a 2 MB payload limit.
+- Limited cloud synchronization to learner-owned state; privileged demonstration data is excluded.
+- Added `/api/health` for non-secret Appwrite reachability checks.
+- Updated PostCSS to the patched `8.5.23` override.
+
+### Provider state
+
+- Created and linked `yagamilight-pks-projects/stepwise-qbank-complete` in Vercel.
+- Connected the project to `yagamilight-pk/stepwise-qbank-complete` on GitHub.
+- Preserved the separate `stepwise` Vercel project and `app.stepwise.page` production deployment.
+- Created `stepwise-qbank-complete` in the GitHub Student Appwrite organization.
+- Verified Appwrite region `fra`, email/password and JWT auth only, localhost and production web platforms, and the `stepwise/user_states` schema.
+- Verified `user_states` row security, `create("users")`, and available required integer/longtext columns.
+- Added the Appwrite resource identifiers to Vercel Production, Preview, and Development without any runtime API key.
+
+### Local verification
+
+```text
+npm.cmd run verify:source        -> 84/84 passed
+npm.cmd run lint                 -> zero findings
+npm.cmd run typecheck            -> passed
+npm.cmd run build                -> 44/44 static outputs plus 2 dynamic API routes
+npm.cmd audit --omit=dev --audit-level=high
+                                  -> zero production vulnerabilities
+```
+
+Hosted route and provider checks are recorded after the production deployment.
+
+The unrestricted audit still reports the current development-only
+ESLint/minimatch/brace-expansion advisory chain. It is not present in the
+production dependency graph and should be refreshed when upstream lint tooling
+publishes a compatible patched tree.
+
 ## July 26, 2026 - Exam Command Deck and advanced-item completion
 
 ### Implemented and protected

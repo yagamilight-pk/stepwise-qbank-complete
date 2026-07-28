@@ -1,0 +1,60 @@
+{
+  "organizationId": "6a59f06f262272e60956",
+  "projectId": "stepwise-qbank-complete",
+  "projectName": "Stepwise QBank",
+  "endpoint": "https://fra.cloud.appwrite.io/v1",
+  "settings": {
+    "auth": {
+      "methods": {
+        "email-password": true,
+        "magic-url": false,
+        "email-otp": false,
+        "anonymous": false,
+        "invites": false,
+        "jwt": true,
+        "phone": false
+      },
+      "security": {
+        "sessionsLimit": 10,
+        "passwordDictionary": true
+      }
+    }
+  },
+  "tablesDB": [
+    {
+      "$id": "stepwise",
+      "name": "Stepwise",
+      "enabled": true
+    }
+  ],
+  "tables": [
+    {
+      "$id": "user_states",
+      "$permissions": [
+        "create(\"users\")"
+      ],
+      "databaseId": "stepwise",
+      "name": "User States",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "schemaVersion",
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 100
+        },
+        {
+          "key": "state",
+          "type": "longtext",
+          "required": true
+        }
+      ],
+      "indexes": []
+    }
+  ],
+  "buckets": [],
+  "teams": [],
+  "topics": []
+}

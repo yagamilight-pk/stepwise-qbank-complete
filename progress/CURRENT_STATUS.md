@@ -1,10 +1,16 @@
 # Current Frontend Status
 
-Last updated: July 27, 2026
+Last updated: July 28, 2026
 
 ## Outcome
 
 The complete interactive Stepwise frontend is implemented and passes its local quality, production-build, contract, and visual-capture pipelines. The product now behaves as a premium clinical command instrument rather than a generic dashboard: learner, session, admin, partner, account, and public surfaces share restrained enterprise depth, explicit trust states, USMLE-oriented reading density, and honest demo-versus-production boundaries.
+
+The first production-provider boundary is live: Appwrite email/password
+sessions, server-enforced route access, password recovery, and row-secured
+learner-state synchronization. The isolated Appwrite project is provisioned in
+the GitHub Student organization, and the separate Vercel project is connected
+to GitHub with production, preview, and development environment values.
 
 ## Delivered
 
@@ -37,15 +43,18 @@ The complete interactive Stepwise frontend is implemented and passes its local q
 - Deferred search, memoized filtering, and incremental disclosure for large learner and admin datasets
 - Manifest, sitemap, robots policy, metadata, and baseline security response headers
 - Explicit local-sandbox, unconnected-provider, non-live billing/payout, and small-sample operational truth
+- Appwrite server sessions, authenticated learner routes, label-gated admin/partner routes, password recovery, and scoped cloud-state sync
+- Live Appwrite FRA project with email/password authentication, explicit web hosts, and a row-secured `user_states` table
+- Isolated `yagamilight-pks-projects/stepwise-qbank-complete` Vercel project with the GitHub repository connected
 - Premium daily-momentum, loading, depth, motion, dark-mode, and mobile-navigation refinements
 - Explicit official-source alignment review and an honest gap register in `USMLE_ALIGNMENT.md`
 
 ## Verified locally
 
-- Source audit: 74/74
+- Source audit: 84/84
 - ESLint: zero errors and zero warnings
 - TypeScript: pass
-- Next.js production build: pass; 43/43 static outputs
+- Next.js production build: pass; 44/44 static outputs plus three dynamic routes
 - Production HTTP smoke: 12 representative routes returned 200; unknown route returned 404
 - Production Chrome suite: 84 cases passed; 66 intentionally skipped matrix combinations; zero browser runtime errors
 - Visual evidence: 68 light/dark screenshots across desktop, tablet, and mobile
@@ -60,6 +69,14 @@ The in-app browser surface was unavailable, but the repository-local Google Chro
 
 ## Production boundary
 
-This is a frontend-complete interactive demonstration, not a production medical platform or official exam emulator. Identity, protected content, payments, payouts, cross-device persistence, real analytics, privacy operations, populated reviewer/evidence records, immutable clinical audit logging, monitoring, and legal approval require external systems and accountable owners. The frontend implements the full local exam-day rehearsal and major non-single-best-answer stimulus families, but production content still requires licensed assets, a full authored bank, and named clinical review.
+This is a frontend-complete interactive demonstration with Appwrite identity and
+learner-state persistence, not a production medical platform or official exam
+emulator. Protected content, payments, payouts, real analytics, privacy
+operations, populated reviewer/evidence records, immutable clinical audit
+logging, monitoring, and legal approval still require external systems and
+accountable owners. The frontend implements the full local exam-day rehearsal
+and major non-single-best-answer stimulus families, but production content
+still requires licensed assets, a full authored bank, and named clinical
+review.
 
 See `PROJECT_CHECKLIST.md` for the complete status and `progress/VERIFICATION_LOG.md` for evidence.

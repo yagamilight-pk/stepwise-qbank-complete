@@ -15,8 +15,10 @@ They share brand tokens and accessible primitives, but they must not share ident
 
 - Static public and legal content should remain Server Components when no browser interaction is required.
 - Interactive pages should place the smallest practical boundary around client behavior.
-- Learner demonstration state is currently provided by `StepwiseProvider` and persisted in browser storage.
-- Production identity, entitlements, protected content, and cross-device state must be server-authoritative.
+- Learner state is provided by `StepwiseProvider`, cached in browser storage, and synchronized through `/api/state` when an Appwrite account session is available.
+- Appwrite email/password sessions are created by server actions and stored in HTTP-only host cookies.
+- Learner route layouts require an authenticated account; admin and influencer layouts additionally enforce Appwrite user labels.
+- Production entitlements and protected question-content delivery must still become server-authoritative.
 
 ## Route model
 
@@ -42,7 +44,7 @@ Every destination has route-specific metadata. Private routes are `noindex`. The
 
 ## State boundary
 
-The browser store exists to make the delivered frontend fully interactive without infrastructure. It is not an authorization or security boundary. Production work must:
+The browser store keeps the frontend resilient and usable without infrastructure. It is not an authorization or security boundary. The Appwrite integration synchronizes only learner-owned state and deliberately excludes questions, admin records, reports, partner records, and finance samples. Remaining production work must:
 
 - Authenticate every server mutation
 - Enforce role and entitlement checks server-side

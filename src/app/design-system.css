@@ -671,6 +671,20 @@ td > small, td > b + small { color: var(--ink-soft); font-size: 12px; }
   font-size: 10px;
 }
 .question-main { background: var(--paper-raised); }
+.form-error {
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--red) 35%, var(--line));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--red) 8%, var(--paper-raised));
+  color: var(--red);
+  padding: 10px 12px;
+  font-size: 12px;
+}
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 .question-stem {
   max-width: 76ch;
   color: var(--ink);

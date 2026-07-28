@@ -12,6 +12,8 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] Manifest, robots, sitemap, baseline security response headers, and private-route indexing boundaries
 - [x] Learner, admin, and partner implementations loaded as separate dynamic chunks
 - [x] Route-group-scoped providers and deferred learner/admin feature chunks
+- [x] Appwrite email/password sessions, server-protected route layouts, password recovery, and per-user learner-state synchronization
+- [x] Isolated Vercel project and GitHub repository connection
 - [x] Versioned, normalized local demonstration state with visible persistence status
 - [x] Typed USMLE, session-recovery, content-governance, planning, and analytics algorithms
 - [x] Complete local quality pipeline passing
@@ -83,6 +85,7 @@ This is the frontend handoff source of truth. Checked items are implemented in t
 - [x] Partner-specific commission calculations and approved-balance payout eligibility
 - [x] External-transfer and demo-approval boundaries stated
 - [ ] Server-enforced roles, authorization, finance-provider integration, and audit logging
+- [x] Appwrite `admin` and `influencer` label enforcement at protected route layouts
 - [ ] Product-wide locale selection, currency negotiation, translation, and RTL support
 
 ## 7. Accessibility and responsive quality

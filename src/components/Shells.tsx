@@ -228,7 +228,7 @@ function AdminSidebar({ collapsed, mobileOpen, onClose }: { collapsed: boolean; 
 
 export function LearnerShell() {
   const pathname = usePathname();
-  const { state, dispatch, persistenceStatus } = useStepwise();
+  const { state, dispatch, persistenceStatus, cloudStatus } = useStepwise();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -267,7 +267,7 @@ export function LearnerShell() {
         </div>
       </header>
       <main className="app-content" id="main-content" tabIndex={-1}>
-        <div className="workspace-trustline"><span><ShieldCheck/> {state.planSettings.targetStep} study workspace</span><span className={persistenceStatus}><i/>{persistenceStatus === "ready" ? "Saved in this browser" : persistenceStatus === "loading" ? "Restoring workspace" : "Local save unavailable"}</span></div>
+        <div className="workspace-trustline"><span><ShieldCheck/> {state.planSettings.targetStep} study workspace</span><span className={cloudStatus === "error" ? "error" : cloudStatus === "loading" || cloudStatus === "syncing" ? "loading" : persistenceStatus}><i/>{cloudStatus === "ready" ? "Synced to Appwrite" : cloudStatus === "syncing" ? "Syncing workspace" : cloudStatus === "loading" ? "Checking cloud workspace" : cloudStatus === "error" ? "Cloud unavailable · saved locally" : persistenceStatus === "ready" ? "Saved in this browser" : persistenceStatus === "loading" ? "Restoring workspace" : "Local save unavailable"}</span></div>
         <LearnerPage section={section}/>
       </main>
     </div>
@@ -285,7 +285,7 @@ export function LearnerShell() {
 
 export function AdminShell() {
   const pathname=usePathname();
-  const { state, persistenceStatus } = useStepwise();
+  const { state, persistenceStatus, cloudStatus } = useStepwise();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen,setMobileOpen]=useState(false);
   const [commandOpen,setCommandOpen]=useState(false);
@@ -310,7 +310,7 @@ export function AdminShell() {
         </div>
       </header>
       <main className="admin-content" id="main-content" tabIndex={-1}>
-        <div className="workspace-trustline admin"><span><ShieldCheck/> Administrative sandbox · no live providers</span><span className={persistenceStatus}><i/>{persistenceStatus === "ready" ? "Local state saved" : persistenceStatus === "loading" ? "Restoring state" : "Local save unavailable"}</span></div>
+        <div className="workspace-trustline admin"><span><ShieldCheck/> Server-protected admin · demo operations remain local</span><span className={cloudStatus === "ready" ? "ready" : persistenceStatus}><i/>{cloudStatus === "ready" ? "Appwrite session active" : persistenceStatus === "ready" ? "Local demo state saved" : persistenceStatus === "loading" ? "Restoring state" : "Local save unavailable"}</span></div>
         <AdminPage section={section}/>
       </main>
     </div>

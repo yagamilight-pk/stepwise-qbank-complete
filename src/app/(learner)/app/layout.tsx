@@ -1,5 +1,6 @@
 import { createRouteMetadata } from "@/app/route-metadata";
 import { StepwiseProvider } from "@/lib/store";
+import { requireAppwriteUser } from "@/lib/auth";
 
 export const metadata = createRouteMetadata(
   "Learner workspace",
@@ -7,8 +8,9 @@ export const metadata = createRouteMetadata(
   true,
 );
 
-export default function LearnerLayout({
+export default async function LearnerLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  await requireAppwriteUser();
   return <StepwiseProvider>{children}</StepwiseProvider>;
 }

@@ -23,6 +23,12 @@ const requiredFiles = [
   "src/lib/session.ts",
   "src/lib/exam-day.ts",
   "src/lib/store.tsx",
+  "src/lib/appwrite-server.ts",
+  "src/lib/auth.ts",
+  "src/lib/learner-state.ts",
+  "src/app/actions/auth.ts",
+  "src/app/api/health/route.ts",
+  "src/app/api/state/route.ts",
   "src/app/globals.css",
   "src/app/design-system.css",
   "src/app/(marketing)/try/page.tsx",
@@ -50,6 +56,12 @@ const marketing = read("src/components/Marketing.tsx");
 const medicalLibrary = read("src/components/MedicalLibrary.tsx");
 const tryRoute = read("src/app/(marketing)/try/page.tsx");
 const sessionRoute = read("src/app/(learner)/app/session/page.tsx");
+const appwriteServer = read("src/lib/appwrite-server.ts");
+const authActions = read("src/app/actions/auth.ts");
+const learnerState = read("src/lib/learner-state.ts");
+const stateRoute = read("src/app/api/state/route.ts");
+const learnerLayout = read("src/app/(learner)/app/layout.tsx");
+const adminLayout = read("src/app/(admin)/admin/layout.tsx");
 const packageJson = JSON.parse(read("package.json"));
 const componentFiles = ["Admin.tsx","Auth.tsx","Demo.tsx","Influencer.tsx","Learner.tsx","LearnerMore.tsx","Marketing.tsx","MedicalLibrary.tsx","ReasoningTrace.tsx","Session.tsx","Shells.tsx","Support.tsx","ui.tsx"];
 const allComponents = componentFiles.map((file) => read(`src/components/${file}`)).join("\n");
@@ -60,6 +72,10 @@ requireCheck("guided trial route", tryRoute.includes("<DemoPage") && marketing.i
 requireCheck("full-screen session route", sessionRoute.includes("<LearnerShell") && shells.includes('if (section === "session") return <LearnerPage section="session"/>'));
 requireCheck("explicit App Router routes", !existsSync(resolve(root, "src/app/[[...slug]]/page.tsx")));
 requireCheck("private route metadata", sessionRoute.includes("true"));
+requireCheck("Appwrite session cookie is server-only", authActions.includes("httpOnly: true") && authActions.includes('sameSite: "strict"') && appwriteServer.includes("setSession(secret)"));
+requireCheck("learner cloud state excludes privileged demo data", learnerState.includes("selectLearnerState") && !learnerState.includes("adminUsers") && !learnerState.includes("payoutRecords"));
+requireCheck("Appwrite rows are user-scoped", stateRoute.includes("Role.user(services.user.$id)") && stateRoute.includes("MAX_STATE_BYTES"));
+requireCheck("protected route layouts", learnerLayout.includes("requireAppwriteUser()") && adminLayout.includes('requireAppwriteUser("admin")'));
 requireCheck("peer choice distribution is embedded", session.includes("choicePeerDistribution") && session.includes("peer-option-fill") && session.includes("peer-option-percent"));
 requireCheck("peer distribution is not a separate explanation card", !session.includes("Peer response distribution"));
 requireCheck("guided trial embeds peer context", demo.includes("peer-option-fill") && demo.includes("diagnoseReasoningTrap"));
@@ -104,7 +120,7 @@ requireCheck("medical review boundary", medicalLibrary.includes("Production publ
 requireCheck("no placeholder hrefs", !allComponents.includes('href="#"'));
 requireCheck("no accidental empty click handlers", !/onClick=\{\s*\(.*?\)\s*=>\s*\{\s*\}\s*\}/s.test(allComponents));
 requireCheck("no disabled landing-page mockup buttons", !marketing.includes("<button disabled"));
-requireCheck("security overrides present", packageJson.overrides?.postcss === "8.5.10" && packageJson.overrides?.sharp === "0.35.3");
+requireCheck("security overrides present", packageJson.overrides?.postcss === "8.5.23" && packageJson.overrides?.sharp === "0.35.3");
 requireCheck("Next lint package versions aligned", packageJson.dependencies?.next === packageJson.devDependencies?.["eslint-config-next"]);
 requireCheck("medical-content disclaimer", read("README.md").includes("independent educational interface demonstration"));
 requireCheck("security response headers", read("next.config.ts").includes("X-Content-Type-Options") && read("next.config.ts").includes("Permissions-Policy"));
