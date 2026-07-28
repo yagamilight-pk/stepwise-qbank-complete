@@ -299,7 +299,7 @@ The embedded in-app browser was unavailable after the documented connection and 
 
 - Created and linked `yagamilight-pks-projects/stepwise-qbank-complete` in Vercel.
 - Connected the project to `yagamilight-pk/stepwise-qbank-complete` on GitHub.
-- Preserved the separate `stepwise` Vercel project and `app.stepwise.page` production deployment.
+- Preserved the separate `stepwise` Vercel project until the later explicit custom-domain migration.
 - Created `stepwise-qbank-complete` in the GitHub Student Appwrite organization.
 - Verified Appwrite region `fra`, email/password and JWT auth only, localhost and production web platforms, and the `stepwise/user_states` schema.
 - Verified `user_states` row security, `create("users")`, and available required integer/longtext columns.
@@ -322,6 +322,38 @@ The unrestricted audit still reports the current development-only
 ESLint/minimatch/brace-expansion advisory chain. It is not present in the
 production dependency graph and should be refreshed when upstream lint tooling
 publishes a compatible patched tree.
+
+## July 28, 2026 - Production domain migration
+
+### Delivered
+
+- Added safe protected `returnTo` handling so host-root redirects preserve
+  `/app` for `app.stepwise.page` and `/admin` for `admin.stepwise.page`.
+- Set the Vercel Production canonical origin to `https://stepwise.page`.
+- Deployed commit `c556c68` as production deployment
+  `dpl_41a9WQRLdzVFv7G5qEmtVV3kwoc9`.
+- Registered the apex, `www`, `app`, and `admin` hosts in the QBank Appwrite
+  project.
+- Transferred `stepwise.page`, `www.stepwise.page`, `app.stepwise.page`, and
+  `admin.stepwise.page` from `stepwise` to `stepwise-qbank-complete`.
+
+### Verification
+
+```text
+npm.cmd run verify:source        -> 86/86 passed
+npm.cmd run lint                 -> zero findings
+npm.cmd run typecheck            -> passed
+npm.cmd run build                -> 44/44 static outputs plus 4 dynamic routes
+https://stepwise.page/           -> 200
+https://www.stepwise.page/       -> 200
+https://app.stepwise.page/       -> 307 to host-local /login?returnTo=/app
+https://admin.stepwise.page/     -> 307 to host-local /login?returnTo=/admin
+app/admin login pages            -> 200
+https://stepwise.page/api/health -> 200
+```
+
+Vercel domain inspection showed all four requested hosts assigned only to
+`stepwise-qbank-complete`.
 
 ## July 26, 2026 - Exam Command Deck and advanced-item completion
 

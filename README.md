@@ -6,8 +6,11 @@ The repository remains usable without provider variables as a local demonstratio
 
 The frontend is connected to the isolated Vercel project
 `yagamilight-pks-projects/stepwise-qbank-complete` and the GitHub Student
-Appwrite project `stepwise-qbank-complete`. See `DEPLOYMENT.md` for the live
-resource contract, environment scope, and verification boundary.
+Appwrite project `stepwise-qbank-complete`. Production is served from
+`stepwise.page` and `www.stepwise.page`; `app.stepwise.page` and
+`admin.stepwise.page` provide host-aware protected entry points. See
+`DEPLOYMENT.md` for the live resource contract, environment scope, and
+verification boundary.
 
 > Stepwise is an independent educational interface demonstration. It is not affiliated with, sponsored by, or endorsed by USMLE, NBME, FSMB, UWorld, or any other question-bank provider. Questions and medical-library articles in this repository are original demonstration content. Cohort percentages are deterministic simulated data, not official exam or commercial-QBank statistics. This is not medical advice.
 

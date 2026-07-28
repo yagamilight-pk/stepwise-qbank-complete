@@ -46,6 +46,7 @@ to GitHub with production, preview, and development environment values.
 - Appwrite server sessions, authenticated learner routes, label-gated admin/partner routes, password recovery, and scoped cloud-state sync
 - Live Appwrite FRA project with email/password authentication, explicit web hosts, and a row-secured `user_states` table
 - Isolated `yagamilight-pks-projects/stepwise-qbank-complete` Vercel project with the GitHub repository connected
+- `stepwise.page`, `www.stepwise.page`, `app.stepwise.page`, and `admin.stepwise.page` transferred from the previous Vercel project with host-aware public, learner, and admin routing
 - Premium daily-momentum, loading, depth, motion, dark-mode, and mobile-navigation refinements
 - Explicit official-source alignment review and an honest gap register in `USMLE_ALIGNMENT.md`
 
@@ -54,7 +55,7 @@ to GitHub with production, preview, and development environment values.
 - Source audit: 86/86
 - ESLint: zero errors and zero warnings
 - TypeScript: pass
-- Next.js production build: pass; 44/44 static outputs plus three dynamic routes
+- Next.js production build: pass; 44/44 static outputs plus four dynamic routes
 - Production HTTP smoke: 12 representative routes returned 200; unknown route returned 404
 - Production Chrome suite: 84 cases passed; 66 intentionally skipped matrix combinations; zero browser runtime errors
 - Visual evidence: 68 light/dark screenshots across desktop, tablet, and mobile

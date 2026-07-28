@@ -7,7 +7,10 @@ Last updated: July 28, 2026
 - Vercel project: `yagamilight-pks-projects/stepwise-qbank-complete`
 - GitHub repository: `yagamilight-pk/stepwise-qbank-complete`
 - Vercel project and GitHub connection: complete
-- Production URL: `https://stepwise-qbank-complete.vercel.app`
+- Canonical production URL: `https://stepwise.page`
+- Marketing hosts: `stepwise.page`, `www.stepwise.page`
+- Protected entry hosts: `app.stepwise.page`, `admin.stepwise.page`
+- Stable Vercel fallback: `stepwise-qbank-complete.vercel.app`
 - Appwrite project: `stepwise-qbank-complete` in the GitHub Student organization
 - Appwrite region: Frankfurt (`fra`)
 - Appwrite application integration and resource provisioning: complete
@@ -15,8 +18,9 @@ Last updated: July 28, 2026
 - Production dependency audit: zero findings; the development-only ESLint
   dependency tree still carries an upstream minimatch/brace-expansion advisory
 
-The separate Vercel project `yagamilight-pks-projects/stepwise` and its
-`app.stepwise.page` production domain were deliberately left untouched.
+The previous Vercel project `yagamilight-pks-projects/stepwise` remains
+available, but the apex, `www`, `app`, and `admin` domains were transferred to
+`stepwise-qbank-complete` on July 28, 2026.
 
 ## Appwrite resource contract
 
@@ -33,6 +37,10 @@ The isolated Appwrite Cloud project `Stepwise QBank` contains:
 - Web platforms:
   - `localhost`
   - `stepwise-qbank-complete.vercel.app`
+  - `stepwise.page`
+  - `www.stepwise.page`
+  - `app.stepwise.page`
+  - `admin.stepwise.page`
 - Enabled authentication methods:
   - Email/password
   - JWT
@@ -56,8 +64,7 @@ APPWRITE_DATABASE_ID=stepwise
 APPWRITE_USER_STATE_TABLE_ID=user_states
 ```
 
-`NEXT_PUBLIC_SITE_URL` is
-`https://stepwise-qbank-complete.vercel.app` in Production and
+`NEXT_PUBLIC_SITE_URL` is `https://stepwise.page` in Production and
 `http://localhost:3000` in Development. Preview intentionally derives its
 origin from the request host so recovery links remain on the active preview.
 
@@ -85,7 +92,8 @@ records, reports, partner records, and finance data are not uploaded.
 
 The provider configuration, schema, row permissions, registered hosts, local
 source audit, lint, typecheck, production build, and production dependency
-audit are verified. Hosted health, redirect, and unauthenticated API checks are
-recorded after deployment. A real signed-in learner session and email delivery
-require an account-owner browser check; no disposable production user is
-created by automation.
+audit are verified. Hosted checks returned `200` for the apex, `www`, app/admin
+login pages, and Appwrite health. Unauthenticated app/admin roots returned
+host-local `307` redirects with safe `/app` and `/admin` return targets. A real
+signed-in learner session and email delivery require an account-owner browser
+check; no disposable production user is created by automation.
