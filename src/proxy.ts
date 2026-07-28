@@ -37,7 +37,9 @@ export function proxy(request: NextRequest) {
     && isProtected
     && !request.cookies.has(`a_session_${projectId}`)
   ) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("returnTo", routedPath);
+    return NextResponse.redirect(loginUrl);
   }
 
   if (routedPath !== pathname) {

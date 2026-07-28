@@ -30,7 +30,13 @@ interface OnboardingValues {
   priorities: string[];
 }
 
-export function AuthPage({ mode }: { mode: "login" | "signup" }) {
+export function AuthPage({
+  mode,
+  returnTo,
+}: {
+  mode: "login" | "signup";
+  returnTo?: string;
+}) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -65,7 +71,7 @@ export function AuthPage({ mode }: { mode: "login" | "signup" }) {
       };
       sessionStorage.setItem(SIGNUP_INTENT_KEY, JSON.stringify(intent));
     }
-    router.push(mode === "signup" ? "/onboarding" : "/app");
+    router.push(mode === "signup" ? "/onboarding" : returnTo ?? "/app");
     router.refresh();
   };
 
