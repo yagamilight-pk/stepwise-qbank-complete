@@ -308,7 +308,7 @@ The embedded in-app browser was unavailable after the documented connection and 
 ### Local verification
 
 ```text
-npm.cmd run verify:source        -> 84/84 passed
+npm.cmd run verify:source        -> 85/85 passed
 npm.cmd run lint                 -> zero findings
 npm.cmd run typecheck            -> passed
 npm.cmd run build                -> 44/44 static outputs plus 2 dynamic API routes

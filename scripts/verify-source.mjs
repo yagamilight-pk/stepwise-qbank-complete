@@ -62,6 +62,7 @@ const learnerState = read("src/lib/learner-state.ts");
 const stateRoute = read("src/app/api/state/route.ts");
 const learnerLayout = read("src/app/(learner)/app/layout.tsx");
 const adminLayout = read("src/app/(admin)/admin/layout.tsx");
+const proxy = read("src/proxy.ts");
 const packageJson = JSON.parse(read("package.json"));
 const componentFiles = ["Admin.tsx","Auth.tsx","Demo.tsx","Influencer.tsx","Learner.tsx","LearnerMore.tsx","Marketing.tsx","MedicalLibrary.tsx","ReasoningTrace.tsx","Session.tsx","Shells.tsx","Support.tsx","ui.tsx"];
 const allComponents = componentFiles.map((file) => read(`src/components/${file}`)).join("\n");
@@ -76,6 +77,7 @@ requireCheck("Appwrite session cookie is server-only", authActions.includes("htt
 requireCheck("learner cloud state excludes privileged demo data", learnerState.includes("selectLearnerState") && !learnerState.includes("adminUsers") && !learnerState.includes("payoutRecords"));
 requireCheck("Appwrite rows are user-scoped", stateRoute.includes("Role.user(services.user.$id)") && stateRoute.includes("MAX_STATE_BYTES"));
 requireCheck("protected route layouts", learnerLayout.includes("requireAppwriteUser()") && adminLayout.includes('requireAppwriteUser("admin")'));
+requireCheck("protected routes reject missing session before render", proxy.includes("protectedPrefixes") && proxy.includes("request.cookies.has(`a_session_${projectId}`)") && proxy.includes('NextResponse.redirect(new URL("/login"'));
 requireCheck("peer choice distribution is embedded", session.includes("choicePeerDistribution") && session.includes("peer-option-fill") && session.includes("peer-option-percent"));
 requireCheck("peer distribution is not a separate explanation card", !session.includes("Peer response distribution"));
 requireCheck("guided trial embeds peer context", demo.includes("peer-option-fill") && demo.includes("diagnoseReasoningTrap"));
