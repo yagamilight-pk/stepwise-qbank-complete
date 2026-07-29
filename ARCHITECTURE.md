@@ -1,74 +1,98 @@
-# Stepwise Frontend Architecture
+# Stepwise architecture
 
 ## Product surfaces
 
-Stepwise contains four deliberately distinct interfaces:
+Stepwise contains separate public, learner, administration, and partner
+surfaces. Shared visual primitives do not imply shared authorization. Learner
+routes require an Appwrite session; admin and partner routes require labels;
+paid learner access can be enforced server-side after provider validation.
 
-- Public product, guided sample, authentication, and legal/help surfaces
-- Learner study workspace
-- Medical-content and business administration workspace
-- Influencer partner workspace
-
-They share brand tokens and accessible primitives, but they must not share identical density, navigation, data exposure, or route bundles.
-
-## Rendering model
-
-- Static public and legal content should remain Server Components when no browser interaction is required.
-- Interactive pages should place the smallest practical boundary around client behavior.
-- Learner state is provided by `StepwiseProvider`, cached in browser storage, and synchronized through `/api/state` when an Appwrite account session is available.
-- Appwrite email/password sessions are created by server actions and stored in HTTP-only host cookies.
-- Learner route layouts require an authenticated account; admin and influencer layouts additionally enforce Appwrite user labels.
-- Production entitlements and protected question-content delivery must still become server-authoritative.
-
-## Route model
-
-The implemented App Router structure uses route groups to keep source ownership clear without changing public URLs:
+## Runtime flow
 
 ```text
-src/app/
-  (marketing)/        home and guided trial
-  (auth)/             login, signup, onboarding, recovery
-  (support)/          help and legal pages
-  (learner)/app/      10 learner routes
-  (admin)/admin/      9 administration routes
-  (influencer)/       5 partner routes
-  loading.tsx
-  error.tsx
-  not-found.tsx
-  opengraph-image.tsx
-  twitter-image.tsx
-src/proxy.ts
+Browser
+  -> Next.js Server Components and server actions
+      -> Appwrite Auth (session, verification, recovery)
+      -> Appwrite TablesDB (normalized learner and operational records)
+      -> Resend API (welcome, support, receipts)
+      -> Safepay hosted checkout + signed webhook
+      -> Sentry (PII-reduced error telemetry)
 ```
 
-Every destination has route-specific metadata. Private routes are `noindex`. The shared shells dynamically import the heavy learner, admin, and influencer implementations, so each surface loads its own chunk. `proxy.ts` rewrites the root for `app.`, `admin.`, and `influencer.` subdomains.
+The secure Appwrite session secret remains in an HTTP-only, secure, strict
+same-site cookie. Provider keys remain server-only.
 
-## State boundary
+## Learner data
 
-The browser store keeps the frontend resilient and usable without infrastructure. It is not an authorization or security boundary. The Appwrite integration synchronizes only learner-owned state and deliberately excludes questions, admin records, reports, partner records, and finance samples. Remaining production work must:
+The browser store is a recoverable cache, not an authority. `/api/state`
+validates a strict versioned Zod payload, caps its size, and uses revision
+conflict checks. The snapshot preserves compatibility while every save also
+normalizes:
 
-- Authenticate every server mutation
-- Enforce role and entitlement checks server-side
-- Keep admin and financial data outside learner responses and bundles
-- Validate and version stored state
-- Minimize personal data
-- Produce immutable audit records for privileged actions
+- profile and preferences;
+- immutable server-verified attempts;
+- sessions;
+- notes, flashcards, study tasks, bookmarks, flags, article activity;
+- tombstones for deleted artifacts.
 
-## Styling model
+Attempts use deterministic row IDs so retries do not duplicate evidence.
+Unknown or untrusted question keys are retained for learner history but marked
+ineligible for scoring evidence.
 
-Styling uses four layers:
+## Psychometrics and adaptation
 
-1. Semantic tokens
-2. Accessible primitives
-3. Product patterns
-4. Surface-specific composition
+`src/lib/psychometrics.ts` implements:
 
-New work should prefer `src/app/design-system.css` over adding unrelated rules to the legacy stylesheet.
+- Rasch response probability and item information;
+- EAP learner ability with a standard-normal prior and posterior standard error;
+- time-decayed beta-binomial mastery;
+- p-value, corrected point-biserial, upper/lower discrimination, distractor
+  efficiency, timing, and confidence item statistics;
+- an operational minimum of 30 independent learners;
+- adaptive ranking by information, mastery gap, recency, exposure, and
+  confidence repair.
 
-## Performance principles
+The daily authenticated aggregation job writes item and mastery records.
+Imported response percentages are displayed only when a source provides a
+complete distribution. Cohort percentiles remain withheld until a real,
+privacy-safe comparable sample exists.
 
-- Keep learner, admin, and influencer implementations in separate dynamic chunks
-- Prefer explicit route entry points and defer heavy editors until needed
-- Defer heavy editors, charts, and utilities until used
-- Avoid repeated serialization across server/client boundaries
-- Keep global state consumers focused
-- Measure Core Web Vitals in production; build success is not field evidence
+## Commerce
+
+The server owns the only valid catalog: 90 days/$20, 180 days/$30, and 360
+days/$50. Purchases do not renew automatically. Checkout creates an order
+before calling Safepay. A signed, replay-protected webhook verifies the
+server-owned amount and extends access. Refund and chargeback events revoke
+access and the subscriber label. Failed mutations enter reconciliation state.
+
+## Support and email
+
+The support page creates tracked Appwrite tickets after schema validation,
+payload limits, a honeypot/time check, and per-email rate limiting. Resend sends
+acknowledgement and operator notification messages when configured.
+
+Appwrite owns verification and recovery tokens. Its custom SMTP should use
+Resend so those authentication emails also originate from
+`noreply@stepwise.page`. The application sends welcome, support, and receipt
+messages through Resend’s API with idempotency keys.
+
+## Reliability and assurance
+
+- liveness and dependency-readiness endpoints;
+- structured redacted audit events;
+- Sentry with request headers, cookies, and user PII removed;
+- Vitest unit coverage gates;
+- source contracts, ESLint, TypeScript, and production build gates;
+- GitHub Actions CI, CodeQL, and Dependabot;
+- daily authenticated psychometric aggregation;
+- explicit provider feature flags that default to off.
+
+## Known launch boundaries
+
+- The new Appwrite schema and secrets must be provisioned before deployment.
+- The Appwrite Education benefit cannot be assumed to allow commercial use.
+- Bundled demonstration questions are not protected commercial inventory.
+- Final policies need legal review.
+- Provider delivery, real-device accessibility, payment reconciliation, and
+  production observability require staged evidence; source code alone does not
+  prove them.

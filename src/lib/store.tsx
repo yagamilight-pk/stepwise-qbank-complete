@@ -175,12 +175,21 @@ function normalizeState(value: Partial<AppState>): AppState {
   };
 }
 
-export function StepwiseProvider({ children }: { children: React.ReactNode }) {
+export function StepwiseProvider({
+  children,
+  cloudSyncEnabled = false,
+}: {
+  children: React.ReactNode;
+  cloudSyncEnabled?: boolean;
+}) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [hydrated, setHydrated] = useState(false);
   const [persistenceStatus, setPersistenceStatus] = useState<StoreValue["persistenceStatus"]>("loading");
-  const [cloudStatus, setCloudStatus] = useState<StoreValue["cloudStatus"]>("loading");
+  const [cloudStatus, setCloudStatus] = useState<StoreValue["cloudStatus"]>(
+    cloudSyncEnabled ? "loading" : "disabled",
+  );
   const cloudEnabledRef = useRef(false);
+  const cloudRevisionRef = useRef(0);
 
   useEffect(() => {
     const restoreTimer = window.setTimeout(() => {
@@ -205,6 +214,10 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
+    if (!cloudSyncEnabled) {
+      cloudEnabledRef.current = false;
+      return;
+    }
     const controller = new AbortController();
     const restoreCloudState = async () => {
       try {
@@ -215,10 +228,11 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
           : null;
         let remoteProfile: Partial<LearnerProfile> = {};
         if (remoteUser && typeof remoteUser === "object") {
-          const candidate = remoteUser as { name?: unknown; email?: unknown };
+          const candidate = remoteUser as { name?: unknown; email?: unknown; emailVerified?: unknown };
           remoteProfile = {
             ...(typeof candidate.name === "string" && candidate.name ? { name: candidate.name } : {}),
             ...(typeof candidate.email === "string" && candidate.email ? { email: candidate.email } : {}),
+            ...(typeof candidate.emailVerified === "boolean" ? { emailVerified: candidate.emailVerified } : {}),
           };
         }
         if (response.status === 401 || response.status === 503) {
@@ -226,6 +240,7 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         if (response.status === 404) {
+          cloudRevisionRef.current = 0;
           dispatch({ type: "SET_LEARNER_PROFILE", profile: remoteProfile });
           cloudEnabledRef.current = true;
           setCloudStatus("ready");
@@ -236,6 +251,10 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
           ? (payload as { state: unknown }).state
           : null;
         if (!isLearnerState(remoteState)) throw new Error("Cloud state response is invalid");
+        const remoteRevision = payload && typeof payload === "object" && "revision" in payload
+          ? Number((payload as { revision?: unknown }).revision)
+          : 0;
+        cloudRevisionRef.current = Number.isInteger(remoteRevision) && remoteRevision >= 0 ? remoteRevision : 0;
         dispatch({ type: "HYDRATE_LEARNER", state: remoteState });
         dispatch({ type: "SET_LEARNER_PROFILE", profile: remoteProfile });
         cloudEnabledRef.current = true;
@@ -248,7 +267,7 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
     };
     restoreCloudState();
     return () => controller.abort();
-  }, [hydrated]);
+  }, [cloudSyncEnabled, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -282,10 +301,16 @@ export function StepwiseProvider({ children }: { children: React.ReactNode }) {
         const response = await fetch("/api/state", {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(selectLearnerState(state)),
+          body: JSON.stringify({
+            state: selectLearnerState(state),
+            baseRevision: cloudRevisionRef.current,
+          }),
           signal: controller.signal,
         });
-        if (!response.ok) throw new Error(`Cloud save failed (${response.status})`);
+        const payload = await response.json().catch(() => null) as { revision?: unknown } | null;
+        if (!response.ok) throw new Error(response.status === 409 ? "Cloud state changed on another device" : `Cloud save failed (${response.status})`);
+        const revision = Number(payload?.revision);
+        if (Number.isInteger(revision) && revision >= 0) cloudRevisionRef.current = revision;
         setCloudStatus("ready");
       } catch (error) {
         if (controller.signal.aborted) return;

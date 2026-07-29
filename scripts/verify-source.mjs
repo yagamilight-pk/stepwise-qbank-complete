@@ -26,9 +26,19 @@ const requiredFiles = [
   "src/lib/appwrite-server.ts",
   "src/lib/auth.ts",
   "src/lib/learner-state.ts",
+  "src/lib/psychometrics.ts",
+  "src/lib/commercial.ts",
+  "src/lib/safepay.ts",
   "src/app/actions/auth.ts",
+  "src/app/actions/checkout.ts",
   "src/app/api/health/route.ts",
+  "src/app/api/jobs/psychometrics/route.ts",
   "src/app/api/state/route.ts",
+  "src/app/api/subscription/route.ts",
+  "src/app/api/support/tickets/route.ts",
+  "src/app/api/webhooks/safepay/route.ts",
+  ".github/workflows/ci.yml",
+  ".github/workflows/codeql.yml",
   "src/app/globals.css",
   "src/app/design-system.css",
   "src/app/(marketing)/try/page.tsx",
@@ -60,6 +70,10 @@ const appwriteServer = read("src/lib/appwrite-server.ts");
 const authActions = read("src/app/actions/auth.ts");
 const learnerState = read("src/lib/learner-state.ts");
 const stateRoute = read("src/app/api/state/route.ts");
+const psychometrics = read("src/lib/psychometrics.ts");
+const checkout = read("src/app/actions/checkout.ts");
+const paymentWebhook = read("src/app/api/webhooks/safepay/route.ts");
+const supportRoute = read("src/app/api/support/tickets/route.ts");
 const learnerLayout = read("src/app/(learner)/app/layout.tsx");
 const adminLayout = read("src/app/(admin)/admin/layout.tsx");
 const proxy = read("src/proxy.ts");
@@ -77,17 +91,20 @@ requireCheck("private route metadata", sessionRoute.includes("true"));
 requireCheck("Appwrite session cookie is server-only", authActions.includes("httpOnly: true") && authActions.includes('sameSite: "strict"') && appwriteServer.includes("setSession(secret)"));
 requireCheck("learner cloud state excludes privileged demo data", learnerState.includes("selectLearnerState") && !learnerState.includes("adminUsers") && !learnerState.includes("payoutRecords"));
 requireCheck("Appwrite rows are user-scoped", stateRoute.includes("Role.user(services.user.$id)") && stateRoute.includes("MAX_STATE_BYTES"));
-requireCheck("protected route layouts", learnerLayout.includes("requireAppwriteUser()") && adminLayout.includes('requireAppwriteUser("admin")'));
+requireCheck("protected route layouts", learnerLayout.includes("requireLearnerAccess()") && adminLayout.includes('requireAppwriteUser("admin")'));
+requireCheck("server-side subscription enforcement", read("src/lib/auth.ts").includes("ENFORCE_SUBSCRIPTIONS") && read("src/lib/auth.ts").includes("hasActiveSubscription"));
 requireCheck("protected routes reject missing session before render", proxy.includes("protectedPrefixes") && proxy.includes("request.cookies.has(`a_session_${projectId}`)") && proxy.includes("NextResponse.redirect(loginUrl)"));
 requireCheck("subdomain login preserves a safe protected destination", proxy.includes('loginUrl.searchParams.set("returnTo", routedPath)') && loginRoute.includes("safeReturnTo") && loginRoute.includes('returnTo={safeReturnTo(params.returnTo)}'));
 requireCheck("peer choice distribution is embedded", session.includes("choicePeerDistribution") && session.includes("peer-option-fill") && session.includes("peer-option-percent"));
 requireCheck("peer distribution is not a separate explanation card", !session.includes("Peer response distribution"));
 requireCheck("guided trial embeds peer context", demo.includes("peer-option-fill") && demo.includes("diagnoseReasoningTrap"));
 requireCheck("peer percentile analytics", learner.includes('tab==="Peers"') && learner.includes("peerBenchmark"));
-requireCheck("peer benchmark disclaimer", learner.includes("not an official USMLE percentile"));
+requireCheck("insufficient cohort is not fabricated", learner.includes("No invented percentile") && learner.includes("Suppressed below threshold"));
 requireCheck("private-circle threshold algorithm", algorithms.includes("export function studyCircleEligibility") && more.includes("studyCircleEligibility(members)"));
 requireCheck("exact question launch", algorithms.includes("config.questionIds?.length") && learner.includes("questionIds:[question.id]"));
-requireCheck("adaptive algorithm", algorithms.includes("export function adaptiveScore") && algorithms.includes("confidenceMismatch"));
+requireCheck("adaptive psychometric model", algorithms.includes("export function adaptiveScore") && psychometrics.includes("estimateAbilityEap") && psychometrics.includes("scoreAdaptiveCandidate"));
+requireCheck("operational item statistics gate", psychometrics.includes("calculateItemStatistics") && psychometrics.includes("eligibleForOperationalUse"));
+requireCheck("scheduled psychometric aggregation", read("src/app/api/jobs/psychometrics/route.ts").includes("CRON_SECRET") && read("vercel.json").includes("/api/jobs/psychometrics"));
 requireCheck("reasoning trap algorithm", algorithms.includes("export function diagnoseReasoningTrap"));
 requireCheck("spaced repetition algorithm", algorithms.includes("export function reviewFlashcard"));
 requireCheck("flashcard urgency queue", algorithms.includes("export function buildFlashcardReviewQueue") && more.includes("buildFlashcardReviewQueue"));
@@ -119,14 +136,16 @@ requireCheck("responsive phone breakpoint", css.includes("@media (max-width: 460
 requireCheck("horizontal overflow protection", css.includes("overflow-x: hidden") && css.includes("min-width: 0"));
 requireCheck("visible keyboard focus", css.includes(":focus-visible"));
 requireCheck("reasoning trace signature", marketing.includes("<ReasoningTrace") && session.includes("<ReasoningTrace") && demo.includes("<ReasoningTrace"));
-requireCheck("sample data is disclosed", marketing.includes("Example data") || marketing.includes("sample") && session.includes("simulated sample data"));
+requireCheck("missing response distributions are not synthesized", algorithms.includes("It never synthesizes missing cohort data") && !algorithms.includes("seeded demo cohort"));
+requireCheck("server-owned payment contract", checkout.includes("getCommercialPlan") && paymentWebhook.includes("verifySafepaySignature") && paymentWebhook.includes("paymentEvents"));
+requireCheck("tracked support workflow", supportRoute.includes("supportTickets") && supportRoute.includes("sendSupportAcknowledgement"));
 requireCheck("medical review boundary", medicalLibrary.includes("Production publication requires named medical review"));
 requireCheck("no placeholder hrefs", !allComponents.includes('href="#"'));
 requireCheck("no accidental empty click handlers", !/onClick=\{\s*\(.*?\)\s*=>\s*\{\s*\}\s*\}/s.test(allComponents));
 requireCheck("no disabled landing-page mockup buttons", !marketing.includes("<button disabled"));
 requireCheck("security overrides present", packageJson.overrides?.postcss === "8.5.23" && packageJson.overrides?.sharp === "0.35.3");
 requireCheck("Next lint package versions aligned", packageJson.dependencies?.next === packageJson.devDependencies?.["eslint-config-next"]);
-requireCheck("medical-content disclaimer", read("README.md").includes("independent educational interface demonstration"));
+requireCheck("medical-content disclaimer", read("README.md").includes("independent educational product") && read("README.md").includes("It is not medical advice"));
 requireCheck("security response headers", read("next.config.ts").includes("X-Content-Type-Options") && read("next.config.ts").includes("Permissions-Policy"));
 
 console.log(`Stepwise source verification passed (${checks.length}/${checks.length} checks).`);

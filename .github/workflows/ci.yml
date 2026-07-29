@@ -1,0 +1,51 @@
+name: Engineering assurance
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: assurance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      ENABLE_SAFEPAY_CHECKOUT: "false"
+      ENABLE_SAFEPAY_WEBHOOK: "false"
+      ENFORCE_SUBSCRIPTIONS: "false"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify source contracts
+        run: npm run verify:source
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests and coverage gates
+        run: npm run test:coverage
+      - name: Production build
+        run: npm run build
+      - name: Upload coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: artifacts/coverage
+          if-no-files-found: ignore
+          retention-days: 14

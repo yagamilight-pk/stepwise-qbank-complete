@@ -47,7 +47,7 @@ export function DemoPage() {
         <span className="summary-check"><Check/></span>
         <Badge tone="success">Interactive sample complete</Badge>
         <h1>{correctCount} of {questions.length} correct</h1>
-        <p>You experienced the core Stepwise loop: answer, see cohort context inside each option, diagnose the reasoning pattern, and convert the miss into a next action.</p>
+        <p>You experienced the core Stepwise loop: answer, diagnose the reasoning pattern, inspect the teaching explanation, and convert a miss into a next action.</p>
         <div className="try-score"><Progress value={(correctCount / Math.max(questions.length, 1)) * 100}/><span>{Math.round(correctCount / Math.max(questions.length, 1) * 100)}%</span></div>
         <div className="try-complete-actions"><button className="btn btn-secondary" onClick={restart}><RotateCcw/> Try again</button><Link className="btn btn-brand" href="/signup">Create preview profile <ArrowRight/></Link></div>
       </section>
@@ -80,7 +80,7 @@ export function DemoPage() {
             onClick={() => !answered && setAnswers((items) => ({ ...items, [question.id]: choice.id }))}
             disabled={answered}
           >
-            {answered && <span className="peer-option-fill" style={{ width: `${percent}%` }}/>}<span className="try-choice-letter">{String.fromCharCode(65 + choiceIndex)}</span><span className="try-choice-copy">{choice.text}</span>{answered && <span className="peer-option-percent">{percent}%</span>}{correct && <Check/>}{wrong && <X/>}
+            {answered && distribution.length > 0 && <span className="peer-option-fill" style={{ width: `${percent}%` }}/>}<span className="try-choice-letter">{String.fromCharCode(65 + choiceIndex)}</span><span className="try-choice-copy">{choice.text}</span>{answered && distribution.length > 0 && <span className="peer-option-percent">{percent}%</span>}{correct && <Check/>}{wrong && <X/>}
           </button>;
         })}</div>
         {!answered ? <footer><Link href="/" className="btn btn-ghost"><ArrowLeft/> Exit demo</Link><button className="btn btn-brand" onClick={submit} disabled={!selected}>Submit answer</button></footer> : <section className="try-explanation">

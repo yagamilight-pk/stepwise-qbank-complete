@@ -11,6 +11,7 @@ const protectedDestinations = ["/app", "/admin", "/influencer"];
 
 function safeReturnTo(value: string | string[] | undefined) {
   if (typeof value !== "string") return undefined;
+  if (value === "/checkout" || value.startsWith("/checkout?")) return value;
   return protectedDestinations.some(
     (prefix) => value === prefix || value.startsWith(`${prefix}/`),
   )

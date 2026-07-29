@@ -36,7 +36,7 @@ test.describe("enterprise product contracts", () => {
     await page.addInitScript(() => window.localStorage.clear());
     await page.goto("/admin/questions", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
-    await expect(page.locator(".workspace-trustline")).toContainText("Local state saved", { timeout: 15_000 });
+    await expect(page.locator(".workspace-trustline")).toContainText("Local demo state saved", { timeout: 15_000 });
     const editButton = page.getByRole("button", { name: /^Edit / }).first();
     await expect(editButton).toBeEnabled();
     await editButton.click();
@@ -53,7 +53,7 @@ test.describe("enterprise product contracts", () => {
     await expect(page.getByRole("button", { name: "Publish demo" })).toBeDisabled();
   });
 
-  test("signup intent reaches onboarding and initializes the learner workspace", async ({ page }, testInfo) => {
+  test("signup fails closed when the external identity provider is unavailable", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1440");
     await page.goto("/signup", { waitUntil: "domcontentloaded" });
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("stepwise-qbank-state-v8")), { timeout: 15_000 }).not.toBeNull();
@@ -63,23 +63,11 @@ test.describe("enterprise product contracts", () => {
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("button", { name: /USMLE Step 1/ }).click();
     await page.getByLabel("Target exam date").fill("2026-12-18");
-    await page.getByRole("button", { name: /Create demo workspace/ }).click();
-
-    await expect(page).toHaveURL(/\/onboarding$/);
+    await page.getByRole("button", { name: /Create account/ }).click();
+    await expect(page.locator(".form-error[role='alert']")).toContainText("Authentication is not configured");
+    await expect(page).toHaveURL(/\/signup$/);
     await expect(page.getByRole("button", { name: /USMLE Step 1/ })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByLabel(/Target exam date/)).toHaveValue("2026-12-18");
-    await page.getByRole("button", { name: "Continue" }).click();
-    await page.getByRole("button", { name: "Continue" }).click();
-    await page.getByRole("button", { name: "Open my workspace" }).click();
-
-    await expect(page).toHaveURL(/\/app$/);
-    await expect(page.locator(".workspace-trustline")).toContainText("Step 1 study workspace");
-    await expect(page.locator(".profile-button")).toContainText("Jordan Lee");
-    await expect(page.getByText("Learner workspace · Step 1", { exact: true })).toBeVisible();
-
-    await page.goto("/app/qbank", { waitUntil: "domcontentloaded" });
-    await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
-    await expect(page.locator(".large-choice-grid > button[aria-pressed='true']")).toContainText("USMLE Step 1");
   });
 
   test("flashcard due-now counts and rating previews match the scheduler", async ({ page }, testInfo) => {
@@ -126,5 +114,7 @@ test.describe("enterprise product contracts", () => {
     expect(response.headers()["x-frame-options"]).toBe("DENY");
     expect(response.headers()["referrer-policy"]).toBe("strict-origin-when-cross-origin");
     expect(response.headers()["permissions-policy"]).toContain("camera=()");
+    expect(response.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
+    expect(response.headers()["content-security-policy"]).toContain("object-src 'none'");
   });
 });

@@ -262,6 +262,7 @@ export interface UserSettings {
 export interface LearnerProfile {
   name: string;
   email: string;
+  emailVerified?: boolean;
   medicalSchool: string;
   targetExam: Step;
   preparationStage: "Early preparation" | "Building consistency" | "Dedicated period" | "Final review";

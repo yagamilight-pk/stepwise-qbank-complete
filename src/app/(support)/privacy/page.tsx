@@ -1,4 +1,4 @@
-import { LegalPage } from "@/components/Support";
+import { LegalDocument } from "@/components/LegalDocument";
 import { createRouteMetadata } from "@/app/route-metadata";
 
 export const metadata = createRouteMetadata(
@@ -7,5 +7,5 @@ export const metadata = createRouteMetadata(
 );
 
 export default function PrivacyRoute() {
-  return <LegalPage type="privacy" />;
+  return <LegalDocument type="privacy" />;
 }

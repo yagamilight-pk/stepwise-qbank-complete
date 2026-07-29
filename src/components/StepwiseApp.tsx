@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { MarketingPage } from "./Marketing";
 import { AuthPage, OnboardingPage } from "./Auth";
 import { AdminShell, InfluencerShell, LearnerShell } from "./Shells";
-import { ForgotPasswordPage, HelpPage, LegalPage, NotFoundPage } from "./Support";
+import { ForgotPasswordPage, HelpPage, NotFoundPage } from "./Support";
 import { DemoPage } from "./Demo";
 
 export default function StepwiseApp() {
@@ -23,10 +23,6 @@ export default function StepwiseApp() {
   if (pathname === "/onboarding") return <OnboardingPage/>;
   if (pathname === "/forgot-password") return <ForgotPasswordPage/>;
   if (pathname === "/help") return <HelpPage/>;
-  if (pathname === "/privacy") return <LegalPage type="privacy"/>;
-  if (pathname === "/terms") return <LegalPage type="terms"/>;
-  if (pathname === "/cookies") return <LegalPage type="cookies"/>;
-  if (pathname === "/accessibility") return <LegalPage type="accessibility"/>;
   if (pathname.startsWith("/admin")) return <AdminShell/>;
   if (pathname.startsWith("/influencer")) return <InfluencerShell/>;
   if (pathname.startsWith("/app")) return <LearnerShell/>;

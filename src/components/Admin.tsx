@@ -1169,7 +1169,6 @@ function AffiliatesAdmin() {
   const [name, setName] = useState("");
   const [handle, setHandle] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("stepwise2026");
   const [rate, setRate] = useState("30");
   const [tier, setTier] = useState<InfluencerProfile["tier"]>("VIP Ambassador");
   const [promoCode, setPromoCode] = useState("");
@@ -1194,7 +1193,6 @@ function AffiliatesAdmin() {
       name: name.trim(),
       handle: handle.trim().startsWith("@") ? handle.trim() : `@${handle.trim() || "creator"}`,
       email: email.trim().toLowerCase(),
-      password: password.trim() || "stepwise2026",
       commissionRate: (Number(rate) || 30) / 100,
       tier,
       defaultPromoCode: cleanCode,
@@ -1211,7 +1209,7 @@ function AffiliatesAdmin() {
     setModalOpen(false);
     setCredentialsModal(newInf);
     // Reset Form
-    setName(""); setHandle(""); setEmail(""); setPromoCode(""); setPassword("stepwise2026");
+    setName(""); setHandle(""); setEmail(""); setPromoCode("");
   };
 
   const approvePayout = (id: string) => {
@@ -1229,9 +1227,9 @@ function AffiliatesAdmin() {
   };
 
   const copyPartnerDetails = (inf: InfluencerProfile) => {
-    const text = `🎉 Welcome to Stepwise Partner Program!\n\nPartner Portal Login: https://stepwise.page/influencer/login\nEmail/Code: ${inf.email} (or ${inf.defaultPromoCode})\nPassword: ${inf.password || "stepwise2026"}\n\nYour Referral Code (${inf.defaultDiscountPercent}% Off for Students): ${inf.defaultPromoCode}\nYour Rev-Share Rate: ${Math.round(inf.commissionRate * 100)}% of Net Profit`;
+    const text = `Stepwise partner onboarding draft\n\nPartner email: ${inf.email}\nReferral code: ${inf.defaultPromoCode}\nStudent discount: ${inf.defaultDiscountPercent}%\nRevenue-share rate: ${Math.round(inf.commissionRate * 100)}% of net profit\n\nPortal access is sent separately after the verified Stepwise account receives its Appwrite influencer label and server-side partner profile. No shared password is generated.`;
     navigator.clipboard?.writeText(text);
-    setToast("Login details copied to clipboard!");
+    setToast("Partner onboarding brief copied.");
     setTimeout(() => setToast(""), 1800);
   };
 
@@ -1269,7 +1267,7 @@ function AffiliatesAdmin() {
               <th scope="col">Gross Driven</th>
               <th scope="col">Net Profit Base</th>
               <th scope="col">Earnings</th>
-              <th scope="col">Share Login</th>
+              <th scope="col">Onboarding</th>
               <th scope="col">Actions</th>
             </tr>
           </thead>
@@ -1298,8 +1296,8 @@ function AffiliatesAdmin() {
                 <td>${net.toFixed(2)}</td>
                 <td><b className="earnings-highlight">${earned.toFixed(2)}</b></td>
                 <td>
-                  <button className="btn btn-secondary btn-sm" onClick={() => copyPartnerDetails(inf)} aria-label={`Copy portal credentials for ${inf.name}`}>
-                    <Copy size={13}/> Copy Credentials
+                  <button className="btn btn-secondary btn-sm" onClick={() => copyPartnerDetails(inf)} aria-label={`Copy onboarding brief for ${inf.name}`}>
+                    <Copy size={13}/> Copy brief
                   </button>
                 </td>
                 <td>
@@ -1327,12 +1325,9 @@ function AffiliatesAdmin() {
           </Field>
         </div>
 
-        <div className="form-grid-2 margin-top-12">
+        <div className="margin-top-12">
           <Field label="Partner Email">
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="sarah@medinfluencers.io" required/>
-          </Field>
-          <Field label="Portal Password">
-            <input value={password} onChange={e => setPassword(e.target.value)} placeholder="e.g. stepwise2026" required/>
           </Field>
         </div>
 
@@ -1368,26 +1363,25 @@ function AffiliatesAdmin() {
 
         <div className="modal-actions-between margin-top-20">
           <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-          <button type="submit" className="btn btn-brand"><Plus/> Save & Generate Credentials</button>
+          <button type="submit" className="btn btn-brand"><Plus/> Save partner draft</button>
         </div>
       </form>
     </Modal>
 
     {/* Share Credentials Confirmation Modal */}
-    <Modal open={Boolean(credentialsModal)} onClose={() => setCredentialsModal(null)} title="Partner Onboarded Successfully!">
+    <Modal open={Boolean(credentialsModal)} onClose={() => setCredentialsModal(null)} title="Partner draft saved">
       {credentialsModal && <div className="credentials-share-card">
         <div className="share-head-banner">
           <CheckCircle2 size={32} color="#10b981"/>
           <div>
-            <h3>Partner Account Ready for {credentialsModal.name}</h3>
-            <p>Share these credentials with the influencer so they can log in to view their dashboard.</p>
+            <h3>Commercial terms recorded for {credentialsModal.name}</h3>
+            <p>Provision portal access separately through the verified Appwrite account. This frontend does not generate or store a shared partner password.</p>
           </div>
         </div>
 
         <div className="credentials-box">
-          <div className="cred-row"><span>Partner Login URL:</span> <b>https://stepwise.page/influencer/login</b></div>
-          <div className="cred-row"><span>Email / Promo Code:</span> <b>{credentialsModal.email}</b> or <b>{credentialsModal.defaultPromoCode}</b></div>
-          <div className="cred-row"><span>Password:</span> <code>{credentialsModal.password}</code></div>
+          <div className="cred-row"><span>Partner email:</span> <b>{credentialsModal.email}</b></div>
+          <div className="cred-row"><span>Appwrite access:</span> <b>Influencer label and server-side profile required</b></div>
           <div className="cred-row"><span>Rev-Share Rate:</span> <b>{Math.round(credentialsModal.commissionRate * 100)}% of Net Profit</b></div>
           <div className="cred-row"><span>Student Discount:</span> <b>{credentialsModal.defaultDiscountPercent}% Off Code ({credentialsModal.defaultPromoCode})</b></div>
         </div>
@@ -1395,7 +1389,7 @@ function AffiliatesAdmin() {
         <div className="modal-actions-between margin-top-20">
           <button className="btn btn-secondary" onClick={() => setCredentialsModal(null)}>Close</button>
           <button className="btn btn-brand" onClick={() => copyPartnerDetails(credentialsModal)}>
-            <Copy size={16}/> Copy Credentials to Send to Influencer
+            <Copy size={16}/> Copy onboarding brief
           </button>
         </div>
       </div>}

@@ -2,7 +2,19 @@ import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://stepwise.page";
-  const routes = ["", "/try", "/help", "/privacy", "/terms"];
+  const routes = [
+    "",
+    "/try",
+    "/help",
+    "/privacy",
+    "/terms",
+    "/payments",
+    "/refunds",
+    "/delivery",
+    "/complaints",
+    "/cookies",
+    "/accessibility",
+  ];
   return routes.map((route, index) => ({
     url: `${base}${route}`,
     changeFrequency: index === 0 ? "weekly" : "monthly",

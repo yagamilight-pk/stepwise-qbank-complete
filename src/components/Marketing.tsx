@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useId, useState } from "react";
 import {
-  ArrowRight, BarChart3, BookOpenCheck, BrainCircuit, Check, ChevronDown, Command,
-  FileText, Layers3, Menu, MessageSquareText, MonitorPlay, ShieldCheck, Sparkles,
-  Target, TimerReset, X, Zap
+  Activity, ArrowRight, BarChart3, BookOpen, BrainCircuit, Check, ChevronDown,
+  ChevronRight, Command, Crosshair, FileText, Gauge, Layers3, Menu,
+  MessageSquareText, MonitorPlay, RefreshCw, ShieldCheck, Sparkles, Target,
+  TimerReset, X, Zap
 } from "lucide-react";
 import { Donut, Logo, Progress, Sparkline } from "./ui";
 import { ReasoningTrace } from "./ReasoningTrace";
@@ -14,8 +15,8 @@ const faqs = [
   ["Is Stepwise affiliated with the USMLE program?", "No. Stepwise is an independent learning interface concept. USMLE is a jointly sponsored program of the Federation of State Medical Boards and the National Board of Medical Examiners."],
   ["Which exams does this preview support?", "The learner workspace, question filters, analytics, study plan, notes, flashcards, and exam-day rehearsal can be scoped to USMLE Step 1 or Step 2 CK."],
   ["What happens after I miss a question?", "Stepwise shows the option-level context, classifies the reasoning pattern behind the miss, and turns the correction into a focused next block, note, or recall card."],
-  ["How does adaptive mode choose questions?", "The explainable preview model prioritizes unseen items, weak systems, recent overconfidence errors, stale knowledge, and an appropriate difficulty challenge."],
-  ["Where is my progress stored in this preview?", "This frontend preview saves activity in the current browser so every workflow stays interactive. Secure account sync, production billing, APIs, and protected medical content still require production services."],
+  ["How does adaptive mode choose questions?", "The model estimates current ability and mastery from your answer history, then balances item information, weak domains, recency, exposure, confidence calibration, and blueprint coverage."],
+  ["Where is my progress stored?", "Signed-in learner data synchronizes to row-secured Appwrite records. A versioned browser cache protects active study work during short network interruptions."],
 ];
 
 const examSpecs = [
@@ -43,7 +44,7 @@ const examSpecs = [
 
 const features = [
   { icon: <BrainCircuit/>, title: "Adaptive intelligence", body: "Blocks evolve with your weaknesses, confidence calibration, recency, and difficulty fit—not a generic shuffle.", className: "feature-large feature-purple" },
-  { icon: <Target/>, title: "Exam-faithful sessions", body: "Tutor, timed, exam, and adaptive modes with navigation, strikeout, flags, notes, lab values, and pacing controls.", className: "feature-tall" },
+  { icon: <Gauge/>, title: "Readiness without guesswork.", body: "See whether the next constraint is knowledge, retention, pacing, or confidence—and the exact action that improves it.", className: "feature-tall feature-readiness" },
   { icon: <BarChart3/>, title: "Actionable analytics", body: "See mastery by system, accuracy trends, pacing, coverage, confidence gaps, and a readiness estimate.", className: "feature-blue" },
   { icon: <Layers3/>, title: "Spaced repetition", body: "Turn explanations into cards and review them through an SM-2-inspired scheduling workflow.", className: "feature-green" },
   { icon: <FileText/>, title: "Connected notebook", body: "Keep searchable notes linked to the exact question, system, and topic that produced the insight.", className: "feature-sand" },
@@ -52,10 +53,8 @@ const features = [
 
 export function MarketingPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const [openFaq, setOpenFaq] = useState(0);
   const mobileNavId = useId();
-  const billingLabelId = useId();
   const faqId = useId();
 
   return (
@@ -66,7 +65,7 @@ export function MarketingPage() {
         <nav id={mobileNavId} aria-label="Primary navigation" className={mobileOpen ? "marketing-links is-open" : "marketing-links"}>
           <a href="#exams" onClick={()=>setMobileOpen(false)}>Exams</a><a href="#reasoning" onClick={()=>setMobileOpen(false)}>Reasoning trace</a><a href="#product" onClick={()=>setMobileOpen(false)}>Product</a><a href="#pricing" onClick={()=>setMobileOpen(false)}>Pricing</a><a href="#faq" onClick={()=>setMobileOpen(false)}>FAQ</a>
         </nav>
-        <div className="marketing-actions"><Link className="btn btn-ghost" href="/login">Sign in</Link><Link className="btn btn-dark" href="/signup">Start preview <ArrowRight size={16}/></Link></div>
+        <div className="marketing-actions"><Link className="btn btn-ghost" href="/login">Sign in</Link><Link className="btn btn-dark" href="/signup">Create account <ArrowRight size={16}/></Link></div>
         <button className="mobile-menu" onClick={() => setMobileOpen((value) => !value)} aria-label={mobileOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileOpen} aria-controls={mobileNavId}>{mobileOpen ? <X/> : <Menu/>}</button>
       </header>
 
@@ -74,7 +73,7 @@ export function MarketingPage() {
         <div className="hero-copy">
           <div className="pill"><Sparkles size={14}/> USMLE Step 1 · Step 2 CK · Exam-day rehearsal</div>
           <h1>See why you miss USMLE questions.<br/><em>Know what to train next.</em></h1>
-          <p>Stepwise connects exam-faithful question blocks to option-level reasoning diagnostics, focused review, and spaced repetition—so every miss becomes a specific correction.</p>
+          <p>Stepwise connects psychometric adaptive practice to reasoning diagnostics, focused review, and spaced repetition—so every miss becomes a specific correction.</p>
           <div className="hero-actions"><Link className="btn btn-brand btn-lg" href="/try">Try 5 questions <ArrowRight size={18}/></Link><Link className="btn btn-secondary btn-lg" href="/app/qbank">Explore the QBank</Link></div>
           <div className="hero-proof"><div className="avatar-stack" aria-hidden="true"><span>WHY</span><span>MISS</span><span>NEXT</span></div><div><b>Reasoning Trace</b><small>Cue → hypothesis → decision → correction → review</small></div></div>
         </div>
@@ -151,7 +150,22 @@ export function MarketingPage() {
 
       <section id="product" className="section shell-width">
         <div className="section-heading centered"><div className="eyebrow">One system, every study loop</div><h2>Everything between “I missed it”<br/>and “I own it.”</h2><p>Practice, understand, retain, and recalibrate without stitching together five different tools.</p></div>
-        <div className="feature-bento">{features.map((feature) => <article key={feature.title} className={`feature-card ${feature.className}`}><span className="feature-icon">{feature.icon}</span><h3>{feature.title}</h3><p>{feature.body}</p>{feature.title === "Adaptive intelligence" && <div className="mini-adaptive"><div><span>Next block composition</span><b>Updated now</b></div><p><i style={{width:"34%"}}/><i style={{width:"25%"}}/><i style={{width:"23%"}}/><i style={{width:"18%"}}/></p><footer><span>Neurology 34%</span><span>Immunology 25%</span></footer></div>}{feature.title === "Exam-faithful sessions" && <div className="mini-question"><small>Question 12 of 20</small><p>A patient presents with progressive...</p><i/><i/><i className="selected"/><i/></div>}</article>)}</div>
+        <div className="feature-bento">{features.map((feature) => <article key={feature.title} className={`feature-card ${feature.className}`}><span className="feature-icon">{feature.icon}</span><h3>{feature.title}</h3><p>{feature.body}</p>{feature.title === "Adaptive intelligence" && <div className="mini-adaptive"><div><span>Next block composition</span><b>Updated now</b></div><p><i style={{width:"34%"}}/><i style={{width:"25%"}}/><i style={{width:"23%"}}/><i style={{width:"18%"}}/></p><footer><span>Neurology 34%</span><span>Immunology 25%</span></footer></div>}{feature.title === "Readiness without guesswork." && <div className="readiness-mini" aria-label="Illustrative readiness signals">
+          <header><Activity/><span>Illustrative readiness signals</span></header>
+          <div className="readiness-signal">
+            <span><BookOpen/></span><div><b>Knowledge coverage</b><small>Depth and breadth</small></div><em className="needs-focus"><i/>Needs focus</em><ChevronRight/>
+          </div>
+          <div className="readiness-signal selected">
+            <span><RefreshCw/></span><div><b>Retention stability</b><small>Holding what you learn</small></div><em className="building"><i/>Building</em><ChevronRight/>
+          </div>
+          <div className="readiness-signal">
+            <span><TimerReset/></span><div><b>Pacing control</b><small>Time and question flow</small></div><em className="on-track"><i/>On track</em><ChevronRight/>
+          </div>
+          <div className="readiness-signal">
+            <span><Crosshair/></span><div><b>Confidence calibration</b><small>Trusting the right answers</small></div><em className="calibrating"><i/>Calibrating</em><ChevronRight/>
+          </div>
+          <footer><span><Zap/></span><div><b>Strengthen retention first</b><small>Review due concepts before adding speed.</small></div><Link className="readiness-action" href="/app/flashcards">Review due concepts <ArrowRight/></Link></footer>
+        </div>}</article>)}</div>
       </section>
 
       <section id="workflow" className="workflow-section">
@@ -192,12 +206,11 @@ export function MarketingPage() {
       <section className="testimonial-section" aria-labelledby="learner-outcome-title"><div className="shell-width"><div className="quote-mark" aria-hidden="true">“</div><p className="eyebrow">Product principle</p><blockquote id="learner-outcome-title">A missed question should become an understandable correction and a concrete next study action.</blockquote><div className="quote-person"><span aria-hidden="true">RT</span><div><b>The Stepwise Reasoning Trace</b><small>Product direction, not a learner testimonial</small></div></div></div></section>
 
       <section id="pricing" className="section shell-width pricing-section">
-        <div className="section-heading centered"><div className="eyebrow">Access preview</div><h2>A plan for every phase of preparation.</h2><p id={billingLabelId}>These illustrative prices do not initiate checkout. Production billing and final commercial terms are not connected yet.</p></div>
-        <div className="billing-toggle" role="group" aria-labelledby={billingLabelId}><button type="button" className={billing === "monthly" ? "active" : ""} aria-pressed={billing === "monthly"} onClick={() => setBilling("monthly")}>Monthly</button><button type="button" className={billing === "annual" ? "active" : ""} aria-pressed={billing === "annual"} onClick={() => setBilling("annual")}>Annual <span>Save about 25%</span></button></div>
+        <div className="section-heading centered"><div className="eyebrow">One payment · no automatic renewal</div><h2>Choose the window that fits your exam.</h2><p>Every plan unlocks the complete learner workspace. Buying again extends your active access.</p></div>
         <div className="pricing-grid">
-          <article><div><span className="plan-icon"><BookOpenCheck/></span><h3>Core</h3><p>Focused QBank practice and essential analytics.</p></div><div className="price"><b>${billing === "annual" ? 29 : 39}</b><span>/ month</span></div>{billing === "annual" && <small>$348 billed annually in this pricing preview</small>}<Link className="btn btn-secondary btn-block" href="/signup">Explore Core</Link><ul>{["Step 1 or Step 2 CK QBank","Tutor and timed modes","System analytics","Notes and bookmarks"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
-          <article className="featured"><div className="popular">FULL TOOLKIT</div><div><span className="plan-icon"><Sparkles/></span><h3>Pro</h3><p>The full adaptive learning and planning system.</p></div><div className="price"><b>${billing === "annual" ? 49 : 65}</b><span>/ month</span></div>{billing === "annual" && <small>$588 billed annually in this pricing preview</small>}<Link className="btn btn-brand btn-block" href="/signup">Explore Pro</Link><ul>{["Everything in Core","Adaptive mode and readiness score","Dynamic study planner","Spaced repetition cards","Advanced confidence analytics","Exam simulation workspace"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
-          <article><div><span className="plan-icon"><ShieldCheck/></span><h3>Institution</h3><p>Administration, cohorts, and content operations.</p></div><div className="price"><b>Custom</b></div><a className="btn btn-secondary btn-block" href="mailto:hello@stepwise.page">Contact enterprise</a><ul>{["Learner and cohort management","Question authoring workflow","Content reports and QA","Billing and access controls"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
+          <article><div><span className="plan-icon"><Target/></span><h3>90 days</h3><p>A focused preparation sprint.</p></div><div className="price"><b>$20</b><span> one time</span></div><Link className="btn btn-secondary btn-block" href="/checkout?plan=stepwise-90">Choose 90 days</Link><ul>{["Complete Step 1 + Step 2 CK workspace","Adaptive and timed blocks","Analytics, notes, and flashcards","No automatic renewal"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
+          <article className="featured"><div className="popular">MOST POPULAR</div><div><span className="plan-icon"><BrainCircuit/></span><h3>180 days</h3><p>Built for a dedicated study season.</p></div><div className="price"><b>$30</b><span> one time</span></div><Link className="btn btn-brand btn-block" href="/checkout?plan=stepwise-180">Choose 180 days</Link><ul>{["Everything in the complete workspace","Psychometric adaptive selection","Dynamic study planning","Real confidence calibration"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
+          <article><div><span className="plan-icon"><ShieldCheck/></span><h3>360 days</h3><p>A full exam-cycle workspace.</p></div><div className="price"><b>$50</b><span> one time</span></div><Link className="btn btn-secondary btn-block" href="/checkout?plan=stepwise-360">Choose 360 days</Link><ul>{["Lowest daily access cost","Full learning history and planning","Exam-day rehearsal workspace","New purchases extend access"].map(item=><li key={item}><Check/>{item}</li>)}</ul></article>
         </div>
       </section>
 
@@ -205,7 +218,7 @@ export function MarketingPage() {
 
       <section className="final-cta shell-width"><div className="cta-orbit cta-orbit-one"/><div className="cta-orbit cta-orbit-two"/><div className="pill"><Zap size={14}/> Your next block is waiting</div><h2>Make every USMLE question<br/>move you forward.</h2><p>Start with a five-question reasoning sample, then explore the complete Step 1 and Step 2 CK preparation workspace.</p><div><Link className="btn btn-white btn-lg" href="/try">Try 5 questions <ArrowRight size={18}/></Link><Link className="btn btn-glass btn-lg" href="/app">Open full workspace</Link></div></section>
 
-      <footer className="marketing-footer"><div className="shell-width"><div className="footer-top"><div><Logo inverse/><p>An adaptive QBank experience for focused medical exam preparation.</p></div><div className="footer-links"><div><b>Product</b><a href="#product">Features</a><a href="#workflow">How it works</a><Link href="/try">Question demo</Link><Link href="/app">Learner workspace</Link></div><div><b>Workspace</b><Link href="/app/qbank">QBank</Link><Link href="/app/analytics">Analytics</Link><Link href="/app/study-plan">Study plan</Link><Link href="/app/flashcards">Flashcards</Link></div><div><b>Legal</b><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/cookies">Cookies</Link><Link href="/accessibility">Accessibility</Link></div><div><b>Contact</b><a href="mailto:support@stepwise.page">support@stepwise.page</a><a href="mailto:hello@stepwise.page">hello@stepwise.page</a><a href="mailto:billing@stepwise.page">billing@stepwise.page</a></div></div></div><div className="footer-bottom"><span>© 2026 Stepwise. All rights reserved.</span><span>Not affiliated with or endorsed by USMLE, NBME, or FSMB. Security: admin@stepwise.page</span></div></div></footer>
+      <footer className="marketing-footer"><div className="shell-width"><div className="footer-top"><div><Logo inverse/><p>An adaptive QBank experience for focused medical exam preparation.</p></div><div className="footer-links"><div><b>Product</b><a href="#product">Features</a><a href="#workflow">How it works</a><Link href="/try">Question demo</Link><Link href="/app">Learner workspace</Link></div><div><b>Workspace</b><Link href="/app/qbank">QBank</Link><Link href="/app/analytics">Analytics</Link><Link href="/app/study-plan">Study plan</Link><Link href="/app/flashcards">Flashcards</Link></div><div><b>Policies</b><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/payments">Payments</Link><Link href="/refunds">Refunds</Link><Link href="/delivery">Delivery</Link><Link href="/complaints">Complaints</Link><Link href="/cookies">Cookies</Link><Link href="/accessibility">Accessibility</Link></div><div><b>Contact</b><Link href="/help">Support center</Link><a href="mailto:support@stepwise.page">support@stepwise.page</a><a href="mailto:hello@stepwise.page">hello@stepwise.page</a><a href="mailto:billing@stepwise.page">billing@stepwise.page</a></div></div></div><div className="footer-bottom"><span>© 2026 Stepwise. All rights reserved.</span><span>Not affiliated with or endorsed by USMLE, NBME, or FSMB. Security: admin@stepwise.page</span></div></div></footer>
     </main>
   );
 }

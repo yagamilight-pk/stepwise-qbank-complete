@@ -1,20 +1,26 @@
 "use server";
 
 import { cookies, headers } from "next/headers";
+import { after } from "next/server";
 import { ID } from "node-appwrite";
 import {
+  createAccountWithSession,
+  createAuthAccount,
   createPublicAccount,
   createSessionServices,
   getAppwriteConfig,
   getAppwriteSessionCookieName,
+  isAppwriteAdminConfigured,
   isAppwriteConfigured,
 } from "@/lib/appwrite-server";
+import { sendWelcomeEmail } from "@/lib/email";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface AuthActionResult {
   success: boolean;
   error?: string;
+  verificationSent?: boolean;
 }
 
 function normalizeEmail(email: string) {
@@ -50,12 +56,12 @@ function validateCredentials(email: string, password: string) {
 }
 
 export async function signInWithEmailPassword(email: string, password: string): Promise<AuthActionResult> {
-  if (!isAppwriteConfigured()) return { success: false, error: "Authentication is not configured." };
+  if (!isAppwriteAdminConfigured()) return { success: false, error: "Authentication is not configured." };
   const validationError = validateCredentials(email, password);
   if (validationError) return { success: false, error: validationError };
 
   try {
-    const session = await createPublicAccount().createEmailPasswordSession({
+    const session = await createAuthAccount().createEmailPasswordSession({
       email: normalizeEmail(email),
       password,
     });
@@ -68,14 +74,14 @@ export async function signInWithEmailPassword(email: string, password: string): 
 }
 
 export async function signUpWithEmailPassword(name: string, email: string, password: string): Promise<AuthActionResult> {
-  if (!isAppwriteConfigured()) return { success: false, error: "Authentication is not configured." };
+  if (!isAppwriteAdminConfigured()) return { success: false, error: "Authentication is not configured." };
   const validationError = validateCredentials(email, password);
   if (validationError) return { success: false, error: validationError };
   if (!name.trim() || name.trim().length > 120) return { success: false, error: "Enter your full name." };
 
   try {
-    const account = createPublicAccount();
-    await account.create({
+    const account = createAuthAccount();
+    const user = await account.create({
       userId: ID.unique(),
       email: normalizeEmail(email),
       password,
@@ -87,9 +93,53 @@ export async function signUpWithEmailPassword(name: string, email: string, passw
     });
     if (!session.secret) throw new Error("Appwrite did not return a server session secret.");
     await setSessionCookie(session.secret, session.expire);
-    return { success: true };
+    let verificationSent = false;
+    try {
+      await createAccountWithSession(session.secret).createVerification({
+        url: `${await publicBaseUrl()}/verify-email`,
+      });
+      verificationSent = true;
+    } catch (error) {
+      console.error("Appwrite verification email request failed", {
+        userId: user.$id,
+        message: error instanceof Error ? error.message : "unknown",
+      });
+    }
+    after(async () => {
+      await sendWelcomeEmail({ id: user.$id, email: user.email, name: user.name });
+    });
+    return { success: true, verificationSent };
   } catch (error) {
     return { success: false, error: publicAuthError(error, "Unable to create your account right now.") };
+  }
+}
+
+export async function resendEmailVerification(): Promise<AuthActionResult> {
+  if (!isAppwriteConfigured()) return { success: false, error: "Authentication is not configured." };
+  try {
+    const services = await createSessionServices();
+    if (!services) return { success: false, error: "Sign in before requesting another verification email." };
+    const user = await services.account.get();
+    if (user.emailVerification) return { success: true, verificationSent: false };
+    await services.account.createVerification({
+      url: `${await publicBaseUrl()}/verify-email`,
+    });
+    return { success: true, verificationSent: true };
+  } catch (error) {
+    return { success: false, error: publicAuthError(error, "Unable to send a verification email right now.") };
+  }
+}
+
+export async function completeEmailVerification(userId: string, secret: string): Promise<AuthActionResult> {
+  if (!isAppwriteConfigured()) return { success: false, error: "Authentication is not configured." };
+  if (!userId || !secret || userId.length > 128 || secret.length > 512) {
+    return { success: false, error: "This verification link is incomplete or invalid." };
+  }
+  try {
+    await createPublicAccount().updateVerification({ userId, secret });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: publicAuthError(error, "Unable to verify this email address.") };
   }
 }
 

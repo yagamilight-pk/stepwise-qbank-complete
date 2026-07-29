@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
-  AlertCircle,
   ArrowRight,
   ChevronRight,
   CircleDollarSign,
@@ -11,13 +10,11 @@ import {
   CreditCard,
   Download,
   Gift,
-  HelpCircle,
-  Lock,
   LogOut,
-  Mail,
   QrCode,
   Search,
   Share2,
+  ShieldCheck,
   Sparkles,
   TrendingUp,
   User,
@@ -44,105 +41,30 @@ function PageHeader({ title, description, actions }: { title: string; descriptio
 }
 
 export function InfluencerLoginPage() {
-  const { state, dispatch } = useStepwise();
-  const [emailOrCode, setEmailOrCode] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    const inputClean = emailOrCode.trim().toLowerCase();
-    const passClean = password.trim();
-
-    if (!inputClean || !passClean) {
-      setError("Please enter both your email / promo code and password.");
-      return;
-    }
-
-    const matched = state.influencers.find((inf) => {
-      const matchEmail = inf.email.toLowerCase() === inputClean;
-      const matchCode = inf.defaultPromoCode.toLowerCase() === inputClean;
-      const matchPass = (inf.password || "stepwise2026") === passClean;
-      return (matchEmail || matchCode) && matchPass;
-    });
-
-    if (matched) {
-      dispatch({ type: "LOGIN_INFLUENCER", influencerId: matched.id });
-      setToast(`Welcome back, ${matched.name}!`);
-    } else {
-      setError("Invalid partner credentials. Check your promo code/email and password.");
-    }
-  };
-
   return (
     <div className="influencer-login-container">
       <div className="influencer-login-card">
         <div className="login-brand-head">
           <div className="partner-logo-icon">
-            <Sparkles size={24} />
+            <ShieldCheck size={24} />
           </div>
-          <h2>Stepwise Creator Portal</h2>
-          <p>Sign in to your partner account to track referrals, net profit share, and payouts.</p>
+          <h2>Partner access is protected by Appwrite</h2>
+          <p>This account does not yet have a provisioned partner profile.</p>
         </div>
-
-        {error && (
-          <div className="login-error-alert" id="partner-login-error" role="alert">
-            <AlertCircle size={16} /> <span>{error}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="login-form">
-          <div className="field">
-            <label className="field-label" htmlFor="partner-login-identity">Email or Partner Promo Code</label>
-            <div className="input-icon-wrap">
-              <Mail size={16} />
-              <input
-                type="text"
-                id="partner-login-identity"
-                value={emailOrCode}
-                onChange={(e) => setEmailOrCode(e.target.value)}
-                placeholder="e.g. sarah@med.io or SARAH30"
-                autoComplete="username"
-                aria-describedby={error ? "partner-login-error" : undefined}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="field margin-top-14">
-            <label className="field-label" htmlFor="partner-login-password">Partner Password</label>
-            <div className="input-icon-wrap">
-              <Lock size={16} />
-              <input
-                type="password"
-                id="partner-login-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password provided by admin"
-                autoComplete="current-password"
-                aria-describedby={error ? "partner-login-error" : undefined}
-                required
-              />
-            </div>
-          </div>
-
-          <button type="submit" className="btn btn-brand btn-block margin-top-20">
-            Sign In to Partner Portal <ArrowRight size={16} />
-          </button>
-        </form>
-
         <div className="login-help-card">
-          <HelpCircle size={15} />
+          <ShieldCheck size={15} />
           <div>
-            <b>Need Partner Credentials?</b>
-            <p>If you are an administrator, add a new creator in the <Link href="/admin/affiliates">Admin Affiliates Hub</Link> to generate login credentials.</p>
+            <b>No secondary or shared passwords</b>
+            <p>Partner access requires a verified Stepwise account, an Appwrite influencer label, and a server-side partner profile.</p>
           </div>
         </div>
+        <Link className="btn btn-brand btn-block margin-top-20" href="/login?returnTo=%2Finfluencer">
+          Sign in with Stepwise <ArrowRight size={16} />
+        </Link>
+        <a className="btn btn-secondary btn-block margin-top-14" href="mailto:support@stepwise.page?subject=Partner%20profile%20provisioning">
+          Request partner provisioning
+        </a>
       </div>
-      <Toast message={toast} visible={Boolean(toast)} />
     </div>
   );
 }
