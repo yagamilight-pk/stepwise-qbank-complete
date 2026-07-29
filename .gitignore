@@ -7,3 +7,11 @@ out
 *.log
 
 *.tsbuildinfo
+
+# Generated local visual-QA evidence
+artifacts/visual-review/
+artifacts/playwright-report/
+artifacts/test-results/
+artifacts/coverage/
+
+.vercel

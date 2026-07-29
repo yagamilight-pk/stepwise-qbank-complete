@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, BrainCircuit, Check, Clock3, RotateCcw, X } from
 import { choicePeerDistribution, diagnoseReasoningTrap } from "@/lib/algorithms";
 import { demoQuestions } from "@/lib/data";
 import { Badge, Logo, Progress } from "./ui";
+import { ReasoningTrace } from "./ReasoningTrace";
 
 export function DemoPage() {
   const questions = useMemo(() => demoQuestions.filter((question) => question.step === "Step 2 CK").slice(0, 5), []);
@@ -41,27 +42,29 @@ export function DemoPage() {
 
   if (!question || complete) {
     return <main className="try-page">
-      <header className="try-nav"><Link href="/"><Logo/></Link><div><Link href="/login" className="btn btn-ghost">Sign in</Link><Link href="/signup" className="btn btn-brand">Start free</Link></div></header>
+      <header className="try-nav"><Logo/><div><Link href="/login" className="btn btn-ghost">Sign in</Link><Link href="/signup" className="btn btn-brand">Create preview profile</Link></div></header>
       <section className="try-complete panel">
         <span className="summary-check"><Check/></span>
         <Badge tone="success">Interactive sample complete</Badge>
         <h1>{correctCount} of {questions.length} correct</h1>
-        <p>You experienced the core Stepwise loop: answer, see cohort context inside each option, diagnose the reasoning pattern, and convert the miss into a next action.</p>
+        <p>You experienced the core Stepwise loop: answer, diagnose the reasoning pattern, inspect the teaching explanation, and convert a miss into a next action.</p>
         <div className="try-score"><Progress value={(correctCount / Math.max(questions.length, 1)) * 100}/><span>{Math.round(correctCount / Math.max(questions.length, 1) * 100)}%</span></div>
-        <div className="try-complete-actions"><button className="btn btn-secondary" onClick={restart}><RotateCcw/> Try again</button><Link className="btn btn-brand" href="/signup">Create free workspace <ArrowRight/></Link></div>
+        <div className="try-complete-actions"><button className="btn btn-secondary" onClick={restart}><RotateCcw/> Try again</button><Link className="btn btn-brand" href="/signup">Create preview profile <ArrowRight/></Link></div>
       </section>
     </main>;
   }
 
   const trap = answered ? diagnoseReasoningTrap(question, selected) : null;
+  const selectedChoice = question.choices.find((choice) => choice.id === selected);
   return <main className="try-page">
-    <header className="try-nav"><Link href="/"><Logo/></Link><div><span className="try-progress-label">Question {index + 1} of {questions.length}</span><Link href="/signup" className="btn btn-brand">Save progress</Link></div></header>
+    <header className="try-nav"><Logo/><div><span className="try-progress-label">Question {index + 1} of {questions.length}</span><Link href="/signup" className="btn btn-brand">Create profile</Link></div></header>
     <div className="try-progress"><Progress value={((index + (answered ? 1 : 0)) / questions.length) * 100}/></div>
     <section className="try-workspace">
       <aside className="try-sidebar">
         <div><Badge tone="brand">{question.step}</Badge><h2>{question.system}</h2><p>{question.discipline} · {question.topic}</p></div>
         <nav aria-label="Question navigator">{questions.map((item, itemIndex) => <button key={item.id} className={`${itemIndex === index ? "active" : ""} ${submitted.includes(item.id) ? "answered" : ""}`} onClick={() => setIndex(itemIndex)}>{itemIndex + 1}{submitted.includes(item.id) && <Check/>}</button>)}</nav>
         <small><Clock3/> Untimed guided demo</small>
+        <div className="try-signal-note"><BrainCircuit/><p><b>Reasoning Trace unlocks after submission.</b><span>See the cue, decision, correction, and next review—not only the correct option.</span></p></div>
       </aside>
       <article className="try-question panel">
         <header><span>Original Stepwise sample</span><Badge tone={question.difficulty === "Hard" ? "danger" : "warning"}>{question.difficulty}</Badge></header>
@@ -77,13 +80,22 @@ export function DemoPage() {
             onClick={() => !answered && setAnswers((items) => ({ ...items, [question.id]: choice.id }))}
             disabled={answered}
           >
-            {answered && <span className="peer-option-fill" style={{ width: `${percent}%` }}/>}<span className="try-choice-letter">{String.fromCharCode(65 + choiceIndex)}</span><span className="try-choice-copy">{choice.text}</span>{answered && <span className="peer-option-percent">{percent}%</span>}{correct && <Check/>}{wrong && <X/>}
+            {answered && distribution.length > 0 && <span className="peer-option-fill" style={{ width: `${percent}%` }}/>}<span className="try-choice-letter">{String.fromCharCode(65 + choiceIndex)}</span><span className="try-choice-copy">{choice.text}</span>{answered && distribution.length > 0 && <span className="peer-option-percent">{percent}%</span>}{correct && <Check/>}{wrong && <X/>}
           </button>;
         })}</div>
         {!answered ? <footer><Link href="/" className="btn btn-ghost"><ArrowLeft/> Exit demo</Link><button className="btn btn-brand" onClick={submit} disabled={!selected}>Submit answer</button></footer> : <section className="try-explanation">
           <div className="try-result"><span className={selected === question.correctChoiceId ? "correct" : "wrong"}>{selected === question.correctChoiceId ? <Check/> : <X/>}</span><div><small>{selected === question.correctChoiceId ? "CORRECT" : "LEARNING MOMENT"}</small><h2>{question.objective}</h2></div></div>
           <p>{question.explanation}</p>
           {trap && <div className="reasoning-trap-box"><BrainCircuit/><div><span>Reasoning signal</span><h3>{trap.label}</h3><p>{trap.description}</p><small>Next action: {trap.nextAction}</small></div></div>}
+          {trap && <ReasoningTrace
+            compact
+            steps={[
+              { phase: "Clinical cue", title: question.topic, detail: `${question.system} · ${question.discipline}`, state: "complete" },
+              { phase: "Your decision", title: selectedChoice?.text ?? "No answer selected", detail: selected === question.correctChoiceId ? "The decision matches the best-supported answer." : "The selected answer points to a correctable reasoning gap.", state: "complete" },
+              { phase: "Correction", title: trap.label, detail: trap.description, state: "current" },
+              { phase: "Next review", title: "Make the correction durable", detail: trap.nextAction, state: "next" }
+            ]}
+          />}
           <div className="try-pearls"><b>High-yield takeaway</b>{question.pearls.map((pearl) => <p key={pearl}><Check/>{pearl}</p>)}</div>
           <footer><button className="btn btn-secondary" onClick={() => move(index - 1)} disabled={index === 0}><ArrowLeft/> Previous</button><button className="btn btn-brand" onClick={() => move(index + 1)}>{index === questions.length - 1 ? "View result" : "Next question"}<ArrowRight/></button></footer>
         </section>}

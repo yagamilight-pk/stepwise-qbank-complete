@@ -1,0 +1,120 @@
+import { expect, test } from "@playwright/test";
+
+async function expectNoHorizontalOverflow(page: import("@playwright/test").Page) {
+  await expect.poll(() => page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    content: document.documentElement.scrollWidth
+  }))).toEqual(expect.objectContaining({
+    viewport: expect.any(Number),
+    content: expect.any(Number)
+  }));
+  const dimensions = await page.evaluate(() => ({
+    viewport: document.documentElement.clientWidth,
+    content: document.documentElement.scrollWidth
+  }));
+  expect(dimensions.content, `page width ${dimensions.content}px should fit viewport ${dimensions.viewport}px`).toBeLessThanOrEqual(dimensions.viewport + 1);
+}
+
+test.describe("enterprise product contracts", () => {
+  test("learner, session, and admin surfaces expose one main landmark without horizontal overflow", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+    });
+
+    for (const route of ["/app", "/app/exam-day", "/app/session", "/admin/questions"]) {
+      const response = await page.goto(route, { waitUntil: "domcontentloaded" });
+      expect(response?.status()).toBe(200);
+      await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
+      await expect(page.locator("main")).toHaveCount(1);
+      await expectNoHorizontalOverflow(page);
+    }
+  });
+
+  test("question editor exposes governance and truthful delivery boundaries", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440");
+    await page.addInitScript(() => window.localStorage.clear());
+    await page.goto("/admin/questions", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".route-loading")).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.locator(".workspace-trustline")).toContainText("Local demo state saved", { timeout: 15_000 });
+    const editButton = page.getByRole("button", { name: /^Edit / }).first();
+    await expect(editButton).toBeEnabled();
+    await editButton.click();
+    await expect(page.locator(".governance-readiness")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Delivery boundary")).toHaveValue("Demo");
+    await expect(page.locator(".governance-readiness")).toContainText("isolated from production learner delivery");
+    await expect(page.getByRole("button", { name: "Publish demo" })).toBeVisible();
+
+    await page.getByLabel("Item format").selectOption("Chart / tabular");
+    await expect(page.getByText("Patient chart structure")).toBeVisible();
+    await page.getByRole("button", { name: "Add section" }).click();
+    await expect(page.locator(".chart-row-editor")).toHaveCount(1);
+    await expect(page.locator(".editor-format-preview.chart")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Publish demo" })).toBeDisabled();
+  });
+
+  test("signup fails closed when the external identity provider is unavailable", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440");
+    await page.goto("/signup", { waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("stepwise-qbank-state-v8")), { timeout: 15_000 }).not.toBeNull();
+    await page.getByLabel("Full name").fill("Jordan Lee");
+    await page.getByLabel("Email address").fill("jordan@example.com");
+    await page.getByRole("textbox", { name: "Password" }).fill("secure-demo-password");
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: /USMLE Step 1/ }).click();
+    await page.getByLabel("Target exam date").fill("2026-12-18");
+    await page.getByRole("button", { name: /Create account/ }).click();
+    await expect(page.locator(".form-error[role='alert']")).toContainText("Authentication is not configured");
+    await expect(page).toHaveURL(/\/signup$/);
+    await expect(page.getByRole("button", { name: /USMLE Step 1/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByLabel(/Target exam date/)).toHaveValue("2026-12-18");
+  });
+
+  test("flashcard due-now counts and rating previews match the scheduler", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440");
+    await page.goto("/app", { waitUntil: "domcontentloaded" });
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("stepwise-qbank-state-v8"))).not.toBeNull();
+    await page.evaluate(() => {
+      const key = "stepwise-qbank-state-v8";
+      const state = JSON.parse(window.localStorage.getItem(key) || "{}");
+      const now = Date.now();
+      state.flashcards = [
+        {
+          id: "due-contract-card", front: "Due prompt", back: "Due answer", tags: ["Contract"],
+          interval: 0, ease: 2.5, repetitions: 0, lapses: 0,
+          dueAt: new Date(now - 60_000).toISOString(), createdAt: new Date(now - 60_000).toISOString()
+        },
+        {
+          id: "future-contract-card", front: "Future prompt", back: "Future answer", tags: ["Contract"],
+          interval: 3, ease: 2.5, repetitions: 1, lapses: 0,
+          dueAt: new Date(now + 3_600_000).toISOString(), createdAt: new Date(now).toISOString()
+        }
+      ];
+      window.localStorage.setItem(key, JSON.stringify(state));
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator(".quick-actions")).toContainText("1 ready now");
+
+    await page.goto("/app/flashcards", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /Review 1 cards/ }).click();
+    await page.getByRole("button", { name: /Show answer/ }).click();
+    await expect(page.locator(".rating-good")).toContainText("1 day");
+    await expect(page.locator(".rating-easy")).toContainText("3 days");
+    await page.locator(".rating-good").click();
+    await expect.poll(() => page.evaluate(() => {
+      const state = JSON.parse(window.localStorage.getItem("stepwise-qbank-state-v8") || "{}");
+      return state.flashcards.find((card: { id: string }) => card.id === "due-contract-card")?.interval;
+    })).toBe(1);
+  });
+
+  test("production responses include baseline security headers", async ({ request }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1440");
+    const response = await request.get("/");
+    expect(response.headers()["x-content-type-options"]).toBe("nosniff");
+    expect(response.headers()["x-frame-options"]).toBe("DENY");
+    expect(response.headers()["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+    expect(response.headers()["permissions-policy"]).toContain("camera=()");
+    expect(response.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
+    expect(response.headers()["content-security-policy"]).toContain("object-src 'none'");
+  });
+});

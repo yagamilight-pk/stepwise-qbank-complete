@@ -1,0 +1,1582 @@
+{
+  "organizationId": "6a59f06f262272e60956",
+  "projectId": "stepwise-qbank-complete",
+  "projectName": "Stepwise QBank",
+  "endpoint": "https://fra.cloud.appwrite.io/v1",
+  "settings": {
+    "auth": {
+      "methods": {
+        "email-password": true,
+        "magic-url": false,
+        "email-otp": false,
+        "anonymous": false,
+        "invites": false,
+        "jwt": true,
+        "phone": false
+      },
+      "security": {
+        "sessionsLimit": 10,
+        "passwordDictionary": true,
+        "personalDataCheck": true,
+        "sessionAlerts": true
+      }
+    }
+  },
+  "tablesDB": [
+    {
+      "$id": "stepwise",
+      "name": "Stepwise",
+      "enabled": true
+    }
+  ],
+  "tables": [
+    {
+      "$id": "user_states",
+      "$permissions": [
+        "create(\"users\")"
+      ],
+      "databaseId": "stepwise",
+      "name": "User States",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "schemaVersion",
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 100,
+          "array": false
+        },
+        {
+          "key": "state",
+          "type": "longtext",
+          "required": true,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "revision",
+          "type": "integer",
+          "required": true,
+          "min": 0,
+          "max": 2147483647,
+          "array": false
+        },
+        {
+          "key": "checksum",
+          "type": "varchar",
+          "required": false,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "$id": "learner_profiles",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Learner Profiles",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "userId",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "name",
+          "type": "varchar",
+          "required": true,
+          "size": 120,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "email",
+          "type": "string",
+          "required": true,
+          "format": "email",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "emailVerified",
+          "type": "boolean",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "medicalSchool",
+          "type": "varchar",
+          "required": false,
+          "size": 200,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "targetExam",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "Step 1",
+            "Step 2 CK"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "preparationStage",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "Early preparation",
+            "Building consistency",
+            "Dedicated period",
+            "Final review"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "onboardingCompleted",
+          "type": "boolean",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "preferences",
+          "type": "longtext",
+          "required": true,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "stateRevision",
+          "type": "integer",
+          "required": true,
+          "min": 0,
+          "max": 2147483647,
+          "array": false
+        },
+        {
+          "key": "lastSyncedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "profile_user_unique",
+          "type": "unique",
+          "columns": [
+            "userId"
+          ],
+          "orders": [
+            "ASC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "learner_attempts",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Learner Attempts",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "userId",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "attemptId",
+          "type": "varchar",
+          "required": true,
+          "size": 128,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "questionId",
+          "type": "varchar",
+          "required": true,
+          "size": 128,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "sessionId",
+          "type": "varchar",
+          "required": true,
+          "size": 128,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "selectedChoiceId",
+          "type": "varchar",
+          "required": true,
+          "size": 128,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "correct",
+          "type": "boolean",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "scoringVerified",
+          "type": "boolean",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "confidence",
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 5,
+          "array": false
+        },
+        {
+          "key": "timeSec",
+          "type": "integer",
+          "required": true,
+          "min": 0,
+          "max": 86400,
+          "array": false
+        },
+        {
+          "key": "mode",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "Tutor",
+            "Timed",
+            "Exam",
+            "Adaptive"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "createdAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "attempt_identity_unique",
+          "type": "unique",
+          "columns": [
+            "userId",
+            "attemptId"
+          ],
+          "orders": [
+            "ASC",
+            "ASC"
+          ]
+        },
+        {
+          "key": "attempt_user_created",
+          "type": "key",
+          "columns": [
+            "userId",
+            "createdAt"
+          ],
+          "orders": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        {
+          "key": "attempt_question_created",
+          "type": "key",
+          "columns": [
+            "questionId",
+            "createdAt"
+          ],
+          "orders": [
+            "ASC",
+            "DESC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "learner_sessions",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Learner Sessions",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "userId",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "sessionId",
+          "type": "varchar",
+          "required": true,
+          "size": 128,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "active",
+            "completed",
+            "abandoned"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "config",
+          "type": "longtext",
+          "required": true,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "questionIds",
+          "type": "longtext",
+          "required": true,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "currentIndex",
+          "type": "integer",
+          "required": true,
+          "min": 0,
+          "max": 100,
+          "array": false
+        },
+        {
+          "key": "answeredCount",
+          "type": "integer",
+          "required": true,
+          "min": 0,
+          "max": 100,
+          "array": false
+        },
+        {
+          "key": "unansweredCount",
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 100,
+          "array": false
+        },
+        {
+          "key": "accuracy",
+          "type": "double",
+          "required": false,
+          "min": 0,
+          "max": 100,
+          "array": false
+        },
+        {
+          "key": "createdAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "completedAt",
+          "type": "datetime",
+          "required": false,
+          "array": false
+        },
+        {
+          "key": "updatedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "session_identity_unique",
+          "type": "unique",
+          "columns": [
+            "userId",
+            "sessionId"
+          ],
+          "orders": [
+            "ASC",
+            "ASC"
+          ]
+        },
+        {
+          "key": "session_user_updated",
+          "type": "key",
+          "columns": [
+            "userId",
+            "updatedAt"
+          ],
+          "orders": [
+            "ASC",
+            "DESC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "learner_artifacts",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Learner Artifacts",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "userId",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "artifactKey",
+          "type": "varchar",
+          "required": true,
+          "size": 255,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "artifactType",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "note",
+            "flashcard",
+            "study_task",
+            "bookmark",
+            "flag",
+            "saved_article",
+            "library_activity",
+            "settings",
+            "study_plan"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "objectId",
+          "type": "varchar",
+          "required": true,
+          "size": 128,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "data",
+          "type": "longtext",
+          "required": true,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "deleted",
+          "type": "boolean",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "updatedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "artifact_identity_unique",
+          "type": "unique",
+          "columns": [
+            "userId",
+            "artifactKey"
+          ],
+          "orders": [
+            "ASC",
+            "ASC"
+          ]
+        },
+        {
+          "key": "artifact_user_type",
+          "type": "key",
+          "columns": [
+            "userId",
+            "artifactType"
+          ],
+          "orders": [
+            "ASC",
+            "ASC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "learner_mastery",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Learner Mastery",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "userId",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "dimensionType",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "system",
+            "discipline",
+            "topic",
+            "competency"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "dimensionKey",
+          "type": "varchar",
+          "required": true,
+          "size": 255,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "alpha",
+          "type": "double",
+          "required": true,
+          "min": 0,
+          "max": 1.7976931348623157e+308,
+          "array": false
+        },
+        {
+          "key": "beta",
+          "type": "double",
+          "required": true,
+          "min": 0,
+          "max": 1.7976931348623157e+308,
+          "array": false
+        },
+        {
+          "key": "mastery",
+          "type": "double",
+          "required": true,
+          "min": 0,
+          "max": 1,
+          "array": false
+        },
+        {
+          "key": "attempts",
+          "type": "integer",
+          "required": true,
+          "min": 0,
+          "max": 9223372036854775807,
+          "array": false
+        },
+        {
+          "key": "updatedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "mastery_dimension_unique",
+          "type": "unique",
+          "columns": [
+            "userId",
+            "dimensionType",
+            "dimensionKey"
+          ],
+          "orders": [
+            "ASC",
+            "ASC",
+            "ASC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "subscriptions",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Subscriptions",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "userId",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "planId",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "stepwise-90",
+            "stepwise-180",
+            "stepwise-360"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "pending",
+            "active",
+            "expired",
+            "refunded",
+            "chargeback",
+            "cancelled"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "startsAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "expiresAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "sourceOrderId",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "updatedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "subscription_user_unique",
+          "type": "unique",
+          "columns": [
+            "userId"
+          ],
+          "orders": [
+            "ASC"
+          ]
+        },
+        {
+          "key": "subscription_status_expiry",
+          "type": "key",
+          "columns": [
+            "status",
+            "expiresAt"
+          ],
+          "orders": [
+            "ASC",
+            "ASC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "orders",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Payment Orders",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "userId",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "planId",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "stepwise-90",
+            "stepwise-180",
+            "stepwise-360"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "amount",
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 9223372036854775807,
+          "array": false
+        },
+        {
+          "key": "currency",
+          "type": "varchar",
+          "required": true,
+          "size": 3,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "provider",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "safepay"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "providerTracker",
+          "type": "varchar",
+          "required": false,
+          "size": 255,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "providerOrderId",
+          "type": "varchar",
+          "required": false,
+          "size": 255,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "createdAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "updatedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "paidAt",
+          "type": "datetime",
+          "required": false,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "order_user_created",
+          "type": "key",
+          "columns": [
+            "userId",
+            "createdAt"
+          ],
+          "orders": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        {
+          "key": "order_tracker_unique",
+          "type": "unique",
+          "columns": [
+            "providerTracker"
+          ],
+          "orders": [
+            "ASC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "payment_events",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Payment Events",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "provider",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "safepay"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "providerEventId",
+          "type": "varchar",
+          "required": true,
+          "size": 255,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "eventType",
+          "type": "varchar",
+          "required": true,
+          "size": 120,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "signatureVerified",
+          "type": "boolean",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "processing",
+            "processed",
+            "failed"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "userId",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "orderId",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "providerTracker",
+          "type": "varchar",
+          "required": true,
+          "size": 255,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "payloadHash",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "receivedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "processedAt",
+          "type": "datetime",
+          "required": false,
+          "array": false
+        },
+        {
+          "key": "lastError",
+          "type": "text",
+          "required": false,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "attempts",
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 9223372036854775807,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "payment_event_unique",
+          "type": "unique",
+          "columns": [
+            "provider",
+            "providerEventId"
+          ],
+          "orders": [
+            "ASC",
+            "ASC"
+          ]
+        },
+        {
+          "key": "payment_order",
+          "type": "key",
+          "columns": [
+            "orderId"
+          ],
+          "orders": [
+            "ASC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "support_tickets",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Support Tickets",
+      "enabled": true,
+      "rowSecurity": true,
+      "columns": [
+        {
+          "key": "userId",
+          "type": "varchar",
+          "required": false,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "name",
+          "type": "varchar",
+          "required": true,
+          "size": 120,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "email",
+          "type": "string",
+          "required": true,
+          "format": "email",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "category",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "Account",
+            "Billing",
+            "Question content",
+            "Technical",
+            "Accessibility",
+            "Other"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "subject",
+          "type": "varchar",
+          "required": true,
+          "size": 240,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "message",
+          "type": "text",
+          "required": true,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "open",
+            "in_progress",
+            "resolved",
+            "closed"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "priority",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "normal",
+            "urgent"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "sourceUrl",
+          "type": "string",
+          "required": false,
+          "format": "url",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "createdAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "updatedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "support_email_created",
+          "type": "key",
+          "columns": [
+            "email",
+            "createdAt"
+          ],
+          "orders": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        {
+          "key": "support_status_created",
+          "type": "key",
+          "columns": [
+            "status",
+            "createdAt"
+          ],
+          "orders": [
+            "ASC",
+            "DESC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "email_events",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Email Events",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "idempotencyKey",
+          "type": "varchar",
+          "required": true,
+          "size": 255,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "kind",
+          "type": "varchar",
+          "required": true,
+          "size": 80,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "recipientHash",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "sent",
+            "failed",
+            "skipped"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "providerMessageId",
+          "type": "varchar",
+          "required": false,
+          "size": 255,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "createdAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "email_idempotency_unique",
+          "type": "unique",
+          "columns": [
+            "idempotencyKey"
+          ],
+          "orders": [
+            "ASC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "audit_events",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Audit Events",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "actorUserId",
+          "type": "varchar",
+          "required": false,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "event",
+          "type": "varchar",
+          "required": true,
+          "size": 160,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "targetType",
+          "type": "varchar",
+          "required": false,
+          "size": 80,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "targetId",
+          "type": "varchar",
+          "required": false,
+          "size": 128,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "level",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "info",
+            "warn",
+            "error"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "details",
+          "type": "longtext",
+          "required": true,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "createdAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "audit_event_created",
+          "type": "key",
+          "columns": [
+            "event",
+            "createdAt"
+          ],
+          "orders": [
+            "ASC",
+            "DESC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "item_statistics",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Item Statistics",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "questionId",
+          "type": "varchar",
+          "required": true,
+          "size": 128,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "sampleSize",
+          "type": "integer",
+          "required": true,
+          "min": 0,
+          "max": 9223372036854775807,
+          "array": false
+        },
+        {
+          "key": "pValue",
+          "type": "double",
+          "required": false,
+          "min": 0,
+          "max": 1,
+          "array": false
+        },
+        {
+          "key": "pointBiserial",
+          "type": "double",
+          "required": false,
+          "min": -1,
+          "max": 1,
+          "array": false
+        },
+        {
+          "key": "discrimination",
+          "type": "double",
+          "required": false,
+          "min": -1,
+          "max": 1,
+          "array": false
+        },
+        {
+          "key": "distractorEfficiency",
+          "type": "double",
+          "required": false,
+          "min": 0,
+          "max": 1,
+          "array": false
+        },
+        {
+          "key": "medianTimeSec",
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 9223372036854775807,
+          "array": false
+        },
+        {
+          "key": "meanConfidence",
+          "type": "double",
+          "required": false,
+          "min": 1,
+          "max": 5,
+          "array": false
+        },
+        {
+          "key": "exposureCount",
+          "type": "integer",
+          "required": true,
+          "min": 0,
+          "max": 9223372036854775807,
+          "array": false
+        },
+        {
+          "key": "eligible",
+          "type": "boolean",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "lastCalculatedAt",
+          "type": "datetime",
+          "required": true,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "item_question_unique",
+          "type": "unique",
+          "columns": [
+            "questionId"
+          ],
+          "orders": [
+            "ASC"
+          ]
+        }
+      ]
+    },
+    {
+      "$id": "question_versions",
+      "$permissions": [],
+      "databaseId": "stepwise",
+      "name": "Question Versions",
+      "enabled": true,
+      "rowSecurity": false,
+      "columns": [
+        {
+          "key": "questionId",
+          "type": "varchar",
+          "required": true,
+          "size": 128,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "version",
+          "type": "integer",
+          "required": true,
+          "min": 1,
+          "max": 9223372036854775807,
+          "array": false
+        },
+        {
+          "key": "step",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "Step 1",
+            "Step 2 CK"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "status",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "draft",
+            "in_review",
+            "published",
+            "archived"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "system",
+          "type": "varchar",
+          "required": true,
+          "size": 160,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "discipline",
+          "type": "varchar",
+          "required": true,
+          "size": 160,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "topic",
+          "type": "varchar",
+          "required": true,
+          "size": 255,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "difficulty",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "Easy",
+            "Medium",
+            "Hard"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "payload",
+          "type": "longtext",
+          "required": true,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "rightsStatus",
+          "type": "string",
+          "required": true,
+          "elements": [
+            "Original",
+            "Licensed",
+            "Pending verification"
+          ],
+          "format": "enum",
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "medicalReviewer",
+          "type": "varchar",
+          "required": false,
+          "size": 160,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "medicalReviewedAt",
+          "type": "datetime",
+          "required": false,
+          "array": false
+        },
+        {
+          "key": "evidenceVersion",
+          "type": "varchar",
+          "required": false,
+          "size": 160,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "checksum",
+          "type": "varchar",
+          "required": true,
+          "size": 64,
+          "array": false,
+          "encrypt": false
+        },
+        {
+          "key": "publishedAt",
+          "type": "datetime",
+          "required": false,
+          "array": false
+        }
+      ],
+      "indexes": [
+        {
+          "key": "question_version_unique",
+          "type": "unique",
+          "columns": [
+            "questionId",
+            "version"
+          ],
+          "orders": [
+            "ASC",
+            "DESC"
+          ]
+        },
+        {
+          "key": "question_catalog",
+          "type": "key",
+          "columns": [
+            "status",
+            "step",
+            "system"
+          ],
+          "orders": [
+            "ASC",
+            "ASC",
+            "ASC"
+          ]
+        }
+      ]
+    }
+  ],
+  "buckets": [],
+  "teams": [],
+  "topics": []
+}

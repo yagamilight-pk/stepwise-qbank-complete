@@ -1,4 +1,4 @@
-import type { AdminUser, AppState, ContentReport, Flashcard, Note, NotificationItem, Question, StudyTask } from "./types";
+import type { AdminUser, AppState, Flashcard, InfluencerProfile, MarketingAsset, Note, PayoutRecord, Question, ReferralConversion } from "./types";
 
 const q = (
   id: string,
@@ -20,6 +20,8 @@ const q = (
 ): Question => ({
   id,
   step,
+  format: "Single best answer",
+  contentUse: "Demo",
   system,
   discipline,
   topic,
@@ -37,7 +39,15 @@ const q = (
   updatedAt: "2026-07-18",
   globalAccuracy,
   averageTimeSec,
-  sourceLabel: "Stepwise original"
+  sourceLabel: "Stepwise original demonstration item",
+  physicianTask: step === "Step 1" ? "Applying foundational science concepts" : "Diagnosis and management",
+  competencies: step === "Step 1" ? ["Medical knowledge"] : ["Patient care", "Medical knowledge"],
+  references: [],
+  governance: {
+    version: 1,
+    rightsStatus: "Original",
+    editor: "Stepwise demonstration editorial team"
+  }
 });
 
 export const demoQuestions: Question[] = [
@@ -263,61 +273,96 @@ export const seedFlashcards: Flashcard[] = [
   }
 ];
 
-const users: AdminUser[] = [
-  ["u1", "Aisha Rahman", "aisha@example.com", "Pro", "Active", "2026-04-02", "2026-07-22", 1642, 76],
-  ["u2", "Daniel Brooks", "daniel@example.com", "Core", "Active", "2026-05-11", "2026-07-21", 894, 69],
-  ["u3", "Mei Chen", "mei@example.com", "Institution", "Active", "2026-02-16", "2026-07-22", 2380, 82],
-  ["u4", "Omar Siddiqui", "omar@example.com", "Trial", "At risk", "2026-07-10", "2026-07-15", 72, 58],
-  ["u5", "Sofia Martinez", "sofia@example.com", "Pro", "Paused", "2026-01-22", "2026-06-30", 1875, 74],
-  ["u6", "Noah Williams", "noah@example.com", "Core", "Active", "2026-06-03", "2026-07-20", 512, 71]
-].map(([id, name, email, plan, status, joinedAt, lastActiveAt, questionsAnswered, accuracy]) => ({
-  id: String(id), name: String(name), email: String(email), plan: plan as AdminUser["plan"], status: status as AdminUser["status"],
-  joinedAt: String(joinedAt), lastActiveAt: String(lastActiveAt), questionsAnswered: Number(questionsAnswered), accuracy: Number(accuracy)
-}));
+export const users: AdminUser[] = [];
 
-const reports: ContentReport[] = [
-  { id: "r1", questionId: "SW-2003", reason: "Ambiguous wording", detail: "Could clarify that the patient is normotensive when choosing among uterotonics.", reporter: "learner-2048", createdAt: "2026-07-21T10:15:00.000Z", status: "Open" },
-  { id: "r2", questionId: "SW-1002", reason: "Medical accuracy", detail: "Please distinguish entacapone from tolcapone adverse effects more explicitly.", reporter: "learner-1931", createdAt: "2026-07-20T16:40:00.000Z", status: "Open" },
-  { id: "r3", questionId: "SW-2006", reason: "Typo", detail: "A punctuation issue in the prior revision was corrected.", reporter: "editor-7", createdAt: "2026-07-18T08:10:00.000Z", status: "Resolved" }
-];
+export const demoInfluencers: InfluencerProfile[] = [];
 
-const notifications: NotificationItem[] = [
-  { id: "n1", title: "Study plan adjusted", body: "Your next block now emphasizes Neurology and Immunology.", time: "12 min ago", read: false },
-  { id: "n2", title: "Three cards are due", body: "A focused review should take about 4 minutes.", time: "1 hr ago", read: false },
-  { id: "n3", title: "Weekly insight", body: "Your accuracy rose 6% while average response time fell 9 seconds.", time: "Yesterday", read: true }
-];
+export function calcConversion(
+  id: string,
+  influencerId: string,
+  customerMaskedEmail: string,
+  planName: string,
+  listPrice: number,
+  discountPercent: number,
+  promoCodeUsed: string,
+  status: ReferralConversion["status"],
+  timestamp: string,
+  influencerCommissionRate: number = 0.30
+): ReferralConversion {
+  const discountAmount = Math.round(listPrice * (discountPercent / 100) * 100) / 100;
+  const customerPaid = Math.round((listPrice - discountAmount) * 100) / 100;
+  const operationalCost = Math.round(listPrice * 0.10 * 100) / 100;
+  const netProfit = Math.round((listPrice - operationalCost - discountAmount) * 100) / 100;
+  const commissionEarned = Math.round(netProfit * influencerCommissionRate * 100) / 100;
+  return {
+    id,
+    influencerId,
+    customerMaskedEmail,
+    planName,
+    listPrice,
+    discountPercent,
+    discountAmount,
+    customerPaid,
+    operationalCost,
+    netProfit,
+    influencerCommissionRate,
+    commissionEarned,
+    promoCodeUsed,
+    status,
+    timestamp
+  };
+}
 
-const studyTasks: StudyTask[] = [
-  { id: "t1", date: "2026-07-22", type: "Questions", title: "Adaptive mixed block", detail: "20 questions · Neurology + Immunology", minutes: 34, completed: false, priority: "Weakness" },
-  { id: "t2", date: "2026-07-22", type: "Flashcards", title: "Due card review", detail: "3 due · 2 learning", minutes: 8, completed: false, priority: "Maintenance" },
-  { id: "t3", date: "2026-07-22", type: "Review", title: "Incorrects from last block", detail: "6 explanations", minutes: 18, completed: true, priority: "Core" },
-  { id: "t4", date: "2026-07-23", type: "Questions", title: "Timed systems block", detail: "30 questions · Cardiovascular", minutes: 52, completed: false, priority: "Core" },
-  { id: "t5", date: "2026-07-24", type: "Assessment", title: "Readiness mini-assessment", detail: "40 mixed questions", minutes: 70, completed: false, priority: "Core" },
-  { id: "t6", date: "2026-07-25", type: "Review", title: "Weak-topic consolidation", detail: "Renal acid-base + movement disorders", minutes: 45, completed: false, priority: "Weakness" }
+export const demoConversions: ReferralConversion[] = [];
+
+export const demoPayoutRecords: PayoutRecord[] = [];
+
+export const demoMarketingAssets: MarketingAsset[] = [
+  {
+    id: "ast_1",
+    title: "Instagram Story & Reel Overlays (USMLE Prep)",
+    category: "Social Story",
+    dimensions: "1080x1920 PX",
+    fileSize: "Brief",
+    downloadUrl: "#",
+    thumbnailUrl: "",
+    previewText: "A production-ready creative brief for USMLE-focused story and reel layouts using the Stepwise clinical-instrument system."
+  },
+  {
+    id: "ast_2",
+    title: "YouTube Video Description Copy & Promo Links",
+    category: "Copy Template",
+    downloadUrl: "#",
+    previewText: "Explore Stepwise, an exam-oriented QBank workspace that connects question practice, reasoning review, study planning, and spaced repetition. Confirm product availability and pricing before publishing."
+  },
+  {
+    id: "ast_3",
+    title: "Stepwise Dark Mode & Light Mode Vector Logo Pack",
+    category: "Logo Pack",
+    dimensions: "SVG / PNG / EPS",
+    fileSize: "SVG",
+    downloadUrl: "/icon.svg",
+    previewText: "Stepwise vector application mark for approved preview use. Production brand packages require final brand-owner approval."
+  },
+  {
+    id: "ast_4",
+    title: "Website Sidebar & Blog Banner (728x90 & 300x250)",
+    category: "Banner",
+    dimensions: "728x90 & 300x250 PX",
+    fileSize: "Brief",
+    downloadUrl: "#",
+    previewText: "A restrained clinical banner brief focused on adaptive block selection, reasoning feedback, and study-plan continuity."
+  }
 ];
 
 export const initialState: AppState = {
+  schemaVersion: 8,
   questions: demoQuestions,
-  attempts: [
-    { id: "a1", questionId: "SW-1001", selectedChoiceId: "SW-1001-B", correct: true, confidence: 4, timeSec: 83, createdAt: "2026-07-18T09:00:00.000Z", sessionId: "seed-1", mode: "Tutor" },
-    { id: "a2", questionId: "SW-1002", selectedChoiceId: "SW-1002-A", correct: false, confidence: 3, timeSec: 118, createdAt: "2026-07-18T09:03:00.000Z", sessionId: "seed-1", mode: "Tutor" },
-    { id: "a3", questionId: "SW-1003", selectedChoiceId: "SW-1003-D", correct: true, confidence: 4, timeSec: 72, createdAt: "2026-07-19T14:00:00.000Z", sessionId: "seed-2", mode: "Timed" },
-    { id: "a4", questionId: "SW-1004", selectedChoiceId: "SW-1004-C", correct: false, confidence: 2, timeSec: 101, createdAt: "2026-07-19T14:03:00.000Z", sessionId: "seed-2", mode: "Timed" },
-    { id: "a5", questionId: "SW-2001", selectedChoiceId: "SW-2001-B", correct: true, confidence: 5, timeSec: 77, createdAt: "2026-07-20T08:00:00.000Z", sessionId: "seed-3", mode: "Adaptive" },
-    { id: "a6", questionId: "SW-2003", selectedChoiceId: "SW-2003-A", correct: false, confidence: 4, timeSec: 95, createdAt: "2026-07-20T08:02:00.000Z", sessionId: "seed-3", mode: "Adaptive" },
-    { id: "a7", questionId: "SW-2004", selectedChoiceId: "SW-2004-D", correct: true, confidence: 3, timeSec: 109, createdAt: "2026-07-21T11:00:00.000Z", sessionId: "seed-4", mode: "Tutor" },
-    { id: "a8", questionId: "SW-2006", selectedChoiceId: "SW-2006-B", correct: true, confidence: 4, timeSec: 80, createdAt: "2026-07-21T11:03:00.000Z", sessionId: "seed-4", mode: "Tutor" },
-    { id: "a9", questionId: "SW-2008", selectedChoiceId: "SW-2008-A", correct: false, confidence: 5, timeSec: 116, createdAt: "2026-07-21T11:06:00.000Z", sessionId: "seed-4", mode: "Tutor" },
-    { id: "a10", questionId: "SW-2002", selectedChoiceId: "SW-2002-C", correct: true, confidence: 4, timeSec: 63, createdAt: "2026-07-22T07:35:00.000Z", sessionId: "seed-5", mode: "Adaptive" },
-    { id: "a11", questionId: "SW-2005", selectedChoiceId: "SW-2005-C", correct: true, confidence: 3, timeSec: 88, createdAt: "2026-07-22T07:37:00.000Z", sessionId: "seed-5", mode: "Adaptive" },
-    { id: "a12", questionId: "SW-2007", selectedChoiceId: "SW-2007-A", correct: false, confidence: 4, timeSec: 74, createdAt: "2026-07-22T07:39:00.000Z", sessionId: "seed-5", mode: "Adaptive" },
-    { id: "a13", questionId: "SW-1005", selectedChoiceId: "SW-1005-E", correct: true, confidence: 5, timeSec: 49, createdAt: "2026-07-22T08:10:00.000Z", sessionId: "seed-6", mode: "Tutor" },
-    { id: "a14", questionId: "SW-1006", selectedChoiceId: "SW-1006-C", correct: false, confidence: 3, timeSec: 106, createdAt: "2026-07-22T08:12:00.000Z", sessionId: "seed-6", mode: "Tutor" }
-  ],
-  notes: seedNotes,
-  flashcards: seedFlashcards,
-  bookmarks: ["SW-1002", "SW-2004"],
-  flagged: ["SW-2003"],
+  attempts: [],
+  notes: [],
+  flashcards: [],
+  bookmarks: [],
+  flagged: [],
   sessions: [],
   planSettings: {
     examDate: "2026-10-17",
@@ -327,7 +372,7 @@ export const initialState: AppState = {
     targetStep: "Step 2 CK",
     targetScore: 255
   },
-  studyTasks,
+  studyTasks: [],
   settings: {
     theme: "light",
     reducedMotion: false,
@@ -342,12 +387,23 @@ export const initialState: AppState = {
     highContrast: false,
     largeText: false
   },
-  adminUsers: users,
-  reports,
-  notifications,
-  savedArticles: ["lib-hfpef", "lib-acid-base"],
-  libraryActivity: [
-    { articleId: "lib-hfpef", progress: 100, completed: true, lastOpenedAt: "2026-07-21T15:10:00.000Z" },
-    { articleId: "lib-acid-base", progress: 42, completed: false, lastOpenedAt: "2026-07-22T08:20:00.000Z" }
-  ]
+  learnerProfile: {
+    name: "Alex Kim",
+    email: "alex@example.com",
+    medicalSchool: "Northbridge School of Medicine",
+    targetExam: "Step 2 CK",
+    preparationStage: "Early preparation",
+    toolkitPriorities: ["Adaptive QBank", "Study plan"],
+    onboardingCompleted: false
+  },
+  adminUsers: [],
+  reports: [],
+  notifications: [],
+  savedArticles: [],
+  libraryActivity: [],
+  influencers: [],
+  referralConversions: [],
+  payoutRecords: [],
+  activeInfluencerId: "",
+  currentInfluencerId: null
 };

@@ -1,4 +1,6 @@
 import type { AppState, Attempt, Flashcard, LibraryActivity, MedicalArticle, Question, ReviewRating, SessionConfig, StudyPlanSettings, StudyTask } from "./types";
+import { getUsmleExamProfile } from "./usmle";
+import { scoreAdaptiveCandidate } from "./psychometrics";
 
 export const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -30,31 +32,12 @@ export function systemPerformance(questions: Question[], attempts: Attempt[]) {
   }).sort((a, b) => a.mastery - b.mastery || b.attempts - a.attempts);
 }
 
-function daysSince(date?: string) {
-  if (!date) return 30;
-  return Math.max(0, (Date.now() - new Date(date).getTime()) / 86_400_000);
-}
-
-function difficultyValue(difficulty: Question["difficulty"]) {
-  return difficulty === "Easy" ? 0.25 : difficulty === "Medium" ? 0.58 : 0.9;
-}
-
 /**
- * Adaptive selection prioritizes weak, unseen, stale, and confidence-mismatched items.
- * A small deterministic jitter avoids identical blocks without making testing flaky.
+ * Adaptive ranking is driven by Rasch information, Bayesian content mastery,
+ * recency, exposure control, and confidence calibration.
  */
-export function adaptiveScore(question: Question, attempts: Attempt[]) {
-  const stats = questionStats(question.id, attempts);
-  const weakness = stats.accuracy === null ? 0.62 : 1 - stats.accuracy / 100;
-  const unseen = stats.attempts === 0 ? 1 : 0;
-  const staleness = clamp(daysSince(stats.lastAttemptAt) / 21, 0, 1);
-  const latest = attempts.filter((attempt) => attempt.questionId === question.id).at(-1);
-  const confidenceMismatch = latest ? (latest.correct ? Math.max(0, 3 - latest.confidence) : latest.confidence / 5) : 0.4;
-  const challengeFit = latest
-    ? 1 - Math.abs((latest.correct ? 0.68 : 0.42) - difficultyValue(question.difficulty))
-    : 0.65;
-  const jitter = (question.id.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) % 17) / 100;
-  return unseen * 0.28 + weakness * 0.3 + staleness * 0.17 + confidenceMismatch * 0.13 + challengeFit * 0.12 + jitter;
+export function adaptiveScore(question: Question, attempts: Attempt[], questions: Question[] = [question]) {
+  return scoreAdaptiveCandidate(question, questions, attempts).score;
 }
 
 export function selectQuestions(state: AppState, config: SessionConfig): Question[] {
@@ -75,7 +58,10 @@ export function selectQuestions(state: AppState, config: SessionConfig): Questio
   if (config.include === "Bookmarked") pool = pool.filter((question) => state.bookmarks.includes(question.id));
 
   const ranked = [...pool].sort((a, b) => {
-    if (config.mode === "Adaptive") return adaptiveScore(b, state.attempts) - adaptiveScore(a, state.attempts);
+    if (config.mode === "Adaptive") {
+      const scoreDelta = adaptiveScore(b, state.attempts, state.questions) - adaptiveScore(a, state.attempts, state.questions);
+      return scoreDelta || a.id.localeCompare(b.id);
+    }
     const aHash = a.id.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
     const bHash = b.id.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
     return (aHash % 11) - (bHash % 11);
@@ -84,7 +70,7 @@ export function selectQuestions(state: AppState, config: SessionConfig): Questio
   return ranked.slice(0, Math.min(config.count, ranked.length));
 }
 
-export function reviewFlashcard(card: Flashcard, rating: ReviewRating, now = new Date()): Flashcard {
+export function flashcardReviewSchedule(card: Flashcard, rating: ReviewRating) {
   let { interval, ease, repetitions, lapses } = card;
   if (rating === "again") {
     interval = 0;
@@ -104,16 +90,29 @@ export function reviewFlashcard(card: Flashcard, rating: ReviewRating, now = new
     ease = Math.min(3.1, ease + 0.15);
   }
 
-  const due = new Date(now);
-  if (rating === "again") due.setMinutes(due.getMinutes() + 10);
-  else due.setDate(due.getDate() + interval);
-
   return {
-    ...card,
     interval,
     ease: Number(ease.toFixed(2)),
     repetitions,
-    lapses,
+    lapses
+  };
+}
+
+export function flashcardReviewIntervalLabel(card: Flashcard, rating: ReviewRating) {
+  if (rating === "again") return "10 min";
+  const { interval } = flashcardReviewSchedule(card, rating);
+  return `${interval} day${interval === 1 ? "" : "s"}`;
+}
+
+export function reviewFlashcard(card: Flashcard, rating: ReviewRating, now = new Date()): Flashcard {
+  const schedule = flashcardReviewSchedule(card, rating);
+  const due = new Date(now);
+  if (rating === "again") due.setMinutes(due.getMinutes() + 10);
+  else due.setDate(due.getDate() + schedule.interval);
+
+  return {
+    ...card,
+    ...schedule,
     lastReviewedAt: now.toISOString(),
     dueAt: due.toISOString()
   };
@@ -152,11 +151,11 @@ export function flashcardRetentionForecast(cards: Flashcard[], now = new Date())
     const stability = Math.max(1, card.interval || 1) * Math.max(1.05, card.ease / 2);
     return clamp(Math.exp(-elapsedDays / stability) * 100, 18, 99);
   });
-  const reviewDates = new Set(cards.map((card) => card.lastReviewedAt?.slice(0, 10)).filter(Boolean) as string[]);
+  const reviewDates = new Set(cards.map((card) => card.lastReviewedAt ? localDateKey(new Date(card.lastReviewedAt)) : null).filter(Boolean) as string[]);
   let streak = 0;
   const cursor = new Date(now);
-  if (!reviewDates.has(formatIsoDate(cursor))) cursor.setDate(cursor.getDate() - 1);
-  while (reviewDates.has(formatIsoDate(cursor))) {
+  if (!reviewDates.has(localDateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+  while (reviewDates.has(localDateKey(cursor))) {
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -169,7 +168,11 @@ export function flashcardRetentionForecast(cards: Flashcard[], now = new Date())
   };
 }
 
-const formatIsoDate = (date: Date) => date.toISOString().slice(0, 10);
+export const localDateKey = (date: Date) => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, "0"),
+  String(date.getDate()).padStart(2, "0")
+].join("-");
 
 export function generateStudyPlan(settings: StudyPlanSettings, questions: Question[], attempts: Attempt[]): StudyTask[] {
   const today = new Date();
@@ -177,31 +180,42 @@ export function generateStudyPlan(settings: StudyPlanSettings, questions: Questi
   const exam = new Date(`${settings.examDate}T12:00:00`);
   const finalDate = exam > today ? exam : new Date(today.getTime() + 42 * 86_400_000);
   const performance = systemPerformance(questions.filter((question) => question.step === settings.targetStep), attempts);
+  const examProfile = getUsmleExamProfile(settings.targetStep, settings.examDate);
   const weakSystems = performance.slice(0, 4).map((entry) => entry.system);
   const tasks: StudyTask[] = [];
   let taskIndex = 0;
 
-  for (let cursor = new Date(today); cursor <= finalDate && tasks.length < 42; cursor.setDate(cursor.getDate() + 1)) {
+  const maxCalendarDays = 366;
+  let calendarDays = 0;
+  const assessmentCadence = settings.preparationStage === "Final review"
+    ? 4
+    : settings.preparationStage === "Dedicated period"
+      ? 6
+      : 8;
+
+  for (let cursor = new Date(today); cursor <= finalDate && calendarDays < maxCalendarDays; cursor.setDate(cursor.getDate() + 1)) {
+    calendarDays += 1;
     if (!settings.weeklyDays.includes(cursor.getDay())) continue;
     const minutes = cursor.getDay() === 0 || cursor.getDay() === 6 ? settings.weekendMinutes : settings.weekdayMinutes;
     const system = weakSystems[taskIndex % Math.max(weakSystems.length, 1)] || "Mixed systems";
     const daysLeft = Math.max(0, Math.ceil((finalDate.getTime() - cursor.getTime()) / 86_400_000));
     const latePhase = daysLeft < 21;
-    const assessmentDay = taskIndex > 0 && taskIndex % 8 === 0;
-    const date = formatIsoDate(cursor);
+    const assessmentDay = taskIndex > 0 && taskIndex % assessmentCadence === 0;
+    const date = localDateKey(cursor);
 
     if (assessmentDay) {
       tasks.push({
-        id: `generated-${taskIndex}-assessment`, date, type: "Assessment", title: latePhase ? "Full exam simulation" : "Readiness assessment",
-        detail: latePhase ? "Timed mixed blocks with planned breaks" : "Mixed benchmark block + review", minutes,
+        id: `generated-${taskIndex}-assessment`, date, type: "Assessment", title: latePhase ? "Multi-block exam rehearsal" : "Readiness assessment",
+        detail: latePhase ? `${examProfile.blockMinutes}-minute mixed blocks with planned breaks` : "Mixed benchmark block + review", minutes,
         completed: false, priority: "Core"
       });
     } else {
       const questionMinutes = Math.max(25, Math.round(minutes * 0.62));
       const count = Math.max(10, Math.round(questionMinutes / 1.55));
+      const blockCount = Math.max(1, Math.ceil(count / examProfile.maxItemsPerBlock));
       tasks.push({
-        id: `generated-${taskIndex}-q`, date, type: "Questions", title: latePhase ? "Timed mixed block" : `Adaptive ${system} block`,
-        detail: `${count} questions · ${latePhase ? "Exam pacing" : "Weakness weighted"}`, minutes: questionMinutes,
+        id: `generated-${taskIndex}-q`, date, type: "Questions", title: latePhase ? `${blockCount}-block exam rehearsal` : `Adaptive ${system} block`,
+        detail: latePhase ? `${blockCount} × ${examProfile.blockMinutes}-min blocks · up to ${examProfile.maxItemsPerBlock} items each` : `${count} questions · Weakness weighted`, minutes: questionMinutes,
         completed: false, priority: latePhase ? "Core" : "Weakness"
       });
       tasks.push({
@@ -220,18 +234,19 @@ export function readinessEstimate(state: AppState, step: Question["step"]) {
   const questions = state.questions.filter((question) => question.step === step);
   const ids = new Set(questions.map((question) => question.id));
   const attempts = state.attempts.filter((attempt) => ids.has(attempt.questionId));
-  const accuracy = attempts.length ? attempts.filter((attempt) => attempt.correct).length / attempts.length : 0.5;
+  if (!attempts.length) {
+    return { score: 0, accuracy: 0, coverage: 0, calibrated: 0 };
+  }
+  const accuracy = attempts.filter((attempt) => attempt.correct).length / attempts.length;
   const uniqueCoverage = new Set(attempts.map((attempt) => attempt.questionId)).size / Math.max(questions.length, 1);
-  const calibrated = attempts.length
-    ? 1 - attempts.reduce((sum, attempt) => sum + Math.abs((attempt.confidence - 1) / 4 - (attempt.correct ? 1 : 0)), 0) / attempts.length
-    : 0.5;
+  const calibrated = 1 - attempts.reduce((sum, attempt) => sum + Math.abs((attempt.confidence - 1) / 4 - (attempt.correct ? 1 : 0)), 0) / attempts.length;
   const mastery = systemPerformance(questions, attempts).reduce((sum, item) => sum + item.mastery, 0) / Math.max(systemPerformance(questions, attempts).length, 1) / 100;
   const score = clamp(Math.round((accuracy * 0.48 + uniqueCoverage * 0.2 + calibrated * 0.12 + mastery * 0.2) * 100), 0, 100);
   return { score, accuracy: Math.round(accuracy * 100), coverage: Math.round(uniqueCoverage * 100), calibrated: Math.round(calibrated * 100) };
 }
 
 
-export function performanceWindow(attempts: Attempt[], days = 7, reference = new Date("2026-07-22T23:59:59.000Z")) {
+export function performanceWindow(attempts: Attempt[], days = 7, reference = new Date()) {
   const periodMs = Math.max(1, days) * 86_400_000;
   const end = reference.getTime();
   const currentStart = end - periodMs;
@@ -261,8 +276,8 @@ export function performanceWindow(attempts: Attempt[], days = 7, reference = new
   };
 }
 
-export function studyStreak(attempts: Attempt[], reference = new Date("2026-07-22T12:00:00.000Z")) {
-  const activeDates = new Set(attempts.map((attempt) => attempt.createdAt.slice(0, 10)));
+export function studyStreak(attempts: Attempt[], reference = new Date()) {
+  const activeDates = new Set(attempts.map((attempt) => localDateKey(new Date(attempt.createdAt))));
   const ordered = [...activeDates].sort();
   let best = 0;
   let run = 0;
@@ -276,22 +291,22 @@ export function studyStreak(attempts: Attempt[], reference = new Date("2026-07-2
   }
   let current = 0;
   const cursor = new Date(reference);
-  const todayKey = formatIsoDate(cursor);
-  if (!activeDates.has(todayKey)) cursor.setUTCDate(cursor.getUTCDate() - 1);
-  while (activeDates.has(formatIsoDate(cursor))) {
+  const todayKey = localDateKey(cursor);
+  if (!activeDates.has(todayKey)) cursor.setDate(cursor.getDate() - 1);
+  while (activeDates.has(localDateKey(cursor))) {
     current += 1;
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    cursor.setDate(cursor.getDate() - 1);
   }
   return { current, best };
 }
 
 export function dailyActivity(attempts: Attempt[], days = 14) {
-  const now = new Date("2026-07-22T12:00:00.000Z");
+  const now = new Date();
   return Array.from({ length: days }, (_, index) => {
     const date = new Date(now);
     date.setDate(now.getDate() - (days - index - 1));
-    const key = formatIsoDate(date);
-    const relevant = attempts.filter((attempt) => attempt.createdAt.slice(0, 10) === key);
+    const key = localDateKey(date);
+    const relevant = attempts.filter((attempt) => localDateKey(new Date(attempt.createdAt)) === key);
     return {
       date: key,
       label: date.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 2),
@@ -302,42 +317,19 @@ export function dailyActivity(attempts: Attempt[], days = 14) {
 }
 
 
-function stableHash(value: string) {
-  let hash = 2166136261;
-  for (const char of value) {
-    hash ^= char.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
 /**
- * Builds a deterministic cohort response distribution for the demo.
- * The correct option receives the question's seeded global accuracy and the
- * remaining share is allocated across distractors with stable item-specific weights.
+ * Returns only imported, item-level response percentages that form a complete
+ * distribution. It never synthesizes missing cohort data.
  */
 export function choicePeerDistribution(question: Question) {
-  const accuracy = clamp(Math.round(question.globalAccuracy), 18, 96);
-  const distractors = question.choices.filter((choice) => choice.id !== question.correctChoiceId);
-  const remaining = 100 - accuracy;
-  const weights = distractors.map((choice, index) => ({
-    id: choice.id,
-    weight: 3 + (stableHash(`${question.id}:${choice.id}:${index}`) % 17)
-  }));
-  const weightTotal = weights.reduce((sum, item) => sum + item.weight, 0);
-  const raw = weights.map((item) => ({ id: item.id, value: remaining * item.weight / Math.max(weightTotal, 1) }));
-  const allocated = raw.map((item) => ({ ...item, percent: Math.floor(item.value), fraction: item.value - Math.floor(item.value) }));
-  let pointsLeft = remaining - allocated.reduce((sum, item) => sum + item.percent, 0);
-  allocated.sort((a, b) => b.fraction - a.fraction).forEach((item) => {
-    if (pointsLeft > 0) {
-      item.percent += 1;
-      pointsLeft -= 1;
-    }
-  });
-  const byId = new Map(allocated.map((item) => [item.id, item.percent]));
-  return question.choices.map((choice) => ({
+  if (!question.options || question.options.length !== question.choices.length) return [];
+  const percentages = question.options.map(option => Number.parseFloat(option.percent?.replace("%", "") ?? ""));
+  if (percentages.some(value => !Number.isFinite(value) || value < 0 || value > 100)) return [];
+  const total = percentages.reduce((sum, value) => sum + value, 0);
+  if (total < 99 || total > 101) return [];
+  return question.choices.map((choice, index) => ({
     choiceId: choice.id,
-    percent: choice.id === question.correctChoiceId ? accuracy : byId.get(choice.id) ?? 0
+    percent: Number(percentages[index].toFixed(1)),
   }));
 }
 
@@ -383,38 +375,25 @@ export function diagnoseReasoningTrap(question: Question, selectedChoiceId?: str
   };
 }
 
-function normalCdf(value: number, mean: number, standardDeviation: number) {
-  const z = (value - mean) / Math.max(standardDeviation, 0.001);
-  const sign = z < 0 ? -1 : 1;
-  const x = Math.abs(z) / Math.sqrt(2);
-  const t = 1 / (1 + 0.3275911 * x);
-  const erf = sign * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x));
-  return 0.5 * (1 + erf);
-}
-
 /**
- * Produces an explainable percentile against a seeded demo cohort.
- * Accuracy carries more weight than pace; pace is rewarded only inside a safe range.
+ * Cohort ranking stays unavailable until a privacy-safe measured cohort is
+ * supplied by the analytics service. Personal metrics remain fully usable.
  */
 export function peerBenchmark(attempts: Attempt[], questions: Question[]) {
   const questionIds = new Set(questions.map((question) => question.id));
   const relevant = attempts.filter((attempt) => questionIds.has(attempt.questionId));
-  const accuracy = relevant.length ? relevant.filter((attempt) => attempt.correct).length / relevant.length * 100 : 50;
-  const averageTime = relevant.length ? relevant.reduce((sum, attempt) => sum + attempt.timeSec, 0) / relevant.length : 100;
-  const accuracyPercentile = normalCdf(accuracy, 68, 13) * 100;
-  const safePaceScore = clamp(100 - Math.abs(88 - averageTime) * 0.9, 20, 100);
-  const pacePercentile = normalCdf(safePaceScore, 70, 15) * 100;
-  const percentile = clamp(Math.round(accuracyPercentile * 0.82 + pacePercentile * 0.18), 1, 99);
-  const band = percentile >= 85 ? "Top 15%" : percentile >= 70 ? "Top 30%" : percentile >= 45 ? "Middle cohort" : "Developing";
   return {
-    percentile,
-    band,
-    accuracy: Math.round(accuracy),
-    averageTime: Math.round(averageTime),
-    cohortMedianAccuracy: 68,
-    cohortMedianTime: 94,
-    accuracyDelta: Math.round(accuracy - 68),
-    paceDelta: Math.round(94 - averageTime)
+    available: false,
+    sampleSize: 0,
+    minimumSample: 50,
+    percentile: null,
+    band: "Collecting a measured cohort",
+    accuracy: relevant.length ? Math.round(relevant.filter((attempt) => attempt.correct).length / relevant.length * 100) : 0,
+    averageTime: relevant.length ? Math.round(relevant.reduce((sum, attempt) => sum + attempt.timeSec, 0) / relevant.length) : 0,
+    cohortMedianAccuracy: null,
+    cohortMedianTime: null,
+    accuracyDelta: null,
+    paceDelta: null,
   };
 }
 
@@ -491,7 +470,7 @@ export function studyCircleEligibility(members: CircleMemberSignal[], minimumPee
 }
 
 export function rollingAccuracy(attempts: Attempt[], blockSize = 3) {
-  if (!attempts.length) return [50, 54, 57, 61, 64, 68, 70, 72];
+  if (!attempts.length) return [0, 0, 0, 0, 0, 0, 0, 0];
   const ordered = [...attempts].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const result: number[] = [];
   for (let index = 0; index < ordered.length; index += blockSize) {
@@ -499,8 +478,8 @@ export function rollingAccuracy(attempts: Attempt[], blockSize = 3) {
     result.push(Math.round(block.filter((attempt) => attempt.correct).length / block.length * 100));
   }
   while (result.length < 8) {
-    const prior = result.at(-1) ?? 58;
-    result.unshift(clamp(prior - 2 - result.length, 45, 85));
+    const prior = result.at(0) ?? 0;
+    result.unshift(prior);
   }
   return result.slice(-8);
 }
