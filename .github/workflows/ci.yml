@@ -29,6 +29,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Use repository npm version
+        run: npm install --global npm@11.4.2
       - name: Install locked dependencies
         run: npm ci
       - name: Verify source contracts
